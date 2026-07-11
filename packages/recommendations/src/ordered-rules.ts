@@ -23,22 +23,31 @@ type ReplacementNeed = {
 
 const compareTags = (left: string, right: string) => left.localeCompare(right, "en");
 
-const candidateComparator = (outgoing: MemberFacts | undefined) =>
-  (left: MemberFacts, right: MemberFacts): number => {
-    const leftReliability = left.reliability ?? -1;
-    const rightReliability = right.reliability ?? -1;
-    if (leftReliability !== rightReliability) return rightReliability - leftReliability;
-    if (left.assignedOpportunities !== right.assignedOpportunities) {
-      return left.assignedOpportunities - right.assignedOpportunities;
-    }
-    const targetTownHall = outgoing?.townHallLevel;
-    if (targetTownHall !== undefined) {
-      const leftDistance = Math.abs(left.townHallLevel - targetTownHall);
-      const rightDistance = Math.abs(right.townHallLevel - targetTownHall);
-      if (leftDistance !== rightDistance) return leftDistance - rightDistance;
-    }
-    return compareTags(left.playerTag, right.playerTag);
-  };
+const selectCandidate = (candidates: MemberFacts[], outgoing: MemberFacts | undefined) => {
+  let tied = [...candidates].sort((left, right) => compareTags(left.playerTag, right.playerTag));
+  const reachedRules: ReasonCode[] = [];
+  if (tied.length > 1) {
+    reachedRules.push("current_cwl_reliability");
+    const bestReliability = Math.max(...tied.map(({ reliability }) => reliability ?? -1));
+    tied = tied.filter(({ reliability }) => (reliability ?? -1) === bestReliability);
+  }
+  if (tied.length > 1) {
+    reachedRules.push("opportunity_count");
+    const fewestOpportunities = Math.min(...tied.map(({ assignedOpportunities }) => assignedOpportunities));
+    tied = tied.filter(({ assignedOpportunities }) => assignedOpportunities === fewestOpportunities);
+  }
+  if (tied.length > 1 && outgoing) {
+    reachedRules.push("town_hall_fit");
+    const closestTownHall = Math.min(...tied.map(({ townHallLevel }) =>
+      Math.abs(townHallLevel - outgoing.townHallLevel)));
+    tied = tied.filter(({ townHallLevel }) =>
+      Math.abs(townHallLevel - outgoing.townHallLevel) === closestTownHall);
+  }
+  if (tied.length > 1) {
+    reachedRules.push("player_tag_fallback");
+  }
+  return { candidate: tied[0], reachedRules };
+};
 
 const replacementNeed = (
   lineup: LineupMembership,
@@ -63,14 +72,11 @@ const replacementNeed = (
   return { lineup, member, reasonCodes: codes, priority: missed ? 0 : codes.some((code) => code !== "eight_star_rotation") ? 1 : 2 };
 };
 
-const reasonsForChange = (need: ReplacementNeed, substitute: MemberFacts) => {
+const reasonsForChange = (need: ReplacementNeed, substitute: MemberFacts, reachedRules: ReasonCode[]) => {
   const codes: ReasonCode[] = [
     ...need.reasonCodes,
-    ...(need.lineup.isCore ? ["preserve_core" as const] : []),
-    "current_cwl_reliability",
-    "opportunity_count",
-    "town_hall_fit",
-    "player_tag_fallback",
+    ...(need.lineup.isCore ? ["forced_core_replacement" as const] : []),
+    ...reachedRules,
   ];
   if (substitute.assignedOpportunities === 0) codes.push("limited_confidence");
   return codes.map(reason);
@@ -89,6 +95,13 @@ export class OrderedRulesStrategy implements RecommendationStrategy {
       .filter(({ availability }) => availability === "unknown")
       .sort((left, right) => compareTags(left.playerTag, right.playerTag))
       .map(({ playerTag }) => ({ playerTag, reason: contactReason }));
+    const exclusions: RecommendationResult["exclusions"] = context.members
+      .filter(({ availability }) => availability !== "available")
+      .sort((left, right) => compareTags(left.playerTag, right.playerTag))
+      .map(({ playerTag, availability }) => ({
+        playerTag,
+        reasonCode: availability === "unavailable" ? "unavailable" : "availability_unknown",
+      }));
     const needs = context.currentLineup
       .map((lineup) => replacementNeed(lineup, membersByTag.get(lineup.playerTag), context))
       .filter((need): need is ReplacementNeed => need !== null)
@@ -98,9 +111,11 @@ export class OrderedRulesStrategy implements RecommendationStrategy {
     const coverageGaps: RecommendationResult["coverageGaps"] = [];
     const confidenceNotes: string[] = [];
     for (const need of needs) {
-      const substitute = candidates
-        .filter(({ playerTag }) => !usedCandidates.has(playerTag))
-        .sort(candidateComparator(need.member))[0];
+      const selection = selectCandidate(
+        candidates.filter(({ playerTag }) => !usedCandidates.has(playerTag)),
+        need.member,
+      );
+      const substitute = selection.candidate;
       if (!substitute) {
         coverageGaps.push({ position: need.lineup.position, reason: coverageGapReason });
         continue;
@@ -113,7 +128,7 @@ export class OrderedRulesStrategy implements RecommendationStrategy {
       changes.push({
         outPlayerTag: need.lineup.playerTag,
         inPlayerTag: substitute.playerTag,
-        reasons: reasonsForChange(need, substitute),
+        reasons: reasonsForChange(need, substitute, selection.reachedRules),
         ...(confidenceNote ? { confidenceNote } : {}),
       });
     }
@@ -121,6 +136,6 @@ export class OrderedRulesStrategy implements RecommendationStrategy {
     if (context.collectionHealth.status !== "healthy") {
       confidenceNotes.push(`Collection health is ${context.collectionHealth.status}; review data gaps before approval.`);
     }
-    return { strategyVersion: this.version, changes, contacts, coverageGaps, confidenceNotes };
+    return { strategyVersion: this.version, changes, exclusions, contacts, coverageGaps, confidenceNotes };
   }
 }

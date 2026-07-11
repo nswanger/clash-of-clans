@@ -68,6 +68,7 @@ export const reasonCodeSchema = z.enum([
   "availability_unknown",
   "missed_attack",
   "preserve_core",
+  "forced_core_replacement",
   "eight_star_rotation",
   "current_cwl_reliability",
   "opportunity_count",
@@ -97,6 +98,15 @@ export const contactSchema = z.object({
 });
 export type Contact = z.infer<typeof contactSchema>;
 
+export const exclusionReasonCodeSchema = z.enum(["unavailable", "availability_unknown"]);
+export type ExclusionReasonCode = z.infer<typeof exclusionReasonCodeSchema>;
+
+export const recommendationExclusionSchema = z.object({
+  playerTag: playerTagSchema,
+  reasonCode: exclusionReasonCodeSchema,
+});
+export type RecommendationExclusion = z.infer<typeof recommendationExclusionSchema>;
+
 export const coverageGapSchema = z.object({
   position: z.number().int().positive(),
   reason: z.string().min(1),
@@ -122,6 +132,7 @@ export type RecommendationContext = z.infer<typeof recommendationContextSchema>;
 export const recommendationResultSchema = z.object({
   strategyVersion: z.string().min(1),
   changes: z.array(recommendationChangeSchema),
+  exclusions: z.array(recommendationExclusionSchema),
   contacts: z.array(contactSchema),
   coverageGaps: z.array(coverageGapSchema),
   confidenceNotes: z.array(z.string().min(1)),

@@ -55,6 +55,11 @@ describe("OrderedRulesStrategy", () => {
     }));
     expect(result.changes).toEqual([]);
     expect(result.contacts.map(({ playerTag }) => playerTag)).toEqual(["#ASK"]);
+    expect(result.exclusions).toEqual([
+      { playerTag: "#ASK", reasonCode: "availability_unknown" },
+      { playerTag: "#NO", reasonCode: "unavailable" },
+      { playerTag: "#OUT", reasonCode: "unavailable" },
+    ]);
     expect(result.coverageGaps).toEqual([{ position: 11, reason: expect.any(String) }]);
   });
 
@@ -66,12 +71,40 @@ describe("OrderedRulesStrategy", () => {
     expect(result.changes).toEqual([]);
   });
 
-  it("allows a required core replacement while explaining core preservation", () => {
+  it("labels a required core replacement as an exception rather than preservation", () => {
     const result = new OrderedRulesStrategy().recommend(context({
       members: [member("#OUT", { availability: "unavailable" }), member("#A")],
       currentLineup: [{ playerTag: "#OUT", position: 1, isCore: true }],
     }));
-    expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("preserve_core");
+    const codes = result.changes[0]?.reasons.map(({ code }) => code);
+    expect(codes).toContain("forced_core_replacement");
+    expect(codes).not.toContain("preserve_core");
+  });
+
+  it("stops after reliability when reliability alone decides the substitute", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { availability: "unavailable" }),
+        member("#PERFECT", { assignedOpportunities: 2, completedAssignedAttacks: 2 }),
+        member("#MISS", { assignedOpportunities: 2, completedAssignedAttacks: 1 }),
+      ],
+    }));
+    expect(result.changes[0]?.reasons.map(({ code }) => code)).toEqual([
+      "unavailable", "current_cwl_reliability",
+    ]);
+  });
+
+  it("reports opportunity count but not later rules when opportunity count decides", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { availability: "unavailable" }),
+        member("#FEWER", { assignedOpportunities: 1, completedAssignedAttacks: 1 }),
+        member("#MORE", { assignedOpportunities: 3, completedAssignedAttacks: 3 }),
+      ],
+    }));
+    expect(result.changes[0]?.reasons.map(({ code }) => code)).toEqual([
+      "unavailable", "current_cwl_reliability", "opportunity_count",
+    ]);
   });
 
   it("uses reliability, fewer opportunities, Town Hall fit, then player tag as stable tie-breaks", () => {

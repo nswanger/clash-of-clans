@@ -5,6 +5,7 @@ const explanations: Record<ReasonCode, string> = {
   availability_unknown: "Availability needs leader confirmation.",
   missed_attack: "The assigned member has missed an attack opportunity this CWL.",
   preserve_core: "The configured target core is preserved.",
+  forced_core_replacement: "A core position requires replacement because a higher-priority rule applies.",
   eight_star_rotation: "The assigned member has reached eight stars and is eligible to rotate.",
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",

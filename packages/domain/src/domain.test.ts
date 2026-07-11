@@ -86,6 +86,7 @@ const proposal = recommendationResultSchema.parse({
     inPlayerTag: "#IN",
     reasons: [{ code: "missed_attack", explanation: "Missed an assigned attack" }],
   }],
+  exclusions: [],
   contacts: [],
   coverageGaps: [],
   confidenceNotes: [],
