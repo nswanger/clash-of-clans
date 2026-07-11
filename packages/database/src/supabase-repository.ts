@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalRepository, MemberRecord, SeasonRecord, WarMemberRecord, WarRecord } from "./repository.js";
+import type { AttackRecord, CanonicalRepository, MemberRecord, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
 
 interface QueryResult { data?: unknown; error?: { message: string } | null }
 interface QueryBuilder extends PromiseLike<QueryResult> {
@@ -8,7 +8,7 @@ interface QueryBuilder extends PromiseLike<QueryResult> {
   eq(column: string, value: unknown): QueryBuilder;
   maybeSingle(): Promise<QueryResult>;
 }
-export interface SupabaseLikeClient { from(table: string): QueryBuilder }
+export interface SupabaseLikeClient { from(table: string): QueryBuilder; rpc(functionName: string, parameters: Record<string, unknown>): Promise<QueryResult> }
 
 export class SupabaseCanonicalRepository implements CanonicalRepository {
   constructor(private readonly client: SupabaseLikeClient) {}
@@ -26,13 +26,19 @@ export class SupabaseCanonicalRepository implements CanonicalRepository {
   async upsertAttack(value: AttackRecord) {
     await this.upsert("cwl_attacks", snake(value), "war_tag,attacker_tag,attack_order");
   }
+  async applyWarUnit(unit: WarUnit) {
+    check(await this.client.rpc("apply_cwl_war_unit", {
+      p_war: snake(unit.war),
+      p_members: unit.members.map(snake),
+      p_attacks: unit.attacks.map(snake),
+    }));
+  }
   async findWarContext(warTag: string) {
     const result = await this.client.from("cwl_wars").select("clan_tag,season_id,war_day").eq("war_tag", warTag).maybeSingle();
     check(result);
     const row = result.data as { clan_tag: string; season_id: string; war_day: number } | null | undefined;
     return row ? { clanTag: row.clan_tag, seasonId: row.season_id, warDay: row.war_day } : undefined;
   }
-  async completeWarMemberWrites() {}
   async markSnapshotNormalized(snapshotId: string, normalizedAt: string) {
     check(await this.client.from("raw_snapshots").update({ normalized_at: normalizedAt }).eq("id", snapshotId));
   }

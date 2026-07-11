@@ -50,3 +50,25 @@ DONE_WITH_CONCERNS: implementation and unit/static verification are complete. Li
 
 - Supabase CLI/Docker are unavailable, so adapter/database behavior is typechecked and unit-modeled but not exercised against a live Postgres instance.
 - `completeWarMemberWrites` is a normalization-unit boundary/no-op in the Supabase adapter and a failure seam in tests; database writes rely on replay-safe upserts rather than a single Postgres transaction across the complete war unit.
+
+## Independent-review fixes
+
+- Replaced the prior war-write sequence with one `apply_cwl_war_unit` Supabase RPC. PostgreSQL executes the function as one transaction containing war metadata, authoritative child replacement, membership inserts, and attack inserts.
+- The RPC deletes the prior war's attacks and memberships inside the transaction before inserting the newest authoritative facts. Removed members/attacks disappear, corrected attacks overwrite prior values, and map-position changes cannot encounter stale unique keys.
+- The RPC is `security invoker`; execute is revoked from `public`, `anon`, and `authenticated` and granted only to `service_role`.
+- `normalizeSnapshot` awaits the atomic RPC before calling `markSnapshotNormalized`, so a rejected/rolled-back unit leaves the raw snapshot pending.
+- Replaced the former no-op transaction seam with an in-memory transaction model that snapshots and restores war facts when failure is injected after member writes.
+
+### Review-fix TDD evidence
+
+- RED: strengthened retry tests failed with 30 partially visible memberships after injection and stale counts of 30 memberships/27 attacks after authoritative removals.
+- GREEN: rollback now exposes 0 memberships/0 attacks and preserves the placeholder war state; retry converges to the clean-run hash.
+- Added authoritative changed-state coverage: one removed member, one removed attack, and one corrected attack converge to 29 memberships/26 attacks with the corrected three-star value.
+- Added an adapter-boundary assertion that one `apply_cwl_war_unit` RPC receives the complete war/membership/attack payload.
+- Full collector verification after fixes: 5 files, 27 tests passed.
+- Locked TypeScript binaries passed for collector, database, and domain projects; `git diff 0c77cf4 --check` passed.
+
+### Updated concerns
+
+- The earlier concern about non-transactional war writes is resolved by migration `202607110004_atomic_war_normalization.sql`.
+- Live `supabase db reset`/pgTAP execution remains deferred because the Supabase CLI and Docker are unavailable; SQL was statically reviewed for transaction scope, conflict targets, reconciliation ordering, and execute privileges.

@@ -1,4 +1,4 @@
-import type { CanonicalRepository, RawSnapshot, SeasonRecord, WarRecord } from "../../../packages/database/src/repository.js";
+import type { AttackRecord, CanonicalRepository, RawSnapshot, SeasonRecord, WarMemberRecord, WarRecord } from "../../../packages/database/src/repository.js";
 
 export interface NormalizationSummary {
   snapshotId: string;
@@ -65,20 +65,20 @@ async function normalizeWar(repository: CanonicalRepository, snapshot: RawSnapsh
     ...optional("endTime", clashTime(payload.endTime)),
     ...optional("opponentTag", optionalText(opponent.tag)),
   };
-  await repository.upsertWar(war); summary.wars++;
   const members = array(clan.members).map(value => object(value, "war member"));
+  const memberRecords: WarMemberRecord[] = [];
+  const attackRecords: AttackRecord[] = [];
   for (const member of members) {
-    await repository.upsertWarMember({ warTag, playerTag: text(member.tag, "player tag"), mapPosition: integer(member.mapPosition, "map position"), ...optional("townHallLevel", optionalInteger(member.townHallLevel)), assignedAttacks: attacksPerMember });
+    memberRecords.push({ warTag, playerTag: text(member.tag, "player tag"), mapPosition: integer(member.mapPosition, "map position"), ...optional("townHallLevel", optionalInteger(member.townHallLevel)), assignedAttacks: attacksPerMember });
     summary.warMembers++;
-  }
-  await repository.completeWarMemberWrites();
-  for (const member of members) {
     for (const attackValue of array(member.attacks)) {
       const attack = object(attackValue, "attack");
-      await repository.upsertAttack({ warTag, attackerTag: text(member.tag, "attacker tag"), attackOrder: integer(attack.order, "attack order"), ...optional("defenderTag", optionalText(attack.defenderTag)), stars: integer(attack.stars, "stars"), destruction: numberValue(attack.destructionPercentage, "destruction"), ...optional("durationSeconds", optionalInteger(attack.duration)), recordedAt: snapshot.collectedAt });
+      attackRecords.push({ warTag, attackerTag: text(member.tag, "attacker tag"), attackOrder: integer(attack.order, "attack order"), ...optional("defenderTag", optionalText(attack.defenderTag)), stars: integer(attack.stars, "stars"), destruction: numberValue(attack.destructionPercentage, "destruction"), ...optional("durationSeconds", optionalInteger(attack.duration)), recordedAt: snapshot.collectedAt });
       summary.attacks++;
     }
   }
+  await repository.applyWarUnit({ war, members: memberRecords, attacks: attackRecords });
+  summary.wars++;
 }
 
 function object(value: unknown, label: string): Json { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid ${label}`); return value as Json; }

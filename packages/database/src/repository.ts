@@ -57,6 +57,7 @@ export interface RawSnapshot {
 }
 
 export interface CanonicalCounts { seasons: number; wars: number; warMembers: number; attacks: number }
+export interface WarUnit { war: WarRecord; members: WarMemberRecord[]; attacks: AttackRecord[] }
 
 export interface CanonicalRepository {
   upsertSeason(record: SeasonRecord): Promise<void>;
@@ -64,7 +65,7 @@ export interface CanonicalRepository {
   upsertWar(record: WarRecord): Promise<void>;
   upsertWarMember(record: WarMemberRecord): Promise<void>;
   upsertAttack(record: AttackRecord): Promise<void>;
+  applyWarUnit(unit: WarUnit): Promise<void>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;
-  completeWarMemberWrites(): Promise<void>;
   markSnapshotNormalized(snapshotId: string, normalizedAt: string): Promise<void>;
 }
