@@ -25,6 +25,7 @@ export interface CollectionSummary {
   runFinalized: boolean;
   finalizationErrors: FinalizationError[];
   internalErrors: InternalCollectionError[];
+  activeCwl: boolean;
 }
 
 export interface CollectDependencies {
@@ -44,6 +45,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   const finalizationErrors: FinalizationError[] = [];
   const internalErrors: InternalCollectionError[] = [];
   let lastFreshAt: string | null = null;
+  let activeCwl = false;
 
   function failEndpoint(endpoint: Endpoint, category: string): void {
     if (!failedEndpoints.includes(endpoint)) failedEndpoints.push(endpoint);
@@ -169,6 +171,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     () => dependencies.client.getLeagueGroup(dependencies.clanTag),
   );
   if (leagueGroup) {
+    activeCwl = leagueGroup.state !== "notInWar";
     const warTags = leagueGroup.rounds.flatMap((round) => round.warTags)
       .filter((tag, index, tags) => tag !== "#0" && tags.indexOf(tag) === index);
     capturedWarTags.push(...warTags);
@@ -201,6 +204,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     runFinalized,
     finalizationErrors,
     internalErrors,
+    activeCwl,
   };
 }
 
@@ -214,7 +218,7 @@ function determineStatus(
   categories: Partial<Record<Endpoint, string>>,
 ): CollectionStatus {
   if (failures.length === 0) return "healthy";
-  if (successes.length > 0) return "partial";
   if (Object.values(categories).some((category) => category === "invalid_ip")) return "invalid_ip";
+  if (successes.length > 0) return "partial";
   return "error";
 }

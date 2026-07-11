@@ -159,6 +159,7 @@ describe("collectOnce", () => {
     const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
 
     expect(summary.errorCategories.clan).toBe("invalid_ip");
+    expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: "invalid_ip" }));
     expect(summary.runFinalized).toBe(false);
     expect(summary.finalizationErrors).toEqual([expect.objectContaining({
       scope: "run",
