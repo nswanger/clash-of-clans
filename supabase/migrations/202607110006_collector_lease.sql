@@ -39,8 +39,29 @@ as $$
   where lease_name = p_lease_name and owner_id = p_owner_id;
 $$;
 
+create or replace function public.renew_collector_lease(
+  p_lease_name text,
+  p_owner_id uuid,
+  p_expires_at timestamptz
+) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.collector_leases
+  set expires_at = p_expires_at, updated_at = now()
+  where lease_name = p_lease_name
+    and owner_id = p_owner_id
+    and expires_at > now();
+  return found;
+end;
+$$;
+
 revoke all on table public.collector_leases from public, anon, authenticated;
 revoke all on function public.acquire_collector_lease(text, uuid, timestamptz) from public;
 revoke all on function public.release_collector_lease(text, uuid) from public;
+revoke all on function public.renew_collector_lease(text, uuid, timestamptz) from public;
 grant execute on function public.acquire_collector_lease(text, uuid, timestamptz) to service_role;
 grant execute on function public.release_collector_lease(text, uuid) to service_role;
+grant execute on function public.renew_collector_lease(text, uuid, timestamptz) to service_role;

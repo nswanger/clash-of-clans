@@ -95,6 +95,22 @@ describe("collectOnce", () => {
     expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: "partial" }));
   });
 
+  it("reports unknown CWL activity when the league-group endpoint fails", async () => {
+    const store = makeStore();
+    const client = {
+      getClan: vi.fn().mockResolvedValue({ tag: "#FAKECLAN", name: "Fixture", memberList: [] }),
+      getMembers: vi.fn().mockResolvedValue({ items: [] }),
+      getPlayer: vi.fn(),
+      getLeagueGroup: vi.fn().mockRejectedValue(new ClashApiError("network", "Network failed")),
+      getLeagueWar: vi.fn(),
+    };
+
+    const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
+
+    expect(summary.failedEndpoints).toContain("league_group");
+    expect(summary.activeCwl).toBeNull();
+  });
+
   it("continues siblings and reports storage failure when saving a snapshot fails", async () => {
     const store = makeStore();
     vi.mocked(store.saveSnapshot).mockRejectedValueOnce(new Error("database unavailable"));

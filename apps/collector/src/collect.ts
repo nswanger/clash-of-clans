@@ -25,7 +25,7 @@ export interface CollectionSummary {
   runFinalized: boolean;
   finalizationErrors: FinalizationError[];
   internalErrors: InternalCollectionError[];
-  activeCwl: boolean;
+  activeCwl: boolean | null;
 }
 
 export interface CollectDependencies {
@@ -33,6 +33,7 @@ export interface CollectDependencies {
   store: RawSnapshotStore;
   clanTag: string;
   now?: () => Date;
+  signal?: AbortSignal;
 }
 
 export async function collectOnce(dependencies: CollectDependencies): Promise<CollectionSummary> {
@@ -45,7 +46,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   const finalizationErrors: FinalizationError[] = [];
   const internalErrors: InternalCollectionError[] = [];
   let lastFreshAt: string | null = null;
-  let activeCwl = false;
+  let activeCwl: boolean | null = null;
 
   function failEndpoint(endpoint: Endpoint, category: string): void {
     if (!failedEndpoints.includes(endpoint)) failedEndpoints.push(endpoint);
@@ -71,6 +72,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     requestIdentity: string,
     request: () => Promise<T>,
   ): Promise<T | undefined> {
+    dependencies.signal?.throwIfAborted();
     let attemptId: string;
     try {
       attemptId = await dependencies.store.createAttempt({
@@ -117,6 +119,8 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
       return undefined;
     }
 
+    dependencies.signal?.throwIfAborted();
+
     const collectedAt = now().toISOString();
     try {
       await dependencies.store.saveSnapshot({
@@ -155,6 +159,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   }
 
   await capture("clan", dependencies.clanTag, () => dependencies.client.getClan(dependencies.clanTag));
+  dependencies.signal?.throwIfAborted();
   const members = await capture(
     "members",
     dependencies.clanTag,
@@ -170,6 +175,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     dependencies.clanTag,
     () => dependencies.client.getLeagueGroup(dependencies.clanTag),
   );
+  dependencies.signal?.throwIfAborted();
   if (leagueGroup) {
     activeCwl = leagueGroup.state !== "notInWar";
     const warTags = leagueGroup.rounds.flatMap((round) => round.warTags)

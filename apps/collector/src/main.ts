@@ -84,6 +84,12 @@ class SupabaseCollectorRepository implements RawSnapshotStore, CollectionLease {
     await this.rpc("release_collector_lease", { p_lease_name: "cwl-collector", p_owner_id: ownerId });
   }
 
+  async renew(ownerId: string, expiresAt: Date): Promise<boolean> {
+    return this.rpc<boolean>("renew_collector_lease", {
+      p_lease_name: "cwl-collector", p_owner_id: ownerId, p_expires_at: expiresAt.toISOString(),
+    });
+  }
+
   async healthInput(now: Date) {
     const runs = await this.rest<Array<{
       status: "running" | "healthy" | "partial" | "invalid_ip" | "error";
@@ -141,7 +147,7 @@ async function main(): Promise<void> {
   const client = new ClashClient({ token: config.clashApiToken });
   const scheduler = new CollectionScheduler({
     lease: repository,
-    collect: () => collectOnce({ client, store: repository, clanTag: config.clanTag }),
+    collect: (signal) => collectOnce({ client, store: repository, clanTag: config.clanTag, signal }),
     onError: (error) => console.error(error instanceof Error ? error.message : "Collector failed"),
   });
   const shutdown = () => { void scheduler.stop(); };
