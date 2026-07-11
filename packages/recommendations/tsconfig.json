@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@cwl/domain": ["../domain/src/index.ts"] }
+  },
+  "include": ["src/**/*.ts"]
+}

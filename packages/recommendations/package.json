@@ -1,0 +1,19 @@
+{
+  "name": "@cwl/recommendations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/strategy.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cwl/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
