@@ -40,8 +40,20 @@ export const memberFactsSchema = z.object({
   completedAssignedAttacks: z.number().int().nonnegative(),
   stars: z.number().int().nonnegative(),
   eightStarEligible: z.boolean(),
-  reliability: z.number().min(0).max(1).nullable(),
-});
+}).superRefine((value, context) => {
+  if (value.completedAssignedAttacks > value.assignedOpportunities) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["completedAssignedAttacks"],
+      message: "Completed assigned attacks cannot exceed assigned opportunities",
+    });
+  }
+}).transform((value) => ({
+  ...value,
+  reliability: value.assignedOpportunities === 0
+    ? null
+    : value.completedAssignedAttacks / value.assignedOpportunities,
+}));
 export type MemberFacts = z.infer<typeof memberFactsSchema>;
 
 export const lineupMembershipSchema = z.object({
@@ -115,3 +127,38 @@ export const recommendationResultSchema = z.object({
   confidenceNotes: z.array(z.string().min(1)),
 });
 export type RecommendationResult = z.infer<typeof recommendationResultSchema>;
+
+export const leaderDecisionStatusSchema = z.enum(["proposed", "approved", "overridden"]);
+export type LeaderDecisionStatus = z.infer<typeof leaderDecisionStatusSchema>;
+
+const leaderDecisionBaseSchema = z.object({
+  proposalId: z.string().min(1),
+  proposal: recommendationResultSchema,
+  proposedAt: z.string().datetime(),
+});
+
+export const proposedLeaderDecisionSchema = leaderDecisionBaseSchema.extend({
+  status: z.literal("proposed"),
+});
+
+export const approvedLeaderDecisionSchema = leaderDecisionBaseSchema.extend({
+  status: z.literal("approved"),
+  actorId: z.string().min(1),
+  decidedAt: z.string().datetime(),
+  finalChanges: z.array(recommendationChangeSchema),
+});
+
+export const overriddenLeaderDecisionSchema = leaderDecisionBaseSchema.extend({
+  status: z.literal("overridden"),
+  actorId: z.string().min(1),
+  decidedAt: z.string().datetime(),
+  overrideNote: z.string().min(1),
+  finalChanges: z.array(recommendationChangeSchema),
+});
+
+export const leaderDecisionSchema = z.discriminatedUnion("status", [
+  proposedLeaderDecisionSchema,
+  approvedLeaderDecisionSchema,
+  overriddenLeaderDecisionSchema,
+]);
+export type LeaderDecision = z.infer<typeof leaderDecisionSchema>;
