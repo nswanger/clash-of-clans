@@ -1,0 +1,6 @@
+{
+  "state": "preparation",
+  "season": "2099-01",
+  "clans": [{ "tag": "#FAKECLAN", "name": "Fixture Clan", "members": [] }],
+  "rounds": [{ "warTags": ["#FAKEWAR1", "#0"] }]
+}

@@ -1,0 +1,7 @@
+{
+  "tag": "#FAKECLAN",
+  "name": "Fixture Clan",
+  "memberList": [
+    { "tag": "#FAKEONE", "name": "Fixture One", "townHallLevel": 16 }
+  ]
+}

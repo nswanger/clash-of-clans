@@ -1,0 +1,6 @@
+{
+  "tag": "#FAKEWAR1",
+  "state": "preparation",
+  "clan": { "tag": "#FAKECLAN", "name": "Fixture Clan", "members": [] },
+  "opponent": { "tag": "#FAKEOPP", "name": "Fixture Opponent", "members": [] }
+}
