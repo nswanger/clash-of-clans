@@ -67,9 +67,6 @@ create policy "Leaders write availability" on public.member_availability for all
 create policy "Leaders read decisions" on public.leader_decisions for select to authenticated using (public.is_leader());
 create policy "Leaders create decisions" on public.leader_decisions for insert to authenticated
   with check (public.is_leader() and actor_id = auth.uid());
-create policy "Leaders update decisions" on public.leader_decisions for update to authenticated
-  using (public.is_leader() and actor_id = auth.uid())
-  with check (public.is_leader() and actor_id = auth.uid());
 
 create or replace function public.redeem_invitation(token text)
 returns void
@@ -110,4 +107,4 @@ grant select on public.profiles, public.cwl_seasons, public.cwl_members, public.
   public.collection_attempts, public.raw_snapshots, public.recommendations,
   public.audit_events to authenticated;
 grant select, insert, update, delete on public.user_roles, public.invitations, public.member_availability to authenticated;
-grant select, insert, update on public.leader_decisions to authenticated;
+grant select, insert on public.leader_decisions to authenticated;

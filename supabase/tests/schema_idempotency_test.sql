@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(18);
+select plan(21);
 
 select has_table('public', 'cwl_seasons', 'CWL seasons table exists');
 select col_is_unique('public', 'cwl_seasons', array['clan_tag', 'season_id'], 'season identity is unique');
@@ -67,6 +67,26 @@ select has_table('public', 'collection_runs', 'collection runs table exists');
 select has_table('public', 'collection_attempts', 'collection attempts table exists');
 select has_table('public', 'recommendations', 'recommendations table exists');
 select has_table('public', 'leader_decisions', 'leader decisions table exists');
+
+select throws_ok(
+  $$delete from cwl_seasons where clan_tag = '#CLAN' and season_id = '2026-07'$$,
+  '23503', null, 'season deletion cannot cascade away canonical facts'
+);
+select throws_ok(
+  $$delete from cwl_wars where war_tag = '#WAR'$$,
+  '23503', null, 'war deletion cannot cascade away canonical facts'
+);
+
+insert into auth.users (id, email, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000010', 'decision-actor@example.test', '{}');
+insert into recommendations (id, clan_tag, season_id, war_tag, strategy_version, input, output)
+values ('00000000-0000-0000-0000-000000000020', '#CLAN', '2026-07', '#WAR', 'test-v1', '{}', '{}');
+insert into leader_decisions (recommendation_id, status, final_changes, actor_id)
+values ('00000000-0000-0000-0000-000000000020', 'approved', '[]', '00000000-0000-0000-0000-000000000010');
+select throws_ok(
+  $$delete from recommendations where id = '00000000-0000-0000-0000-000000000020'$$,
+  '23503', null, 'recommendation deletion cannot remove decision history'
+);
 
 select * from finish();
 rollback;

@@ -83,7 +83,7 @@ create table public.cwl_members (
   rostered_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (clan_tag, season_id, player_tag),
-  foreign key (clan_tag, season_id) references public.cwl_seasons(clan_tag, season_id) on update restrict on delete cascade
+  foreign key (clan_tag, season_id) references public.cwl_seasons(clan_tag, season_id) on update restrict on delete restrict
 );
 
 create table public.cwl_wars (
@@ -99,11 +99,11 @@ create table public.cwl_wars (
   attacks_per_member smallint not null default 1 check (attacks_per_member > 0),
   updated_at timestamptz not null default now(),
   unique (clan_tag, season_id, war_day),
-  foreign key (clan_tag, season_id) references public.cwl_seasons(clan_tag, season_id) on update restrict on delete cascade
+  foreign key (clan_tag, season_id) references public.cwl_seasons(clan_tag, season_id) on update restrict on delete restrict
 );
 
 create table public.cwl_war_members (
-  war_tag text not null references public.cwl_wars(war_tag) on update restrict on delete cascade,
+  war_tag text not null references public.cwl_wars(war_tag) on update restrict on delete restrict,
   player_tag text not null check (btrim(player_tag) <> ''),
   map_position smallint not null check (map_position > 0),
   town_hall_level smallint check (town_hall_level > 0),
@@ -122,7 +122,7 @@ create table public.cwl_attacks (
   duration_seconds integer check (duration_seconds >= 0),
   recorded_at timestamptz not null default now(),
   primary key (war_tag, attacker_tag, attack_order),
-  foreign key (war_tag, attacker_tag) references public.cwl_war_members(war_tag, player_tag) on update restrict on delete cascade
+  foreign key (war_tag, attacker_tag) references public.cwl_war_members(war_tag, player_tag) on update restrict on delete restrict
 );
 
 create table public.collection_runs (
@@ -175,14 +175,14 @@ create table public.member_availability (
   recorded_by uuid not null references public.profiles(id),
   recorded_at timestamptz not null default now(),
   unique (clan_tag, season_id, player_tag),
-  foreign key (clan_tag, season_id, player_tag) references public.cwl_members(clan_tag, season_id, player_tag) on update restrict on delete cascade
+  foreign key (clan_tag, season_id, player_tag) references public.cwl_members(clan_tag, season_id, player_tag) on update restrict on delete restrict
 );
 
 create table public.recommendations (
   id uuid primary key default gen_random_uuid(),
   clan_tag text not null,
   season_id text not null,
-  war_tag text references public.cwl_wars(war_tag) on update restrict on delete set null,
+  war_tag text references public.cwl_wars(war_tag) on update restrict on delete restrict,
   strategy_version text not null check (btrim(strategy_version) <> ''),
   schema_version integer not null default 1 check (schema_version > 0),
   status public.recommendation_status not null default 'proposed',
@@ -191,12 +191,12 @@ create table public.recommendations (
   proposed_at timestamptz not null default now(),
   proposed_by uuid references public.profiles(id),
   superseded_at timestamptz,
-  foreign key (clan_tag, season_id) references public.cwl_seasons(clan_tag, season_id) on update restrict on delete cascade
+  foreign key (clan_tag, season_id) references public.cwl_seasons(clan_tag, season_id) on update restrict on delete restrict
 );
 
 create table public.leader_decisions (
   id uuid primary key default gen_random_uuid(),
-  recommendation_id uuid not null unique references public.recommendations(id) on delete cascade,
+  recommendation_id uuid not null references public.recommendations(id) on delete restrict,
   status public.decision_status not null,
   schema_version integer not null default 1 check (schema_version > 0),
   final_changes jsonb not null,
