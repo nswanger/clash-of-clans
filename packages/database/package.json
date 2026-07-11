@@ -1,0 +1,14 @@
+{
+  "name": "@cwl/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/repository.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
