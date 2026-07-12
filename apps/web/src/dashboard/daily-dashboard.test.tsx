@@ -55,4 +55,19 @@ describe("DailyDashboard", () => {
     await user.click(screen.getByRole("button", { name: "Why Sam?" }));
     expect(screen.getByText("Applied rule order")).toBeVisible();
   });
+
+  it("omits optional KPI and outcome claims when the underlying facts are unavailable", () => {
+    const { outcome: _outcome, ...seasonWithoutOutcome } = dashboardData.season;
+    render(
+      <DailyDashboard
+        data={{ ...dashboardData, membersWithinThreeStars: 0, season: seasonWithoutOutcome }}
+        now={new Date("2026-07-12T21:00:00.000Z")}
+      />,
+    );
+
+    expect(screen.getByText("00:00:00")).toBeVisible();
+    expect(screen.queryByText("0 more within 3 stars")).not.toBeInTheDocument();
+    expect(screen.getByText("3rd of 8 clans")).toBeVisible();
+    expect(screen.queryByText(/currently/)).not.toBeInTheDocument();
+  });
 });
