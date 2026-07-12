@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DailyDashboard, type DailyDashboardData } from "./daily-dashboard.js";
 
 const dashboardData: DailyDashboardData = {
@@ -84,5 +84,16 @@ describe("DailyDashboard", () => {
   it("shows a clear no-change state", () => {
     render(<DailyDashboard data={{ ...dashboardData, recommendations: { remove: [], add: [] } }} />);
     expect(screen.getByText("No lineup changes recommended")).toBeVisible();
+  });
+
+  it("exposes explicit approve and edit actions", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn();
+    const onEdit = vi.fn();
+    render(<DailyDashboard data={dashboardData} onApprove={onApprove} onEdit={onEdit} />);
+    await user.click(screen.getByRole("button", { name: "Approve changes" }));
+    await user.click(screen.getByRole("button", { name: "Edit lineup" }));
+    expect(onApprove).toHaveBeenCalledOnce();
+    expect(onEdit).toHaveBeenCalledOnce();
   });
 });

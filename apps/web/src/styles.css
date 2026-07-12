@@ -61,6 +61,8 @@ button { font: inherit; }
 .member-action button:hover { color: #005bab; }
 .member-action button:focus-visible { outline: 3px solid rgb(0 117 222 / 25%); outline-offset: 3px; }
 .recommendation-details { grid-column: 2; margin: 0; padding: 10px; border-radius: 5px; background: #f1f1ef; color: #31302e; font-size: 12px; }
+.dashboard-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.dashboard-actions > button:not(.primary-button) { min-height: 44px; padding: 0 16px; border: 1px solid #d3d3d3; border-radius: 5px; background: #fff; cursor: pointer; }
 
 @media (max-width: 760px) {
   .dashboard-shell { width: min(100% - 24px, 680px); margin: 12px auto; padding: 28px 20px; }

@@ -37,6 +37,8 @@ export interface DailyDashboardData {
 interface DailyDashboardProps {
   data: DailyDashboardData;
   now?: Date;
+  onApprove?: () => void;
+  onEdit?: () => void;
 }
 
 function formatTimeRemaining(endTime: string, now: Date): string {
@@ -80,7 +82,7 @@ function ActionGroup({ title, actions }: { title: string; actions: DashboardMemb
   );
 }
 
-export function DailyDashboard({ data, now = new Date() }: DailyDashboardProps) {
+export function DailyDashboard({ data, now = new Date(), onApprove, onEdit }: DailyDashboardProps) {
   const outcomeText = data.season.outcome ? ` · currently ${data.season.outcome} in ${data.season.leagueName}` : "";
 
   return (
@@ -107,6 +109,10 @@ export function DailyDashboard({ data, now = new Date() }: DailyDashboardProps) 
           <ActionGroup title="Add these members" actions={data.recommendations.add} />
         </>}
       </section>
+      {data.recommendations.remove.length > 0 || data.recommendations.add.length > 0 ? <footer className="dashboard-actions">
+        <button type="button" onClick={onEdit}>Edit lineup</button>
+        <button className="primary-button" type="button" onClick={onApprove}>Approve changes</button>
+      </footer> : null}
     </main>
   );
 }
