@@ -96,7 +96,12 @@ select throws_ok(
 
 reset role;
 set local role anon;
-select throws_ok($$select redeem_invitation('anything')$$, '42501', 'Authentication required', 'anonymous redemption is rejected');
+select throws_ok(
+  $$select redeem_invitation('anything')$$,
+  '42501',
+  'permission denied for function redeem_invitation',
+  'anonymous redemption is rejected before function execution'
+);
 
 reset role;
 select is((select count(*) from public.invitations), 2::bigint, 'failed redemptions do not mutate invitations');

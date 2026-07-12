@@ -87,29 +87,37 @@ export class ClashClient {
     this.logger = options.logger ?? console;
   }
 
-  getClan(tag: string): Promise<ClashClan> {
-    return this.request(`/clans/${encodeURIComponent(tag)}`, isClan);
+  getClan(tag: string, signal?: AbortSignal): Promise<ClashClan> {
+    return this.request(`/clans/${encodeURIComponent(tag)}`, isClan, false, signal);
   }
 
-  getMembers(tag: string): Promise<ClashMemberList> {
-    return this.request(`/clans/${encodeURIComponent(tag)}/members`, isMemberList);
+  getMembers(tag: string, signal?: AbortSignal): Promise<ClashMemberList> {
+    return this.request(`/clans/${encodeURIComponent(tag)}/members`, isMemberList, false, signal);
   }
 
-  getPlayer(tag: string): Promise<ClashPlayer> {
-    return this.request(`/players/${encodeURIComponent(tag)}`, isMember);
+  getPlayer(tag: string, signal?: AbortSignal): Promise<ClashPlayer> {
+    return this.request(`/players/${encodeURIComponent(tag)}`, isMember, false, signal);
   }
 
-  getLeagueGroup(tag: string): Promise<ClashLeagueGroup> {
-    return this.request(`/clans/${encodeURIComponent(tag)}/currentwar/leaguegroup`, isLeagueGroup, true);
+  getLeagueGroup(tag: string, signal?: AbortSignal): Promise<ClashLeagueGroup> {
+    return this.request(`/clans/${encodeURIComponent(tag)}/currentwar/leaguegroup`, isLeagueGroup, true, signal);
   }
 
-  getLeagueWar(tag: string): Promise<ClashLeagueWar> {
-    return this.request(`/clanwarleagues/wars/${encodeURIComponent(tag)}`, isLeagueWar);
+  getLeagueWar(tag: string, signal?: AbortSignal): Promise<ClashLeagueWar> {
+    return this.request(`/clanwarleagues/wars/${encodeURIComponent(tag)}`, isLeagueWar, false, signal);
   }
 
-  private async request<T>(path: string, validator: Validator<T>, cwlResponse = false): Promise<T> {
+  private async request<T>(
+    path: string,
+    validator: Validator<T>,
+    cwlResponse = false,
+    signal?: AbortSignal,
+  ): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(new Error("Clash request timed out")), this.timeoutMs);
+    const abortFromParent = () => controller.abort(signal?.reason);
+    signal?.addEventListener("abort", abortFromParent, { once: true });
+    if (signal?.aborted) abortFromParent();
     let response: Response;
     try {
       response = await this.fetch(`${this.baseUrl}${path}`, {
@@ -122,6 +130,7 @@ export class ClashClient {
       throw new ClashApiError(code, `Clash request failed: ${code}`);
     } finally {
       clearTimeout(timeout);
+      signal?.removeEventListener("abort", abortFromParent);
     }
 
     let body: unknown;

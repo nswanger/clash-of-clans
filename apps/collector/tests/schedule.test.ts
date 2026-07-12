@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { ClashClient } from "../src/clash-client.js";
+import { collectOnce } from "../src/collect.js";
+import type { RawSnapshotStore } from "../src/raw-snapshots.js";
 import { CollectionScheduler, nextCollectionAt } from "../src/schedule.js";
 
 describe("collector scheduling", () => {
@@ -78,6 +81,86 @@ describe("collector scheduling", () => {
 
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "Collection lease ownership lost" }));
     expect(lease.release).toHaveBeenCalledOnce();
+  });
+
+  it("aborts before lease expiry when renewal never settles", async () => {
+    let watchdog!: () => void;
+    let watchdogDelay = 0;
+    let protectedWorkContinued = false;
+    const onError = vi.fn();
+    const lease = {
+      acquire: vi.fn().mockResolvedValue(true),
+      renew: vi.fn(() => new Promise<boolean>(() => undefined)),
+      release: vi.fn().mockResolvedValue(undefined),
+    };
+    const scheduler = new CollectionScheduler({
+      lease,
+      collect: (signal) => new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          protectedWorkContinued = false;
+          reject(signal.reason);
+        }, { once: true });
+      }),
+      setHeartbeat: (callback) => { callback(); return 2; },
+      clearHeartbeat: vi.fn(),
+      setWatchdog: (callback, delay) => { watchdog = callback; watchdogDelay = delay; return 3; },
+      clearWatchdog: vi.fn(),
+      setTimer: () => 1,
+      clearTimer: vi.fn(),
+      onError,
+    });
+
+    const run = scheduler.runNow();
+    await vi.waitFor(() => expect(lease.renew).toHaveBeenCalledOnce());
+    expect(watchdogDelay).toBeLessThan(60 * 60 * 1_000);
+    watchdog();
+    await run;
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "Collection lease safety deadline exceeded" }));
+    expect(lease.release).toHaveBeenCalledOnce();
+    expect(protectedWorkContinued).toBe(false);
+  });
+
+  it("cancels an in-flight Clash request when the lease watchdog fires", async () => {
+    let watchdog!: () => void;
+    let fetchObservedAbort = false;
+    const fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        fetchObservedAbort = true;
+        reject(init.signal?.reason);
+      }, { once: true });
+    }));
+    const store: RawSnapshotStore = {
+      createRun: vi.fn().mockResolvedValue("run-1"),
+      createAttempt: vi.fn().mockResolvedValue("attempt-1"),
+      saveSnapshot: vi.fn().mockResolvedValue(undefined),
+      finishAttempt: vi.fn().mockResolvedValue(undefined),
+      finishRun: vi.fn().mockResolvedValue(undefined),
+    };
+    const client = new ClashClient({ token: "fake-token", fetch });
+    const scheduler = new CollectionScheduler({
+      lease: {
+        acquire: vi.fn().mockResolvedValue(true),
+        renew: vi.fn().mockResolvedValue(true),
+        release: vi.fn().mockResolvedValue(undefined),
+      },
+      collect: (signal) => collectOnce({ client, store, clanTag: "#FAKE", signal }),
+      setHeartbeat: () => 2,
+      clearHeartbeat: vi.fn(),
+      setWatchdog: (callback) => { watchdog = callback; return 3; },
+      clearWatchdog: vi.fn(),
+      setTimer: () => 1,
+      clearTimer: vi.fn(),
+    });
+
+    const run = scheduler.runNow();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    watchdog();
+    await run;
+
+    expect(fetchObservedAbort).toBe(true);
+    expect(store.finishAttempt).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("collects immediately and schedules from the current CWL state", async () => {

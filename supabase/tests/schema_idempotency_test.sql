@@ -6,9 +6,9 @@ select plan(21);
 
 select has_table('public', 'cwl_seasons', 'CWL seasons table exists');
 select col_is_unique('public', 'cwl_seasons', array['clan_tag', 'season_id'], 'season identity is unique');
-select col_is_unique('public', 'cwl_wars', array['war_tag'], 'war tag is unique');
-select col_is_unique('public', 'cwl_war_members', array['war_tag', 'player_tag'], 'war membership identity is unique');
-select col_is_unique('public', 'cwl_attacks', array['war_tag', 'attacker_tag', 'attack_order'], 'attack identity is unique');
+select col_is_pk('public', 'cwl_wars', array['war_tag'], 'war tag is the primary identity');
+select col_is_pk('public', 'cwl_war_members', array['war_tag', 'player_tag'], 'war membership is the primary identity');
+select col_is_pk('public', 'cwl_attacks', array['war_tag', 'attacker_tag', 'attack_order'], 'attack is the primary identity');
 select col_is_unique('public', 'raw_snapshots', array['endpoint', 'request_identity', 'content_sha256'], 'snapshot fingerprint identity is unique');
 select col_is_unique('public', 'invitations', array['token_hash'], 'invitation token hash is unique');
 

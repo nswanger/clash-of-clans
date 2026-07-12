@@ -4,6 +4,7 @@ export const ACTIVE_CWL_INTERVAL_MS = 60 * 60 * 1_000;
 export const IDLE_INTERVAL_MS = 24 * 60 * 60 * 1_000;
 export const LEASE_DURATION_MS = 60 * 60 * 1_000;
 export const LEASE_HEARTBEAT_MS = 20 * 60 * 1_000;
+export const LEASE_SAFETY_DEADLINE_MS = LEASE_DURATION_MS - LEASE_HEARTBEAT_MS;
 
 export interface CollectionLease {
   acquire(ownerId: string, expiresAt: Date): Promise<boolean>;
@@ -46,6 +47,8 @@ interface SchedulerDependencies {
   clearTimer?: (timer: Timer) => void;
   setHeartbeat?: (callback: () => void, delay: number) => Timer;
   clearHeartbeat?: (timer: Timer) => void;
+  setWatchdog?: (callback: () => void, delay: number) => Timer;
+  clearWatchdog?: (timer: Timer) => void;
   onError?: (error: unknown) => void;
 }
 
@@ -56,8 +59,11 @@ export class CollectionScheduler {
   private readonly clearTimer: (timer: Timer) => void;
   private readonly setHeartbeat: (callback: () => void, delay: number) => Timer;
   private readonly clearHeartbeat: (timer: Timer) => void;
+  private readonly setWatchdog: (callback: () => void, delay: number) => Timer;
+  private readonly clearWatchdog: (timer: Timer) => void;
   private timer: Timer | undefined;
   private heartbeat: Timer | undefined;
+  private watchdog: Timer | undefined;
   private running = false;
   private stopped = false;
 
@@ -68,6 +74,8 @@ export class CollectionScheduler {
     this.clearTimer = dependencies.clearTimer ?? clearTimeout;
     this.setHeartbeat = dependencies.setHeartbeat ?? setInterval;
     this.clearHeartbeat = dependencies.clearHeartbeat ?? clearInterval;
+    this.setWatchdog = dependencies.setWatchdog ?? setTimeout;
+    this.clearWatchdog = dependencies.clearWatchdog ?? clearTimeout;
   }
 
   async start(): Promise<void> {
@@ -89,11 +97,14 @@ export class CollectionScheduler {
         this.schedule(true);
         return;
       }
+      this.armWatchdog(controller);
       let renewing = false;
       this.heartbeat = this.setHeartbeat(() => {
         if (renewing || controller.signal.aborted) return;
         renewing = true;
-        renewalInFlight = this.renewLease(controller).finally(() => { renewing = false; });
+        renewalInFlight = this.renewLease(controller).then(() => {
+          this.armWatchdog(controller);
+        }).finally(() => { renewing = false; });
       }, LEASE_HEARTBEAT_MS);
       const result = await this.dependencies.collect(controller.signal);
       if (renewalInFlight) await renewalInFlight;
@@ -105,7 +116,8 @@ export class CollectionScheduler {
     } finally {
       if (this.heartbeat !== undefined) this.clearHeartbeat(this.heartbeat);
       this.heartbeat = undefined;
-      if (renewalInFlight) await renewalInFlight;
+      if (this.watchdog !== undefined) this.clearWatchdog(this.watchdog);
+      this.watchdog = undefined;
       if (acquired) {
         try { await this.dependencies.lease.release(this.ownerId); }
         catch (error) { this.dependencies.onError?.(error); }
@@ -130,6 +142,13 @@ export class CollectionScheduler {
     } catch (error) {
       controller.abort(error instanceof Error ? error : new Error("Collection lease renewal failed"));
     }
+  }
+
+  private armWatchdog(controller: AbortController): void {
+    if (this.watchdog !== undefined) this.clearWatchdog(this.watchdog);
+    this.watchdog = this.setWatchdog(() => {
+      controller.abort(new Error("Collection lease safety deadline exceeded"));
+    }, LEASE_SAFETY_DEADLINE_MS);
   }
 
   private schedule(activeCwl: boolean | null): void {

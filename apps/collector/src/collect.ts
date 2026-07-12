@@ -91,6 +91,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     try {
       responseBody = await request();
     } catch (error) {
+      dependencies.signal?.throwIfAborted();
       const category = error instanceof ClashApiError ? error.code : "internal_error";
       const httpStatus = error instanceof ClashApiError ? error.httpStatus : undefined;
       failEndpoint(endpoint, category);
@@ -158,22 +159,22 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     return responseBody;
   }
 
-  await capture("clan", dependencies.clanTag, () => dependencies.client.getClan(dependencies.clanTag));
+  await capture("clan", dependencies.clanTag, () => dependencies.client.getClan(dependencies.clanTag, dependencies.signal));
   dependencies.signal?.throwIfAborted();
   const members = await capture(
     "members",
     dependencies.clanTag,
-    () => dependencies.client.getMembers(dependencies.clanTag),
+    () => dependencies.client.getMembers(dependencies.clanTag, dependencies.signal),
   );
   if (members) {
     for (const member of members.items) {
-      await capture("player", member.tag, () => dependencies.client.getPlayer(member.tag));
+      await capture("player", member.tag, () => dependencies.client.getPlayer(member.tag, dependencies.signal));
     }
   }
   const leagueGroup = await capture(
     "league_group",
     dependencies.clanTag,
-    () => dependencies.client.getLeagueGroup(dependencies.clanTag),
+    () => dependencies.client.getLeagueGroup(dependencies.clanTag, dependencies.signal),
   );
   dependencies.signal?.throwIfAborted();
   if (leagueGroup) {
@@ -182,7 +183,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
       .filter((tag, index, tags) => tag !== "#0" && tags.indexOf(tag) === index);
     capturedWarTags.push(...warTags);
     for (const warTag of warTags) {
-      await capture("league_war", warTag, () => dependencies.client.getLeagueWar(warTag));
+      await capture("league_war", warTag, () => dependencies.client.getLeagueWar(warTag, dependencies.signal));
     }
   }
 
