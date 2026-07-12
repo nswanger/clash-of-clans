@@ -409,6 +409,9 @@ Commit: `git commit -m "feat: package scheduled CWL collector"`
 - Create: `apps/web/src/auth/session.tsx`
 - Create: `apps/web/src/auth/protected-route.tsx`
 - Create: `apps/web/src/dashboard/daily-dashboard.tsx`
+- Create: `apps/web/src/dashboard/daily-summary.tsx`
+- Create: `apps/web/src/dashboard/dashboard-model.ts`
+- Create: `apps/web/src/season/season-summary.tsx`
 - Create: `apps/web/src/recommendations/recommendation-card.tsx`
 - Create: `apps/web/src/recommendations/recommendation-details.tsx`
 - Create: `apps/web/src/availability/availability-editor.tsx`
@@ -421,16 +424,19 @@ Commit: `git commit -m "feat: package scheduled CWL collector"`
 - Consumes: Supabase authenticated data and `RecommendationResult`.
 - Produces: GitHub Pages-compatible static frontend with leader/admin route guards.
 
-- [ ] **Step 1: Establish the frontend design direction before component code**
+- [x] **Step 1: Establish the frontend design direction before component code**
 
-Invoke `frontend-design:frontend-design` to define typography, spacing, color, responsive breakpoints, information hierarchy, and accessible interaction patterns. Record the chosen tokens and UX rules in `apps/web/src/styles.css`; do not treat brainstorming wireframes as final styling.
+The approved behavior and hierarchy are recorded in `docs/superpowers/specs/2026-07-11-cwl-ops-assistant-design.md`. Treat `DESIGN-notion.md` as the source of truth for CSS styling. Record its tokens in `apps/web/src/styles.css`: warm `#f6f5f4` canvas, white surfaces, `#000000`/`#31302e` ink, `#e6e6e6` hairlines, Inter typography, 5–12px radii, barely-there elevation, and `#0075de` reserved for primary actions and links.
 
 - [ ] **Step 2: Write failing component and workflow tests**
 
-Test signed-out routing, leader/admin access differences, concise recommendation cards, `Why?` disclosure, approve/edit actions, availability editing, stale and `invalidIp` warnings, unknown contacts, coverage gaps, loading, and empty states.
+Test signed-out routing, leader/admin access differences, the API-derived war countdown, attacks-used progress, confirmed-available count, eight-star count, conditional near-threshold copy, conditional season-outcome copy, grouped remove/add actions, `Why?` disclosure, approve/edit actions, availability editing, stale and `invalidIp` warnings, unknown contacts, coverage gaps, loading, and empty states.
 
 ```tsx
-expect(screen.getByText("2 recommended changes")).toBeVisible();
+expect(screen.getByText("02:14:08")).toBeVisible();
+expect(screen.getByText("11 / 15")).toBeVisible();
+expect(screen.getByRole("heading", { name: "Remove these members" })).toBeVisible();
+expect(screen.getByRole("heading", { name: "Add these members" })).toBeVisible();
 expect(screen.queryByText("Applied rule order")).not.toBeInTheDocument();
 await user.click(screen.getByRole("button", { name: "Why Sam?" }));
 expect(screen.getByText("Applied rule order")).toBeVisible();
@@ -448,7 +454,7 @@ Use Supabase OAuth with Discord. Preserve the intended route through login, rede
 
 - [ ] **Step 5: Implement the daily leader workflow**
 
-Show freshness first, then concise proposed changes with one-sentence reasons and `Approve changes`/`Edit lineup`. Put rule details, confidence, and alternates behind `Why?`. Provide accessible forms for availability and override notes.
+Show freshness first, then the four functional daily KPIs and compact season summary. Present strategy substitutions as batched `Remove these members` followed by `Add these members`; keep one-for-one coverage calculations behind `Why?`. Put rule details, confidence, and alternates behind `Why?`. Provide accessible forms for availability and override notes.
 
 - [ ] **Step 6: Implement admin access management**
 
