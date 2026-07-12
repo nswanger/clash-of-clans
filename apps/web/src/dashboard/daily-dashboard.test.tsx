@@ -70,4 +70,19 @@ describe("DailyDashboard", () => {
     expect(screen.getByText("3rd of 8 clans")).toBeVisible();
     expect(screen.queryByText(/currently/)).not.toBeInTheDocument();
   });
+
+  it("surfaces blocking collection and coverage warnings", () => {
+    render(<DailyDashboard data={{ ...dashboardData, warnings: [
+      { code: "invalidIp", message: "Clash API access is blocked for this collector IP." },
+      { code: "coverage_gap", message: "No eligible substitute is available for position 11." },
+    ] }} />);
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    expect(screen.getByText(/collector IP/)).toBeVisible();
+    expect(screen.getByText(/position 11/)).toBeVisible();
+  });
+
+  it("shows a clear no-change state", () => {
+    render(<DailyDashboard data={{ ...dashboardData, recommendations: { remove: [], add: [] } }} />);
+    expect(screen.getByText("No lineup changes recommended")).toBeVisible();
+  });
 });

@@ -30,6 +30,7 @@ export interface DailyDashboardData {
     remove: DashboardMemberAction[];
     add: DashboardMemberAction[];
   };
+  warnings?: Array<{ code: "stale" | "invalidIp" | "coverage_gap" | "limited_confidence"; message: string }>;
   updatedAt: string;
 }
 
@@ -88,6 +89,7 @@ export function DailyDashboard({ data, now = new Date() }: DailyDashboardProps) 
         <p className="eyebrow">{data.clanName} · War day {data.warDay}</p>
         <h1>Daily command</h1>
       </header>
+      {data.warnings?.map((warning) => <div className="dashboard-warning" role="alert" key={`${warning.code}:${warning.message}`}>{warning.message}</div>)}
       <section className="daily-summary" aria-label="Daily summary">
         <div className="metric"><span>Time remaining</span><strong>{formatTimeRemaining(data.warEndsAt, now)}</strong></div>
         <div className="metric"><span>Attacks used</span><strong>{data.attacksUsed} / {data.attacksAvailable}</strong><div className="progress" aria-hidden="true"><i style={{ width: `${(data.attacksUsed / data.attacksAvailable) * 100}%` }} /></div></div>
@@ -100,8 +102,10 @@ export function DailyDashboard({ data, now = new Date() }: DailyDashboardProps) 
       </section>
       <aside className="season-summary">{ordinal(data.season.position)} of {data.season.groupSize} clans{outcomeText}</aside>
       <section className="lineup-actions" aria-label="Recommended lineup update">
-        <ActionGroup title="Remove these members" actions={data.recommendations.remove} />
-        <ActionGroup title="Add these members" actions={data.recommendations.add} />
+        {data.recommendations.remove.length === 0 && data.recommendations.add.length === 0 ? <p className="empty-state">No lineup changes recommended</p> : <>
+          <ActionGroup title="Remove these members" actions={data.recommendations.remove} />
+          <ActionGroup title="Add these members" actions={data.recommendations.add} />
+        </>}
       </section>
     </main>
   );
