@@ -9,6 +9,16 @@
 body { margin: 0; min-width: 320px; }
 button { font: inherit; }
 
+.access-shell { width: min(480px, calc(100% - 32px)); margin: 12vh auto; padding: 32px; border: 1px solid #e6e6e6; border-radius: 12px; background: #fff; }
+.access-shell h1 { margin: 8px 0; letter-spacing: -.8px; }
+.access-shell p:not(.eyebrow) { color: #787774; line-height: 1.5; }
+.primary-button { min-height: 44px; padding: 0 16px; border: 1px solid #0075de; border-radius: 5px; color: #fff; background: #0075de; cursor: pointer; }
+.primary-button:hover { background: #005bab; }
+.app-shell > nav { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid #e6e6e6; background: #fff; }
+.app-shell > nav a { padding: 8px 10px; border-radius: 5px; color: #31302e; font-size: 13px; text-decoration: none; }
+.app-shell > nav a:hover { background: #f1f1ef; }
+.app-shell > nav span { margin-left: auto; font-size: 13px; font-weight: 600; }
+
 .dashboard-shell {
   width: min(1080px, calc(100% - 48px));
   margin: 32px auto;
