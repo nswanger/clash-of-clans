@@ -153,12 +153,35 @@ Each recommendation stores structured reason codes and a short human explanation
 
 ### Default Daily View
 
-The default experience uses progressive disclosure and shows only:
+The default experience is a calm operational document rather than an analytics-heavy dashboard. It uses progressive disclosure and shows, in order:
 
-- Recommended lineup changes.
-- A one-sentence reason per change.
-- Data freshness and blocking warnings.
+- Current war context and data freshness.
+- Four decision-useful daily KPIs: time remaining, attacks used, members available, and members at eight or more season stars.
+- A compact season-position summary linking to the season detail page.
+- Recommended lineup actions.
+- A one-sentence reason per affected member.
+- Blocking or confidence warnings when present.
 - `Approve changes` and `Edit lineup` actions.
+
+The KPI row must remain functional:
+
+- `Time remaining` counts down to the active CWL war's API-provided `endTime`. It also shows the local end time and must not infer the deadline from a collection timestamp.
+- `Attacks used` shows clan attacks made over the day's maximum attacks and uses positive progress framing.
+- `Members available` counts confirmed available roster members. Unknown availability appears as secondary text such as `3 awaiting confirmation`.
+- `Members at 8+ stars` counts season roster members who have reached the full medal threshold. When at least one member is within three stars of the threshold, secondary text shows that count; otherwise the secondary text is omitted.
+
+Invariant or exceptional values do not occupy permanent KPI tiles. A full `15 / 15` or `30 / 30` lineup is assumed. A coverage gap means the strategy could not find an eligible substitute for a specific lineup position; it appears as a blocking warning only when present.
+
+The compact season summary shows current group position, group size, stars, rounds remaining, and promotion/stay/demotion status only when the governing rule is explicitly configured and verified. Otherwise it shows position without predicting an outcome. The season detail page owns the full group table, star and destruction tie-break context, war record, remaining rounds, and member eight-star progress.
+
+### Lineup Action Presentation
+
+The strategy may calculate one-for-one substitutions internally to preserve lineup size and coverage. The leader-facing workflow batches those calculations into the order used in the game:
+
+1. `Remove these members`.
+2. `Add these members`.
+
+Each group shows the member name, Town Hall level, and concise reason. Individual substitution pairings, coverage logic, rule order, confidence notes, and alternates stay behind `Why?`. The UI must not imply that leaders need to perform slower one-for-one swaps in the game.
 
 ### Explanation View
 
@@ -166,7 +189,21 @@ A `Why?` action reveals the applied rules, confidence note, and eligible alterna
 
 The MVP has no numeric recommendation score, tuning sliders, multi-stage approval workflow, or analytics-heavy landing page.
 
-The final visual system is not defined by the brainstorming wireframes. Frontend implementation must include a deliberate design pass covering visual direction, typography, spacing, responsive behavior, information hierarchy, accessibility, loading states, empty states, stale-data states, and error states.
+### Visual System
+
+The approved direction adapts the visual language documented in `DESIGN-notion.md` to CWL operations:
+
+- **Canvas:** warm paper-like `#f6f5f4` with white `#ffffff` surfaces.
+- **Text:** near-black `#000000` primary ink, `#31302e` secondary ink, and restrained neutral supporting text.
+- **Primary action:** `#0075de`; pressed/active state `#005bab`. Blue is reserved for the primary action and links.
+- **Structure:** `#e6e6e6` hairline borders, primarily flat cards, 5–8px control radii, 8–12px card radii, and barely-there elevation only where layering needs clarification.
+- **Typography:** Inter with the system sans-serif fallback stack. Headings use tight negative tracking; body and utility text remain neutral and readable.
+- **Spacing:** a restrained 4px base scale with generous document-like whitespace and a centered desktop content column.
+- **Signature element:** small clan-shield or Town Hall markers use the accent palette for subject-specific personality. Accent colors do not compete with primary actions or encode unsupported status semantics.
+
+Desktop presents the four KPIs in one row and the remove/add groups side by side. Tablet and mobile preserve the same reading order: KPIs collapse to two columns, then the lineup actions stack vertically as remove followed by add. Primary actions remain reachable without horizontal scrolling.
+
+All interactive controls require visible keyboard focus, accessible names, and at least a 44px touch target on compact layouts. Motion is limited to functional state transitions and respects reduced-motion preferences. Loading, empty, stale, `invalidIp`, unknown-contact, limited-confidence, and coverage-gap states must preserve the same hierarchy rather than replacing the page with ambiguous generic errors.
 
 ## Failure Behavior
 
