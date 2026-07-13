@@ -1,16 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
-import { redeemInvitation, signInWithDiscord, type AuthClient } from "./session.js";
+import {
+  redeemCallbackInvitation,
+  redeemInvitation,
+  resolveAppSession,
+  signInWithDiscord,
+  type AuthClient,
+  type SessionClient,
+} from "./session.js";
 
 describe("session helpers", () => {
   it("preserves the intended route through Discord sign-in", async () => {
     const signInWithOAuth = vi.fn().mockResolvedValue({ error: null });
     const client = { auth: { signInWithOAuth }, rpc: vi.fn() } satisfies AuthClient;
 
-    await signInWithDiscord(client, "https://ops.example", "/season");
+    await signInWithDiscord(client, "https://ops.example", "#/season", "/clash-of-clans/");
 
     expect(signInWithOAuth).toHaveBeenCalledWith({
       provider: "discord",
-      options: { redirectTo: "https://ops.example/auth/callback?returnTo=%2Fseason" },
+      options: { redirectTo: "https://ops.example/clash-of-clans/?authCallback=1&returnTo=%23%2Fseason" },
     });
   });
 
@@ -30,5 +37,41 @@ describe("session helpers", () => {
     } satisfies AuthClient;
 
     await expect(redeemInvitation(client, "used-token")).rejects.toThrow("Invitation is invalid, expired, or already used");
+  });
+
+  it("resolves an authenticated admin profile", async () => {
+    const client = {
+      auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-1" } } }, error: null }) },
+      from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { display_name: "Nick" }, error: null }) }) }) }),
+      rpc: vi.fn().mockImplementation((name: string) => Promise.resolve({ data: name === "has_app_role" ? true : null, error: null })),
+    } satisfies SessionClient;
+
+    await expect(resolveAppSession(client)).resolves.toEqual({ status: "signed_in", displayName: "Nick", role: "admin" });
+  });
+
+  it("denies an authenticated user without an active leader role", async () => {
+    const client = {
+      auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-1" } } }, error: null }) },
+      from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { display_name: "Nick" }, error: null }) }) }) }),
+      rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
+    } satisfies SessionClient;
+
+    await expect(resolveAppSession(client)).resolves.toEqual({
+      status: "access_denied",
+      message: "Your account does not have active leader access.",
+    });
+  });
+
+  it("redeems a callback invitation only once per token", async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+    const storage = new Map<string, string>([["pending-invitation", "single-use-token"]]);
+    const callbackUrl = "https://ops.example/auth/callback?returnTo=%2Fseason";
+
+    await expect(redeemCallbackInvitation({ auth: { signInWithOAuth: vi.fn() }, rpc }, callbackUrl, storage)).resolves.toBe("/season");
+    await redeemCallbackInvitation({ auth: { signInWithOAuth: vi.fn() }, rpc }, callbackUrl, storage);
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect([...storage.keys()].join(" ")).not.toContain("single-use-token");
+    expect(storage.has("pending-invitation")).toBe(false);
   });
 });

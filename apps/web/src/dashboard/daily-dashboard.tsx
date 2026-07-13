@@ -18,7 +18,7 @@ export interface DailyDashboardData {
   awaitingAvailability: number;
   membersAtEightStars: number;
   membersWithinThreeStars: number;
-  season: {
+  season?: {
     position: number;
     groupSize: number;
     stars: number;
@@ -30,6 +30,9 @@ export interface DailyDashboardData {
     remove: DashboardMemberAction[];
     add: DashboardMemberAction[];
   };
+  recommendationId?: string;
+  finalChanges?: Array<{ outPlayerTag: string; inPlayerTag: string }>;
+  contacts: Array<{ playerTag: string; name: string; reason: string }>;
   warnings?: Array<{ code: "stale" | "invalidIp" | "coverage_gap" | "limited_confidence"; message: string }>;
   updatedAt: string;
 }
@@ -39,6 +42,7 @@ interface DailyDashboardProps {
   now?: Date;
   onApprove?: () => void;
   onEdit?: () => void;
+  actionsDisabled?: boolean;
 }
 
 function formatTimeRemaining(endTime: string, now: Date): string {
@@ -82,8 +86,8 @@ function ActionGroup({ title, actions }: { title: string; actions: DashboardMemb
   );
 }
 
-export function DailyDashboard({ data, now = new Date(), onApprove, onEdit }: DailyDashboardProps) {
-  const outcomeText = data.season.outcome ? ` · currently ${data.season.outcome} in ${data.season.leagueName}` : "";
+export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, actionsDisabled = false }: DailyDashboardProps) {
+  const outcomeText = data.season?.outcome ? ` · currently ${data.season.outcome} in ${data.season.leagueName}` : "";
 
   return (
     <main className="dashboard-shell">
@@ -102,7 +106,11 @@ export function DailyDashboard({ data, now = new Date(), onApprove, onEdit }: Da
           {data.membersWithinThreeStars > 0 ? <small>{data.membersWithinThreeStars} more within 3 stars</small> : null}
         </div>
       </section>
-      <aside className="season-summary">{ordinal(data.season.position)} of {data.season.groupSize} clans{outcomeText}</aside>
+      {data.season ? <aside className="season-summary">{ordinal(data.season.position)} of {data.season.groupSize} clans{outcomeText}</aside> : null}
+      {data.contacts.length > 0 ? <section className="contact-needed">
+        <h2>Contact needed</h2>
+        {data.contacts.map((contact) => <p key={contact.playerTag}>{contact.name} — {contact.reason}</p>)}
+      </section> : null}
       <section className="lineup-actions" aria-label="Recommended lineup update">
         {data.recommendations.remove.length === 0 && data.recommendations.add.length === 0 ? <p className="empty-state">No lineup changes recommended</p> : <>
           <ActionGroup title="Remove these members" actions={data.recommendations.remove} />
@@ -110,8 +118,8 @@ export function DailyDashboard({ data, now = new Date(), onApprove, onEdit }: Da
         </>}
       </section>
       {data.recommendations.remove.length > 0 || data.recommendations.add.length > 0 ? <footer className="dashboard-actions">
-        <button type="button" onClick={onEdit}>Edit lineup</button>
-        <button className="primary-button" type="button" onClick={onApprove}>Approve changes</button>
+        <button type="button" disabled={actionsDisabled} onClick={onEdit}>Edit lineup</button>
+        <button className="primary-button" type="button" disabled={actionsDisabled} onClick={onApprove}>Approve changes</button>
       </footer> : null}
     </main>
   );

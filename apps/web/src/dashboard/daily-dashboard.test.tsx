@@ -31,6 +31,7 @@ const dashboardData: DailyDashboardData = {
       { playerTag: "#KIRA", name: "Kira", townHallLevel: 14, reason: "6 stars in 2 attacks; eligible for rotation" },
     ],
   },
+  contacts: [],
   updatedAt: "2026-07-12T17:56:00.000Z",
 };
 
@@ -57,7 +58,7 @@ describe("DailyDashboard", () => {
   });
 
   it("omits optional KPI and outcome claims when the underlying facts are unavailable", () => {
-    const { outcome: _outcome, ...seasonWithoutOutcome } = dashboardData.season;
+    const { outcome: _outcome, ...seasonWithoutOutcome } = dashboardData.season!;
     render(
       <DailyDashboard
         data={{ ...dashboardData, membersWithinThreeStars: 0, season: seasonWithoutOutcome }}
@@ -79,6 +80,15 @@ describe("DailyDashboard", () => {
     expect(screen.getAllByRole("alert")).toHaveLength(2);
     expect(screen.getByText(/collector IP/)).toBeVisible();
     expect(screen.getByText(/position 11/)).toBeVisible();
+  });
+
+  it("surfaces members whose availability needs contact", () => {
+    render(<DailyDashboard data={{ ...dashboardData, contacts: [
+      { playerTag: "#KIRA", name: "Kira", reason: "Availability is unknown" },
+    ] }} />);
+
+    expect(screen.getByRole("heading", { name: "Contact needed" })).toBeVisible();
+    expect(screen.getByText("Kira — Availability is unknown")).toBeVisible();
   });
 
   it("shows a clear no-change state", () => {

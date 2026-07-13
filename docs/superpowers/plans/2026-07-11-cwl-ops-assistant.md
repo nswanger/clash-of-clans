@@ -428,7 +428,7 @@ Commit: `git commit -m "feat: package scheduled CWL collector"`
 
 The approved behavior and hierarchy are recorded in `docs/superpowers/specs/2026-07-11-cwl-ops-assistant-design.md`. Treat `DESIGN-notion.md` as the source of truth for CSS styling. Record its tokens in `apps/web/src/styles.css`: warm `#f6f5f4` canvas, white surfaces, `#000000`/`#31302e` ink, `#e6e6e6` hairlines, Inter typography, 5–12px radii, barely-there elevation, and `#0075de` reserved for primary actions and links.
 
-- [ ] **Step 2: Write failing component and workflow tests**
+- [x] **Step 2: Write failing component and workflow tests**
 
 Test signed-out routing, leader/admin access differences, the API-derived war countdown, attacks-used progress, confirmed-available count, eight-star count, conditional near-threshold copy, conditional season-outcome copy, grouped remove/add actions, `Why?` disclosure, approve/edit actions, availability editing, stale and `invalidIp` warnings, unknown contacts, coverage gaps, loading, and empty states.
 
@@ -442,25 +442,25 @@ await user.click(screen.getByRole("button", { name: "Why Sam?" }));
 expect(screen.getByText("Applied rule order")).toBeVisible();
 ```
 
-- [ ] **Step 3: Verify tests fail**
+- [x] **Step 3: Verify tests fail**
 
 Run: `pnpm --filter @cwl/web test`
 
 Expected: FAIL because the frontend components do not exist.
 
-- [ ] **Step 4: Implement Discord auth, route guards, and invitation redemption**
+- [x] **Step 4: Implement Discord auth, route guards, and invitation redemption**
 
 Use Supabase OAuth with Discord. Preserve the intended route through login, redeem invitation exactly once, and route revoked/unauthorized users to a clear access-denied screen.
 
-- [ ] **Step 5: Implement the daily leader workflow**
+- [x] **Step 5: Implement the daily leader workflow**
 
 Show freshness first, then the four functional daily KPIs and compact season summary. Present strategy substitutions as batched `Remove these members` followed by `Add these members`; keep one-for-one coverage calculations behind `Why?`. Put rule details, confidence, and alternates behind `Why?`. Provide accessible forms for availability and override notes.
 
-- [ ] **Step 6: Implement admin access management**
+- [x] **Step 6: Implement admin access management**
 
 Allow admins to create expiring single-use invitation links, list active leaders, revoke access, and promote a leader to admin. Never show invitation tokens after their one-time creation response.
 
-- [ ] **Step 7: Verify responsiveness, accessibility, and commit**
+- [x] **Step 7: Verify responsiveness, accessibility, and commit**
 
 Run: `pnpm --filter @cwl/web test && pnpm --filter @cwl/web build && pnpm exec playwright test`
 

@@ -1,0 +1,53 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import type { DailyDashboardData } from "./daily-dashboard.js";
+import { DashboardPage } from "./dashboard-page.js";
+
+const data: DailyDashboardData = {
+  clanName: "#CLAN", warDay: 1, warEndsAt: "2026-07-13T20:00:00.000Z",
+  attacksUsed: 0, attacksAvailable: 15, availableMembers: 10, awaitingAvailability: 5,
+  membersAtEightStars: 2, membersWithinThreeStars: 3,
+  season: { position: 1, groupSize: 1, stars: 0, roundsRemaining: 0, leagueName: "CWL" },
+  recommendations: { remove: [{ playerTag: "#OUT", name: "Out", townHallLevel: 15, reason: "Rotate" }], add: [{ playerTag: "#IN", name: "In", townHallLevel: 16, reason: "Available" }] },
+  recommendationId: "recommendation-1", finalChanges: [{ outPlayerTag: "#OUT", inPlayerTag: "#IN" }],
+  contacts: [], updatedAt: "2026-07-12T18:00:00.000Z",
+};
+
+describe("DashboardPage", () => {
+  it("shows loading until live dashboard data resolves", async () => {
+    const load = vi.fn().mockResolvedValue(data);
+    render(<DashboardPage load={load} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading daily operations");
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible());
+  });
+
+  it("shows a clear data-loading error", async () => {
+    render(<DashboardPage load={vi.fn().mockRejectedValue(new Error("No active CWL war is available."))} />);
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("No active CWL war is available."));
+  });
+
+  it("persists overrides", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue(undefined);
+    const onOverride = vi.fn().mockResolvedValue(undefined);
+    render(<DashboardPage load={vi.fn().mockResolvedValue(data)} onApprove={onApprove} onOverride={onOverride} />);
+    await screen.findByRole("heading", { name: "Daily command" });
+    await user.click(screen.getByRole("button", { name: "Edit lineup" }));
+    await user.type(screen.getByRole("textbox", { name: "Override note" }), "Swap adjusted after clan chat");
+    await user.click(screen.getByRole("button", { name: "Save override" }));
+    expect(onOverride).toHaveBeenCalledWith("recommendation-1", data.finalChanges, "Swap adjusted after clan chat");
+  });
+
+  it("persists approvals and prevents duplicate actions", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue(undefined);
+    render(<DashboardPage load={vi.fn().mockResolvedValue(data)} onApprove={onApprove} />);
+    await screen.findByRole("heading", { name: "Daily command" });
+    await user.click(screen.getByRole("button", { name: "Approve changes" }));
+    expect(onApprove).toHaveBeenCalledWith("recommendation-1", data.finalChanges);
+    expect(await screen.findByRole("button", { name: "Approve changes" })).toBeDisabled();
+  });
+});
