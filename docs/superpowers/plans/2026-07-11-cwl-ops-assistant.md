@@ -479,19 +479,19 @@ Commit: `git commit -m "feat: add authenticated CWL leader dashboard"`
 **Interfaces:**
 - Produces: reproducible frontend deployment and documented Supabase production bootstrap.
 
-- [ ] **Step 1: Configure Pages-safe routing and base URL**
+- [x] **Step 1: Configure Pages-safe routing and base URL**
 
 Use hash routing unless a custom 404 fallback is deliberately added. Set Vite `base` from `VITE_BASE_PATH` so local and repository Pages paths both work.
 
-- [ ] **Step 2: Add the Pages workflow**
+- [x] **Step 2: Add the Pages workflow**
 
 Pin Node 22 and pnpm, install with frozen lockfile, run typecheck/tests/build, upload only `apps/web/dist`, and deploy through GitHub's official Pages actions.
 
-- [ ] **Step 3: Document Supabase production setup**
+- [x] **Step 3: Document Supabase production setup**
 
 Include project creation, migration deployment, Discord OAuth callback URLs, Nick's admin bootstrap, RLS verification, public frontend variables, service-role secret handling, 90-day cleanup scheduling, and rollback instructions.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `pnpm typecheck && pnpm test && pnpm build`
 

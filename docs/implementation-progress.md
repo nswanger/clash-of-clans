@@ -11,7 +11,7 @@ Last updated: 2026-07-13
 | 5. Derived metrics and recommendation strategy | Complete | Explainable ordered-rules strategy implemented and reviewed. |
 | 6. Collector scheduling, health, and Docker packaging | Complete | Lease heartbeat and safety watchdog, abort propagation, health checks, and container packaging verified. |
 | 7. Authenticated dashboard and progressive-disclosure UX | Complete | Base-aware Discord auth, secure invitation redemption, guarded routes, live Supabase reads/mutations, explainable decisions, responsive states, and E2E coverage verified. |
-| 8. GitHub Pages and Supabase production configuration | Not started | Depends on Task 7. |
+| 8. GitHub Pages and Supabase production configuration | Complete | Pages-safe base routing, verified deployment workflow, public-only build configuration, artifact secret scan, and production Supabase runbook implemented and reviewed. |
 | 9. UnRaid deployment and operator runbook | Not started | Requires explicit authorization before remote writes. |
 | 10. End-to-end acceptance and production handoff | Not started | Depends on Tasks 7–9. |
 
@@ -23,6 +23,9 @@ Last updated: 2026-07-13
 - `pnpm test`: 107 tests passed across the collector, domain, recommendations, and web packages.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
+- Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
+- `.github/workflows/deploy-pages.yml`: YAML structure and required build/deploy jobs verified.
+- Pages artifact scan: zero collector-only secret names or `sb_secret_` prefixes found.
 - `supabase db reset`: all six migrations applied successfully.
 - `supabase test db`: 55 tests passed across four pgTAP files.
 - `pnpm exec playwright test`: 14 desktop, tablet-width, and mobile workflows passed.
@@ -32,12 +35,12 @@ Last updated: 2026-07-13
 
 ## Continuation Point
 
-Task 7 is complete on `codex/cwl-assistant-mvp`; continue with Task 8 without creating a worktree unless Nick requests otherwise. The approved visual direction remains recorded in `docs/superpowers/specs/2026-07-11-cwl-ops-assistant-design.md`, and `DESIGN-notion.md` is the committed CSS source of truth.
+Task 8 is complete on `codex/cwl-assistant-mvp`; continue with Task 9 without creating a worktree unless Nick requests otherwise. Task 9 may create local deployment assets and run read-only UnRaid preflight checks, but remote writes require Nick's explicit authorization after the exact proposed changes are shown.
 
-Task 7 implementation commits from this session: `8a7491a`, `cd684ba`, `52af195`, `109dbb6`, `733c3cd`, `6069f6a`, `7e6f346`, `eec87ec`, `28effb8`, `1c5a9a5`, and `852b171`.
+Task 8 implementation commit: `4e8b15a`.
 
-- Functional KPI dashboard with a live API-derived countdown, local war end time, freshness, attacks-used progress, availability, and eight-star metrics.
-- Grouped `Remove these members` / `Add these members` actions with progressive `Why?` disclosure.
-- Notion-derived responsive styling, signed-out and leader/admin boundaries, concurrency-safe invitation redemption, availability editing, accessible admin feedback, hierarchy-preserving loading/empty states, approve/edit callbacks, and a runnable Vite entry point.
+- `VITE_BASE_PATH` now supports both root/custom-domain and repository Pages paths.
+- The Pages workflow pins Node 22, pnpm 10.13.1, and current official Pages actions; it runs the workspace gates, scans the built artifact, uploads only `apps/web/dist`, and uses the required Pages permissions/environment.
+- The production Supabase runbook covers migration dry-runs/deployment, Discord OAuth callbacks and redirect allow-listing, public versus privileged keys, first-admin bootstrap, RLS checks, 90-day cleanup scheduling, and forward-only rollback.
 
-Task 7 verification covers 48 Vitest tests, 55 pgTAP tests, TypeScript, production build, and 14 desktop/tablet/mobile Playwright workflows. The season section explicitly withholds standings claims because the normalized schema does not yet contain verified CWL group standings. Next: Task 8 GitHub Pages and Supabase production configuration.
+Task 8 verification covers 107 workspace tests, all workspace typechecks/builds, root/project base builds, valid workflow YAML, a clean artifact secret scan, and independent review with no findings. Live Pages deployment, production migrations/OAuth/admin bootstrap/RLS spot checks, and the cleanup Cron job remain production actions rather than Task 8 repository changes. Next: Task 9 UnRaid deployment assets, preflight, and operator runbook.
