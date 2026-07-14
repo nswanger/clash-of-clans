@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DailyDashboard, type DailyDashboardData } from "./daily-dashboard.js";
@@ -14,6 +14,7 @@ const dashboardData: DailyDashboardData = {
   membersAtEightStars: 9,
   membersWithinThreeStars: 5,
   season: {
+    verificationStatus: "verified",
     position: 3,
     groupSize: 8,
     stars: 84,
@@ -36,6 +37,27 @@ const dashboardData: DailyDashboardData = {
 };
 
 describe("DailyDashboard", () => {
+  it("counts down from the API end time and shows the local end time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-12T18:00:00.000Z"));
+
+    try {
+      render(<DailyDashboard data={dashboardData} />);
+
+      expect(screen.getByText("02:14:08")).toBeVisible();
+      expect(screen.getByText(new Date(dashboardData.warEndsAt!).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }))).toBeVisible();
+
+      act(() => vi.advanceTimersByTime(1_000));
+
+      expect(screen.getByText("02:14:07")).toBeVisible();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows functional daily KPIs and grouped lineup actions", () => {
     render(<DailyDashboard data={dashboardData} now={new Date("2026-07-12T18:00:00.000Z")} />);
 
@@ -48,6 +70,24 @@ describe("DailyDashboard", () => {
     expect(screen.getByText("3rd of 8 clans · currently staying in Crystal III")).toBeVisible();
   });
 
+  it("shows freshness before the metrics and preserves an honest season summary", () => {
+    render(<DailyDashboard data={{
+      ...dashboardData,
+      season: {
+        verificationStatus: "unavailable",
+        message: "Verified CWL group standings are not available yet.",
+      },
+    }} />);
+
+    const freshness = screen.getByText(/Data refreshed/);
+    const metrics = screen.getByRole("region", { name: "Daily summary" });
+    expect(freshness.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Season position" })).toBeVisible();
+    expect(screen.getByText("Verified CWL group standings are not available yet.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "View season details" })).toHaveAttribute("href", "#/season");
+    expect(screen.queryByText(/currently (promotion|staying|demotion)/)).not.toBeInTheDocument();
+  });
+
   it("keeps recommendation details hidden until requested", async () => {
     const user = userEvent.setup();
     render(<DailyDashboard data={dashboardData} now={new Date("2026-07-12T18:00:00.000Z")} />);
@@ -58,7 +98,8 @@ describe("DailyDashboard", () => {
   });
 
   it("omits optional KPI and outcome claims when the underlying facts are unavailable", () => {
-    const { outcome: _outcome, ...seasonWithoutOutcome } = dashboardData.season!;
+    if (dashboardData.season.verificationStatus !== "verified") throw new Error("Expected verified season fixture");
+    const { outcome: _outcome, ...seasonWithoutOutcome } = dashboardData.season;
     render(
       <DailyDashboard
         data={{ ...dashboardData, membersWithinThreeStars: 0, season: seasonWithoutOutcome }}
@@ -94,6 +135,42 @@ describe("DailyDashboard", () => {
   it("shows a clear no-change state", () => {
     render(<DailyDashboard data={{ ...dashboardData, recommendations: { remove: [], add: [] } }} />);
     expect(screen.getByText("No lineup changes recommended")).toBeVisible();
+  });
+
+  it.each([
+    ["no_season" as const, "No current CWL season is available."],
+    ["no_active_war" as const, "No active CWL war is available."],
+  ])("preserves the operational hierarchy for %s", (state, stateMessage) => {
+    const {
+      warDay: _warDay,
+      warEndsAt: _warEndsAt,
+      updatedAt: _updatedAt,
+      ...dashboardWithoutWar
+    } = dashboardData;
+    render(<DailyDashboard data={{
+      ...dashboardWithoutWar,
+      state,
+      attacksUsed: 0,
+      attacksAvailable: 0,
+      availableMembers: 0,
+      awaitingAvailability: 0,
+      membersAtEightStars: 0,
+      membersWithinThreeStars: 0,
+      season: {
+        verificationStatus: "unavailable",
+        message: state === "no_season"
+          ? "No current CWL season is available."
+          : "Verified CWL group standings are not available yet.",
+      },
+      recommendations: { remove: [], add: [] },
+    }} />);
+
+    expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible();
+    expect(screen.getByText("Data freshness unavailable")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent(stateMessage);
+    expect(screen.getByRole("region", { name: "Daily summary" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Season position" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Recommended lineup update" })).toBeVisible();
   });
 
   it("exposes explicit approve and edit actions", async () => {

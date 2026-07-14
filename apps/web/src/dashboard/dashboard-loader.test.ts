@@ -35,7 +35,7 @@ describe("loadDashboardSnapshot", () => {
 
     const snapshot = await loadDashboardSnapshot(client, "#CLAN");
 
-    expect(snapshot.war.war_tag).toBe("#WAR");
+    expect(snapshot.war?.war_tag).toBe("#WAR");
     expect(snapshot.recommendation.changes).toEqual([]);
     expect(requestedTables).toEqual(expect.arrayContaining([
       "cwl_seasons", "cwl_wars", "cwl_members", "cwl_war_members", "cwl_attacks",
@@ -43,9 +43,30 @@ describe("loadDashboardSnapshot", () => {
     ]));
   });
 
-  it("fails clearly when no current season is available", async () => {
+  it("returns an explicit empty-season snapshot without treating it as an exception", async () => {
     const client = { from: () => queryResult(null) } as unknown as DashboardDataClient;
 
-    await expect(loadDashboardSnapshot(client, "#CLAN")).rejects.toThrow("No CWL season is available");
+    await expect(loadDashboardSnapshot(client, "#CLAN")).resolves.toMatchObject({
+      state: "no_season",
+      season: null,
+      war: null,
+      members: [],
+      recommendation: { changes: [] },
+    });
+  });
+
+  it("returns an explicit no-active-war snapshot without treating it as an exception", async () => {
+    const client = {
+      from(table: string) {
+        return queryResult(table === "cwl_seasons" ? rows.cwl_seasons : null);
+      },
+    } as unknown as DashboardDataClient;
+
+    await expect(loadDashboardSnapshot(client, "#CLAN")).resolves.toMatchObject({
+      state: "no_active_war",
+      season: rows.cwl_seasons,
+      war: null,
+      recommendation: { changes: [] },
+    });
   });
 });

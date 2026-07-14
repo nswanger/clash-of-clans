@@ -24,6 +24,34 @@ test("supports accessible primary actions", async ({ page }, testInfo) => {
   }
 });
 
+test("uses the compact operational layout and touch targets at tablet width", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1_180 });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Remove these members" })).toBeVisible();
+
+  const metrics = page.locator(".metric");
+  const [firstMetric, secondMetric, thirdMetric] = await Promise.all([
+    metrics.nth(0).boundingBox(),
+    metrics.nth(1).boundingBox(),
+    metrics.nth(2).boundingBox(),
+  ]);
+  expect(firstMetric?.y).toBe(secondMetric?.y);
+  expect(firstMetric?.x).not.toBe(secondMetric?.x);
+  expect(thirdMetric?.y).toBeGreaterThan(firstMetric?.y ?? 0);
+
+  const removeGroup = await page.getByRole("heading", { name: "Remove these members" }).locator("..").boundingBox();
+  const addGroup = await page.getByRole("heading", { name: "Add these members" }).locator("..").boundingBox();
+  expect(addGroup?.y).toBeGreaterThan(removeGroup?.y ?? 0);
+
+  const availabilityLink = page.getByRole("link", { name: "Availability" });
+  expect((await availabilityLink.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+
+  await page.getByRole("link", { name: "Access" }).click();
+  for (const buttonName of ["Create invitation", "Promote to admin", "Revoke access"]) {
+    expect((await page.getByRole("button", { name: buttonName }).first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  }
+});
+
 test("persists a recommendation decision through the live integration seam", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Approve changes" }).click();

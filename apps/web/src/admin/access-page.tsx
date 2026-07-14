@@ -1,17 +1,39 @@
 import { useEffect, useState } from "react";
-import { createInvitation, promoteLeader, revokeAccess } from "../data/operations.js";
+import {
+  createInvitation,
+  promoteLeader,
+  revokeAccess,
+  type InvitationClient,
+  type RoleMutationBuilder,
+} from "../data/operations.js";
 import { AccessManagement } from "./access-management.js";
 
 interface Leader { id: string; name: string; role: "leader" | "admin" }
+interface AccessRoleRow {
+  user_id: string;
+  role: "leader" | "admin";
+  profiles: { display_name: string } | null;
+}
+interface AccessQueryResult {
+  data: AccessRoleRow[];
+  error: { message: string } | null;
+}
+interface AccessQueryBuilder extends RoleMutationBuilder, PromiseLike<AccessQueryResult> {
+  select(columns: string): AccessQueryBuilder;
+  order(column: string): AccessQueryBuilder;
+}
+interface AccessPageClient extends InvitationClient {
+  from(table: "user_roles"): AccessQueryBuilder;
+}
 
-export function AccessPage({ client, origin }: { client: any; origin: string }) {
+export function AccessPage({ client, origin }: { client: AccessPageClient; origin: string }) {
   const [leaders, setLeaders] = useState<Leader[]>();
   const [error, setError] = useState<string>();
   const load = async () => {
     const result = await client.from("user_roles").select("user_id,role,profiles!user_roles_user_id_fkey(display_name)").order("created_at");
     if (result.error) throw new Error(result.error.message);
     const leadersById = new Map<string, Leader>();
-    for (const row of result.data as any[]) {
+    for (const row of result.data) {
       const existing = leadersById.get(row.user_id);
       if (!existing || row.role === "admin") leadersById.set(row.user_id, { id: row.user_id, role: row.role, name: row.profiles?.display_name ?? row.user_id });
     }

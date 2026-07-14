@@ -1,5 +1,18 @@
 interface Result<T = unknown> { data?: T; error: { message: string } | null }
 
+export interface InvitationClient {
+  rpc(name: "create_invitation", args: { invitation_expires_at: string }): Promise<Result<string>>;
+}
+
+export interface RoleMutationBuilder {
+  insert(value: { user_id: string; role: "admin" }): Promise<Result>;
+  delete(): { eq(column: "user_id", value: string): Promise<Result> };
+}
+
+export interface RoleMutationClient {
+  from(table: "user_roles"): RoleMutationBuilder;
+}
+
 function ensureSuccess(result: Result, context: string): void {
   if (result.error) throw new Error(`${context}: ${result.error.message}`);
 }
@@ -27,18 +40,18 @@ export async function saveAvailability(client: any, value: {
   ensureSuccess(result, "Unable to save availability");
 }
 
-export async function createInvitation(client: any, expiresAt: string): Promise<string> {
+export async function createInvitation(client: InvitationClient, expiresAt: string): Promise<string> {
   const result = await client.rpc("create_invitation", { invitation_expires_at: expiresAt });
   ensureSuccess(result, "Unable to create invitation");
   if (!result.data) throw new Error("Invitation creation returned no token.");
   return result.data;
 }
 
-export async function promoteLeader(client: any, userId: string): Promise<void> {
+export async function promoteLeader(client: RoleMutationClient, userId: string): Promise<void> {
   ensureSuccess(await client.from("user_roles").insert({ user_id: userId, role: "admin" }), "Unable to promote leader");
 }
 
-export async function revokeAccess(client: any, userId: string): Promise<void> {
+export async function revokeAccess(client: RoleMutationClient, userId: string): Promise<void> {
   ensureSuccess(await client.from("user_roles").delete().eq("user_id", userId), "Unable to revoke access");
 }
 

@@ -8,7 +8,7 @@ const data: DailyDashboardData = {
   clanName: "#CLAN", warDay: 1, warEndsAt: "2026-07-13T20:00:00.000Z",
   attacksUsed: 0, attacksAvailable: 15, availableMembers: 10, awaitingAvailability: 5,
   membersAtEightStars: 2, membersWithinThreeStars: 3,
-  season: { position: 1, groupSize: 1, stars: 0, roundsRemaining: 0, leagueName: "CWL" },
+  season: { verificationStatus: "verified", position: 1, groupSize: 1, stars: 0, roundsRemaining: 0, leagueName: "CWL" },
   recommendations: { remove: [{ playerTag: "#OUT", name: "Out", townHallLevel: 15, reason: "Rotate" }], add: [{ playerTag: "#IN", name: "In", townHallLevel: 16, reason: "Available" }] },
   recommendationId: "recommendation-1", finalChanges: [{ outPlayerTag: "#OUT", inPlayerTag: "#IN" }],
   contacts: [], updatedAt: "2026-07-12T18:00:00.000Z",
@@ -16,10 +16,17 @@ const data: DailyDashboardData = {
 
 describe("DashboardPage", () => {
   it("shows loading until live dashboard data resolves", async () => {
-    const load = vi.fn().mockResolvedValue(data);
+    let resolveLoad!: (value: DailyDashboardData) => void;
+    const load = vi.fn(() => new Promise<DailyDashboardData>((resolve) => { resolveLoad = resolve; }));
     render(<DashboardPage load={load} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading daily operations");
+    expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Daily summary" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Season position" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Recommended lineup update" })).toBeVisible();
+
+    resolveLoad(data);
     await waitFor(() => expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible());
   });
 

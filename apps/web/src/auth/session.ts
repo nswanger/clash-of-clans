@@ -33,6 +33,8 @@ interface RedemptionStorage {
   delete?(key: string): unknown;
 }
 
+const pendingInvitationRedemptions = new Map<string, Promise<void>>();
+
 export interface AuthClient {
   auth: {
     signInWithOAuth(options: {
@@ -93,7 +95,18 @@ export async function redeemCallbackInvitation(
   for (const character of token) tokenFingerprint = Math.imul(tokenFingerprint ^ character.charCodeAt(0), 16777619);
   const redemptionKey = `invitation-redemption:${(tokenFingerprint >>> 0).toString(16)}`;
   if (storage.get(redemptionKey) === "complete") return returnTo;
-  await redeemInvitation(client, token);
+  let pendingRedemption = pendingInvitationRedemptions.get(redemptionKey);
+  if (!pendingRedemption) {
+    pendingRedemption = redeemInvitation(client, token);
+    pendingInvitationRedemptions.set(redemptionKey, pendingRedemption);
+  }
+  try {
+    await pendingRedemption;
+  } finally {
+    if (pendingInvitationRedemptions.get(redemptionKey) === pendingRedemption) {
+      pendingInvitationRedemptions.delete(redemptionKey);
+    }
+  }
   storage.delete?.("pending-invitation");
   storage.set(redemptionKey, "complete");
   return returnTo;

@@ -74,4 +74,33 @@ describe("session helpers", () => {
     expect([...storage.keys()].join(" ")).not.toContain("single-use-token");
     expect(storage.has("pending-invitation")).toBe(false);
   });
+
+  it("shares one redemption RPC across overlapping callbacks", async () => {
+    let finishRedemption!: (value: { error: null }) => void;
+    const rpc = vi.fn(() => new Promise<{ error: null }>((resolve) => { finishRedemption = resolve; }));
+    const client = { auth: { signInWithOAuth: vi.fn() }, rpc } satisfies AuthClient;
+    const storage = new Map<string, string>([["pending-invitation", "overlapping-token"]]);
+    const callbackUrl = "https://ops.example/auth/callback?returnTo=%2Fseason";
+
+    const first = redeemCallbackInvitation(client, callbackUrl, storage);
+    const second = redeemCallbackInvitation(client, callbackUrl, storage);
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    finishRedemption({ error: null });
+    await expect(Promise.all([first, second])).resolves.toEqual(["/season", "/season"]);
+  });
+
+  it("allows a failed callback redemption to be retried", async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ error: { message: "Temporary redemption failure" } })
+      .mockResolvedValueOnce({ error: null });
+    const client = { auth: { signInWithOAuth: vi.fn() }, rpc } satisfies AuthClient;
+    const storage = new Map<string, string>([["pending-invitation", "retryable-token"]]);
+    const callbackUrl = "https://ops.example/auth/callback?returnTo=%2Fseason";
+
+    await expect(redeemCallbackInvitation(client, callbackUrl, storage)).rejects.toThrow("Temporary redemption failure");
+    await expect(redeemCallbackInvitation(client, callbackUrl, storage)).resolves.toBe("/season");
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
 });

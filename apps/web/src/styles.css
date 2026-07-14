@@ -38,6 +38,8 @@ button { font: inherit; }
 
 .eyebrow { margin: 0; color: #787774; font-size: 12px; font-weight: 600; }
 .dashboard-header h1 { margin: 8px 0 28px; font-size: clamp(32px, 5vw, 40px); letter-spacing: -1.4px; }
+.data-freshness { margin: -18px 0 20px; color: #787774; font-size: 12px; }
+.operational-state { margin: 0 0 16px; padding: 12px 14px; border-radius: 5px; background: #f1f1ef; color: #31302e; font-size: 13px; }
 .dashboard-warning { margin: 0 0 12px; padding: 12px 14px; border-left: 4px solid #dd5b00; border-radius: 5px; background: #fbede4; color: #523410; font-size: 13px; }
 .daily-summary { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid #e6e6e6; border-radius: 8px; }
 .metric { min-width: 0; padding: 16px; border-right: 1px solid #e6e6e6; }
@@ -48,6 +50,9 @@ button { font: inherit; }
 .progress { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: #ebebea; }
 .progress i { display: block; height: 100%; border-radius: inherit; background: #62aef0; }
 .season-summary { margin: 14px 0 24px; padding: 12px 14px; border: 1px solid #e6e6e6; border-radius: 8px; background: #fafafa; color: #31302e; font-size: 13px; font-weight: 600; }
+.season-summary h2 { margin: 0; font-size: 14px; }
+.season-summary p { margin: 5px 0; color: #787774; font-weight: 400; }
+.season-summary a { color: #0075de; }
 .lineup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
 .empty-state { grid-column: 1 / -1; margin: 0; padding: 28px; border: 1px dashed #d3d3d3; border-radius: 8px; color: #787774; text-align: center; }
 .action-group { overflow: hidden; border: 1px solid #e6e6e6; border-radius: 8px; }
@@ -64,12 +69,16 @@ button { font: inherit; }
 .dashboard-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .dashboard-actions > button:not(.primary-button) { min-height: 44px; padding: 0 16px; border: 1px solid #d3d3d3; border-radius: 5px; background: #fff; cursor: pointer; }
 
-@media (max-width: 760px) {
+@media (max-width: 840px) {
+  .app-shell > nav { gap: 2px; overflow-x: auto; padding: 6px 12px; }
+  .app-shell > nav a, .season-summary a { display: inline-flex; align-items: center; min-height: 44px; }
   .dashboard-shell { width: min(100% - 24px, 680px); margin: 12px auto; padding: 28px 20px; }
   .daily-summary { grid-template-columns: repeat(2, 1fr); }
   .metric:nth-child(2) { border-right: 0; }
   .metric:nth-child(-n + 2) { border-bottom: 1px solid #e6e6e6; }
   .lineup-actions { grid-template-columns: 1fr; gap: 12px; }
+  .access-management button { min-height: 44px; }
+  .access-management li { margin-block: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -16,8 +16,9 @@ interface RecommendationOutput {
 
 export interface DashboardSnapshot {
   clanName: string;
-  season: { clan_tag: string; season_id: string; war_size: number };
-  war: { war_tag: string; war_day: number; end_time: string; attacks_per_member: number };
+  state: "ready" | "no_season" | "no_active_war";
+  season: { clan_tag: string; season_id: string; war_size: number } | null;
+  war: { war_tag: string; war_day: number; end_time: string; attacks_per_member: number } | null;
   members: Array<{ player_tag: string; name: string; town_hall_level: number }>;
   assignments: Array<{ player_tag: string; assigned_attacks: number }>;
   attacks: Array<{ attacker_tag: string }>;
@@ -67,14 +68,20 @@ export function mapDashboardData(snapshot: DashboardSnapshot): DailyDashboardDat
 
   return {
     clanName: snapshot.clanName,
-    warDay: snapshot.war.war_day,
-    warEndsAt: snapshot.war.end_time,
+    state: snapshot.state,
+    ...(snapshot.war ? { warDay: snapshot.war.war_day, warEndsAt: snapshot.war.end_time } : {}),
     attacksUsed: snapshot.attacks.length,
     attacksAvailable: snapshot.assignments.reduce((total, row) => total + row.assigned_attacks, 0),
     availableMembers: snapshot.availability.filter(({ status }) => status === "available").length,
     awaitingAvailability: snapshot.availability.filter(({ status }) => status === "unknown").length,
     membersAtEightStars: snapshot.eligibility.filter(({ eight_star_eligible: eligible }) => eligible).length,
     membersWithinThreeStars: snapshot.eligibility.filter(({ stars }) => stars >= 5 && stars < 8).length,
+    season: {
+      verificationStatus: "unavailable",
+      message: snapshot.state === "no_season"
+        ? "No current CWL season is available."
+        : "Verified CWL group standings are not available yet.",
+    },
     recommendations: {
       remove: snapshot.recommendation.changes.map((change) => memberAction(change.outPlayerTag, snapshot, reasonFor(change), detailsFor(change))),
       add: snapshot.recommendation.changes.map((change) => memberAction(change.inPlayerTag, snapshot, reasonFor(change), detailsFor(change))),
@@ -85,6 +92,8 @@ export function mapDashboardData(snapshot: DashboardSnapshot): DailyDashboardDat
       return { playerTag: contact.playerTag, name: member?.name ?? contact.playerTag, reason: contact.reason };
     }),
     warnings,
-    updatedAt: snapshot.collection.last_fresh_at,
+    ...(snapshot.collection.last_fresh_at === new Date(0).toISOString()
+      ? {}
+      : { updatedAt: snapshot.collection.last_fresh_at }),
   };
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface DashboardMemberAction {
   playerTag: string;
@@ -10,22 +10,29 @@ export interface DashboardMemberAction {
 
 export interface DailyDashboardData {
   clanName: string;
-  warDay: number;
-  warEndsAt: string;
+  state?: "ready" | "no_season" | "no_active_war";
+  warDay?: number;
+  warEndsAt?: string;
   attacksUsed: number;
   attacksAvailable: number;
   availableMembers: number;
   awaitingAvailability: number;
   membersAtEightStars: number;
   membersWithinThreeStars: number;
-  season?: {
-    position: number;
-    groupSize: number;
-    stars: number;
-    roundsRemaining: number;
-    leagueName: string;
-    outcome?: "promotion" | "staying" | "demotion";
-  };
+  season:
+    | {
+        verificationStatus: "verified";
+        position: number;
+        groupSize: number;
+        stars: number;
+        roundsRemaining: number;
+        leagueName: string;
+        outcome?: "promotion" | "staying" | "demotion";
+      }
+    | {
+        verificationStatus: "unavailable";
+        message: string;
+      };
   recommendations: {
     remove: DashboardMemberAction[];
     add: DashboardMemberAction[];
@@ -34,7 +41,7 @@ export interface DailyDashboardData {
   finalChanges?: Array<{ outPlayerTag: string; inPlayerTag: string }>;
   contacts: Array<{ playerTag: string; name: string; reason: string }>;
   warnings?: Array<{ code: "stale" | "invalidIp" | "coverage_gap" | "limited_confidence"; message: string }>;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 interface DailyDashboardProps {
@@ -87,32 +94,64 @@ function ActionGroup({ title, actions }: { title: string; actions: DashboardMemb
 }
 
 export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, actionsDisabled = false }: DailyDashboardProps) {
-  const outcomeText = data.season?.outcome ? ` · currently ${data.season.outcome} in ${data.season.leagueName}` : "";
+  const [currentTime, setCurrentTime] = useState(now);
+  const verifiedSeason = data.season.verificationStatus === "verified" ? data.season : undefined;
+  const outcomeText = verifiedSeason?.outcome ? ` · currently ${verifiedSeason.outcome} in ${verifiedSeason.leagueName}` : "";
+  const operationalState = data.state ?? "ready";
+  const hasActiveWar = operationalState === "ready" && Boolean(data.warEndsAt);
+  const stateMessage = operationalState === "no_season"
+    ? "No current CWL season is available."
+    : operationalState === "no_active_war"
+      ? "No active CWL war is available."
+      : undefined;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <main className="dashboard-shell">
       <header className="dashboard-header">
-        <p className="eyebrow">{data.clanName} · War day {data.warDay}</p>
+        <p className="eyebrow">{data.clanName}{data.warDay ? ` · War day ${data.warDay}` : " · CWL operations"}</p>
         <h1>Daily command</h1>
       </header>
+      <p className="data-freshness">{data.updatedAt ? `Data refreshed ${new Date(data.updatedAt).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })}` : "Data freshness unavailable"}</p>
+      {stateMessage ? <p className="operational-state" role="status">{stateMessage}</p> : null}
       {data.warnings?.map((warning) => <div className="dashboard-warning" role="alert" key={`${warning.code}:${warning.message}`}>{warning.message}</div>)}
       <section className="daily-summary" aria-label="Daily summary">
-        <div className="metric"><span>Time remaining</span><strong>{formatTimeRemaining(data.warEndsAt, now)}</strong></div>
-        <div className="metric"><span>Attacks used</span><strong>{data.attacksUsed} / {data.attacksAvailable}</strong><div className="progress" aria-hidden="true"><i style={{ width: `${(data.attacksUsed / data.attacksAvailable) * 100}%` }} /></div></div>
-        <div className="metric"><span>Members available</span><strong>{data.availableMembers}</strong><small>{data.awaitingAvailability} awaiting confirmation</small></div>
+        <div className="metric">
+          <span>Time remaining</span>
+          <strong>{hasActiveWar ? formatTimeRemaining(data.warEndsAt!, currentTime) : "—"}</strong>
+          <small>{hasActiveWar ? <>Ends <time dateTime={data.warEndsAt}>{new Date(data.warEndsAt!).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}</time></> : "API end time unavailable"}</small>
+        </div>
+        <div className="metric"><span>Attacks used</span><strong>{hasActiveWar ? `${data.attacksUsed} / ${data.attacksAvailable}` : "—"}</strong>{hasActiveWar ? <div className="progress" aria-hidden="true"><i style={{ width: `${data.attacksAvailable > 0 ? (data.attacksUsed / data.attacksAvailable) * 100 : 0}%` }} /></div> : null}</div>
+        <div className="metric"><span>Members available</span><strong>{hasActiveWar ? data.availableMembers : "—"}</strong>{hasActiveWar ? <small>{data.awaitingAvailability} awaiting confirmation</small> : null}</div>
         <div className="metric">
           <span>Members at 8+ stars</span>
-          <strong>{data.membersAtEightStars}</strong>
-          {data.membersWithinThreeStars > 0 ? <small>{data.membersWithinThreeStars} more within 3 stars</small> : null}
+          <strong>{hasActiveWar ? data.membersAtEightStars : "—"}</strong>
+          {hasActiveWar && data.membersWithinThreeStars > 0 ? <small>{data.membersWithinThreeStars} more within 3 stars</small> : null}
         </div>
       </section>
-      {data.season ? <aside className="season-summary">{ordinal(data.season.position)} of {data.season.groupSize} clans{outcomeText}</aside> : null}
+      <aside className="season-summary">
+        <h2>Season position</h2>
+        <p>{data.season.verificationStatus === "verified"
+          ? `${ordinal(data.season.position)} of ${data.season.groupSize} clans${outcomeText}`
+          : data.season.message}</p>
+        <a href="#/season">View season details</a>
+      </aside>
       {data.contacts.length > 0 ? <section className="contact-needed">
         <h2>Contact needed</h2>
         {data.contacts.map((contact) => <p key={contact.playerTag}>{contact.name} — {contact.reason}</p>)}
       </section> : null}
       <section className="lineup-actions" aria-label="Recommended lineup update">
-        {data.recommendations.remove.length === 0 && data.recommendations.add.length === 0 ? <p className="empty-state">No lineup changes recommended</p> : <>
+        {data.recommendations.remove.length === 0 && data.recommendations.add.length === 0 ? <p className="empty-state">{hasActiveWar ? "No lineup changes recommended" : "Lineup recommendations are unavailable."}</p> : <>
           <ActionGroup title="Remove these members" actions={data.recommendations.remove} />
           <ActionGroup title="Add these members" actions={data.recommendations.add} />
         </>}

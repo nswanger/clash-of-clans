@@ -7,6 +7,30 @@ interface DashboardPageProps {
   onOverride?: (recommendationId: string, changes: NonNullable<DailyDashboardData["finalChanges"]>, note: string) => Promise<void>;
 }
 
+function DashboardDocumentState({ message, tone }: { message: string; tone: "loading" | "error" }) {
+  return <main className="dashboard-shell">
+    <header className="dashboard-header">
+      <p className="eyebrow">CWL operations</p>
+      <h1>Daily command</h1>
+    </header>
+    <p className={tone === "error" ? "dashboard-warning" : "data-freshness"} role={tone === "error" ? "alert" : "status"}>{message}</p>
+    <section className="daily-summary" aria-label="Daily summary">
+      {(["Time remaining", "Attacks used", "Members available", "Members at 8+ stars"] as const).map((label) => <div className="metric" key={label}>
+        <span>{label}</span>
+        <strong>—</strong>
+      </div>)}
+    </section>
+    <aside className="season-summary">
+      <h2>Season position</h2>
+      <p>{tone === "loading" ? "Loading season context…" : "Season context is unavailable."}</p>
+      <a href="#/season">View season details</a>
+    </aside>
+    <section className="lineup-actions" aria-label="Recommended lineup update">
+      <p className="empty-state">{tone === "loading" ? "Loading lineup recommendations…" : "Lineup recommendations are unavailable."}</p>
+    </section>
+  </main>;
+}
+
 export function DashboardPage({ load, onApprove, onOverride }: DashboardPageProps) {
   const [data, setData] = useState<DailyDashboardData>();
   const [error, setError] = useState<string>();
@@ -24,8 +48,8 @@ export function DashboardPage({ load, onApprove, onOverride }: DashboardPageProp
     return () => { active = false; };
   }, [load]);
 
-  if (error) return <main className="dashboard-shell"><div className="dashboard-warning" role="alert">{error}</div></main>;
-  if (!data) return <main className="dashboard-shell"><p role="status">Loading daily operations…</p></main>;
+  if (error) return <DashboardDocumentState message={error} tone="error" />;
+  if (!data) return <DashboardDocumentState message="Loading daily operations…" tone="loading" />;
   const changes = data.finalChanges ?? [];
   const approve = () => {
     if (data.recommendationId && onApprove) void onApprove(data.recommendationId, changes).then(() => setDecisionMessage("Changes approved and recorded.")).catch((reason) => setError(reason.message));

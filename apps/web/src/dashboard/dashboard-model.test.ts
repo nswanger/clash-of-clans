@@ -3,6 +3,7 @@ import { mapDashboardData, type DashboardSnapshot } from "./dashboard-model.js";
 
 const snapshot: DashboardSnapshot = {
   clanName: "#CLAN",
+  state: "ready",
   season: { clan_tag: "#CLAN", season_id: "2026-07", war_size: 15 },
   war: { war_tag: "#WAR3", war_day: 3, end_time: "2026-07-12T20:14:08.000Z", attacks_per_member: 1 },
   members: [
@@ -47,7 +48,10 @@ describe("mapDashboardData", () => {
     expect(result.recommendations.remove[0]).toMatchObject({ name: "Mason", playerTag: "#OUT" });
     expect(result.recommendations.add[0]).toMatchObject({ name: "Sam", playerTag: "#IN" });
     expect(result.contacts).toEqual([{ playerTag: "#ASK", name: "Kira", reason: "Availability is unknown" }]);
-    expect(result.season).toBeUndefined();
+    expect(result.season).toEqual({
+      verificationStatus: "unavailable",
+      message: "Verified CWL group standings are not available yet.",
+    });
   });
 
   it("maps collection and coverage failures into visible warnings", () => {
@@ -61,5 +65,23 @@ describe("mapDashboardData", () => {
       expect.objectContaining({ code: "invalidIp" }),
       expect.objectContaining({ code: "coverage_gap", message: expect.stringContaining("position 11") }),
     ]));
+  });
+
+  it("maps a missing active war into an explicit operational state", () => {
+    const result = mapDashboardData({
+      ...snapshot,
+      state: "no_active_war",
+      war: null,
+      assignments: [],
+      attacks: [],
+      recommendation: { changes: [], contacts: [], coverageGaps: [], confidenceNotes: [] },
+    });
+
+    expect(result).toMatchObject({
+      state: "no_active_war",
+      recommendations: { remove: [], add: [] },
+    });
+    expect(result).not.toHaveProperty("warDay");
+    expect(result).not.toHaveProperty("warEndsAt");
   });
 });
