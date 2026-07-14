@@ -1,0 +1,92 @@
+name: Deploy dashboard to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      VITE_CLAN_TAG: ${{ vars.VITE_CLAN_TAG }}
+      VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.13.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Validate public build configuration
+        shell: bash
+        run: |
+          missing_configuration=0
+          for variable_name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_CLAN_TAG; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "::error::Required GitHub Actions repository variable ${variable_name} is not configured."
+              missing_configuration=1
+            fi
+          done
+          exit "${missing_configuration}"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Scan Pages artifact for collector secrets
+        shell: bash
+        run: |
+          forbidden_pattern='SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|CLASH_API_TOKEN|sb_secret_'
+          if grep --recursive --files-with-matches --binary-files=text --extended-regexp "${forbidden_pattern}" apps/web/dist >/dev/null; then
+            echo "::error::The Pages artifact contains a collector-only secret name or secret-key prefix."
+            exit 1
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
