@@ -1,6 +1,6 @@
 # CWL Operations Assistant Implementation Progress
 
-Last updated: 2026-07-12
+Last updated: 2026-07-13
 
 | Task | Status | Notes |
 | --- | --- | --- |
@@ -17,13 +17,15 @@ Last updated: 2026-07-12
 
 ## Latest Verification
 
-- `pnpm --filter @cwl/web test`: 14 tests passed across 5 files.
+- `pnpm --filter @cwl/web test`: 48 tests passed across 11 files.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 59 tests passed.
-- `pnpm typecheck`: all four workspace packages passed.
+- `pnpm test`: 107 tests passed across the collector, domain, recommendations, and web packages.
+- `pnpm typecheck`: all five workspace packages passed.
+- `pnpm build`: all five workspace packages passed.
 - `supabase db reset`: all six migrations applied successfully.
-- `supabase test db`: 45 tests passed across both pgTAP files.
+- `supabase test db`: 55 tests passed across four pgTAP files.
+- `pnpm exec playwright test`: 14 desktop, tablet-width, and mobile workflows passed.
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:test .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
 - `git diff --check`: passed.
@@ -32,10 +34,10 @@ Last updated: 2026-07-12
 
 Task 7 is complete on `codex/cwl-assistant-mvp`; continue with Task 8 without creating a worktree unless Nick requests otherwise. The approved visual direction remains recorded in `docs/superpowers/specs/2026-07-11-cwl-ops-assistant-design.md`, and `DESIGN-notion.md` is the committed CSS source of truth.
 
-Task 7 implementation commits from this session: `8a7491a`, `cd684ba`, `52af195`, `109dbb6`, `733c3cd`, `6069f6a`, `7e6f346`, `eec87ec`, and `28effb8`.
+Task 7 implementation commits from this session: `8a7491a`, `cd684ba`, `52af195`, `109dbb6`, `733c3cd`, `6069f6a`, `7e6f346`, `eec87ec`, `28effb8`, `1c5a9a5`, and `852b171`.
 
-- Functional KPI dashboard with API-derived countdown, attacks-used progress, availability and eight-star metrics.
+- Functional KPI dashboard with a live API-derived countdown, local war end time, freshness, attacks-used progress, availability, and eight-star metrics.
 - Grouped `Remove these members` / `Add these members` actions with progressive `Why?` disclosure.
-- Notion-derived responsive styling, signed-out and leader/admin boundaries, Discord OAuth helpers, invitation redemption, availability editing, admin access UI, warnings, empty state, approve/edit callbacks, and a runnable Vite entry point.
+- Notion-derived responsive styling, signed-out and leader/admin boundaries, concurrency-safe invitation redemption, availability editing, accessible admin feedback, hierarchy-preserving loading/empty states, approve/edit callbacks, and a runnable Vite entry point.
 
-Task 7 verification covers 38 Vitest tests, 55 pgTAP tests, TypeScript, production build, and 12 desktop/mobile Playwright workflows. The UI omits standings claims because the normalized schema does not yet contain verified CWL group standings. Next: Task 8 GitHub Pages and Supabase production configuration.
+Task 7 verification covers 48 Vitest tests, 55 pgTAP tests, TypeScript, production build, and 14 desktop/tablet/mobile Playwright workflows. The season section explicitly withholds standings claims because the normalized schema does not yet contain verified CWL group standings. Next: Task 8 GitHub Pages and Supabase production configuration.
