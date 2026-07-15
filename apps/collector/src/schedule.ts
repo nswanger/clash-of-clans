@@ -15,8 +15,22 @@ export interface CollectionLease {
 export interface CollectionResult { activeCwl: boolean | null }
 type Timer = ReturnType<typeof setTimeout>;
 
-export function nextCollectionAt(now: Date, activeCwl: boolean | null): Date {
-  return new Date(now.getTime() + (activeCwl === false ? IDLE_INTERVAL_MS : ACTIVE_CWL_INTERVAL_MS));
+export interface CollectionCadence {
+  activeCwlIntervalMs: number;
+  idleIntervalMs: number;
+}
+
+const defaultCadence: CollectionCadence = {
+  activeCwlIntervalMs: ACTIVE_CWL_INTERVAL_MS,
+  idleIntervalMs: IDLE_INTERVAL_MS,
+};
+
+export function nextCollectionAt(
+  now: Date,
+  activeCwl: boolean | null,
+  cadence: CollectionCadence = defaultCadence,
+): Date {
+  return new Date(now.getTime() + (activeCwl === false ? cadence.idleIntervalMs : cadence.activeCwlIntervalMs));
 }
 
 export interface HealthInput {
@@ -24,13 +38,17 @@ export interface HealthInput {
   activeCwl: boolean;
   lastSuccessfulAt: Date | null;
   latestStatus: CollectionStatus | null;
+  activeCwlIntervalMs?: number;
+  idleIntervalMs?: number;
 }
 
 export type HealthStatus = "healthy" | "stale" | "invalid_ip" | "error";
 
 export function evaluateHealth(input: HealthInput): { status: HealthStatus; exitCode: 0 | 1 } {
   if (input.latestStatus === "invalid_ip") return { status: "invalid_ip", exitCode: 1 };
-  const interval = input.activeCwl ? ACTIVE_CWL_INTERVAL_MS : IDLE_INTERVAL_MS;
+  const interval = input.activeCwl
+    ? (input.activeCwlIntervalMs ?? ACTIVE_CWL_INTERVAL_MS)
+    : (input.idleIntervalMs ?? IDLE_INTERVAL_MS);
   if (!input.lastSuccessfulAt || input.now.getTime() - input.lastSuccessfulAt.getTime() > interval * 2) {
     return { status: "stale", exitCode: 1 };
   }
@@ -50,6 +68,8 @@ interface SchedulerDependencies {
   setWatchdog?: (callback: () => void, delay: number) => Timer;
   clearWatchdog?: (timer: Timer) => void;
   onError?: (error: unknown) => void;
+  activeCwlIntervalMs?: number;
+  idleIntervalMs?: number;
 }
 
 export class CollectionScheduler {
@@ -61,6 +81,7 @@ export class CollectionScheduler {
   private readonly clearHeartbeat: (timer: Timer) => void;
   private readonly setWatchdog: (callback: () => void, delay: number) => Timer;
   private readonly clearWatchdog: (timer: Timer) => void;
+  private readonly cadence: CollectionCadence;
   private timer: Timer | undefined;
   private heartbeat: Timer | undefined;
   private watchdog: Timer | undefined;
@@ -76,6 +97,10 @@ export class CollectionScheduler {
     this.clearHeartbeat = dependencies.clearHeartbeat ?? clearInterval;
     this.setWatchdog = dependencies.setWatchdog ?? setTimeout;
     this.clearWatchdog = dependencies.clearWatchdog ?? clearTimeout;
+    this.cadence = {
+      activeCwlIntervalMs: dependencies.activeCwlIntervalMs ?? ACTIVE_CWL_INTERVAL_MS,
+      idleIntervalMs: dependencies.idleIntervalMs ?? IDLE_INTERVAL_MS,
+    };
   }
 
   async start(): Promise<void> {
@@ -154,7 +179,7 @@ export class CollectionScheduler {
   private schedule(activeCwl: boolean | null): void {
     if (this.stopped) return;
     const now = this.now();
-    const delay = nextCollectionAt(now, activeCwl).getTime() - now.getTime();
+    const delay = nextCollectionAt(now, activeCwl, this.cadence).getTime() - now.getTime();
     this.timer = this.setTimer(() => { void this.runNow(); }, delay);
   }
 }

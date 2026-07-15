@@ -1,12 +1,28 @@
+import { ACTIVE_CWL_INTERVAL_MS, IDLE_INTERVAL_MS } from "./schedule.js";
+
+export type CollectorLogLevel = "silent" | "error";
+
 export interface CollectorConfig {
   clashApiToken: string;
   clanTag: string;
   supabaseUrl: string;
   supabaseServiceRoleKey: string;
   timezone: string;
+  logLevel: CollectorLogLevel;
+  activeCwlIntervalMs: number;
+  idleIntervalMs: number;
 }
 
 type Environment = Readonly<Record<string, string | undefined>>;
+
+function positiveInteger(environment: Environment, name: string, fallback: number): number {
+  const rawValue = environment[name]?.trim();
+  if (!rawValue) return fallback;
+  if (!/^\d+$/.test(rawValue) || Number(rawValue) <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return Number(rawValue);
+}
 
 export function loadConfig(environment: Environment): CollectorConfig {
   const requiredKeys = [
@@ -38,6 +54,10 @@ export function loadConfig(environment: Environment): CollectorConfig {
   } catch {
     throw new Error("TZ must be a valid IANA timezone");
   }
+  const logLevel = environment.LOG_LEVEL?.trim() || "error";
+  if (logLevel !== "silent" && logLevel !== "error") {
+    throw new Error("LOG_LEVEL must be silent or error");
+  }
 
   return {
     clashApiToken: environment.CLASH_API_TOKEN!.trim(),
@@ -45,5 +65,16 @@ export function loadConfig(environment: Environment): CollectorConfig {
     supabaseUrl: supabaseUrl.toString().replace(/\/$/, ""),
     supabaseServiceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY!.trim(),
     timezone: environment.TZ!.trim(),
+    logLevel,
+    activeCwlIntervalMs: positiveInteger(
+      environment,
+      "ACTIVE_CWL_INTERVAL_MINUTES",
+      ACTIVE_CWL_INTERVAL_MS / (60 * 1_000),
+    ) * 60 * 1_000,
+    idleIntervalMs: positiveInteger(
+      environment,
+      "IDLE_INTERVAL_HOURS",
+      IDLE_INTERVAL_MS / (60 * 60 * 1_000),
+    ) * 60 * 60 * 1_000,
   };
 }

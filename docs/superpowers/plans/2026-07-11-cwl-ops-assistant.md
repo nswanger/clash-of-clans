@@ -511,19 +511,19 @@ Commit: `git commit -m "ci: deploy dashboard to GitHub Pages"`
 - Consumes: built collector image, Supabase production values, Clash token, and SSH connection details stored in `Personal-Vault` project/session documentation.
 - Produces: a reproducible UnRaid deployment, manual fallback, and verified healthy first collection.
 
-- [ ] **Step 1: Preflight without changing UnRaid**
+- [x] **Step 1: Preflight without changing UnRaid**
 
 Retrieve the host, SSH username, identity/config alias, and preferred app-data conventions from `Personal-Vault`. Ask Nick only for missing values. Run read-only checks for SSH reachability, Docker availability, architecture, timezone, free space, and existing container/name conflicts. Do not print private key material or secret values.
 
-- [ ] **Step 2: Write the runbook and environment reference**
+- [x] **Step 2: Write the runbook and environment reference**
 
 Document both SSH-assisted and UnRaid UI paths. Required variables are `CLASH_API_TOKEN`, `CLAN_TAG`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `TZ`; optional variables include log level and collector cadence overrides. Explain the public-WAN-IP allowlist and current-IP verification without committing the IP or token.
 
-- [ ] **Step 3: Add reproducible compose configuration**
+- [x] **Step 3: Add reproducible compose configuration**
 
 Define one collector service with `restart: unless-stopped`, read-only root filesystem where compatible, non-root user, secret environment file, persistent app-data mount only if required, outbound networking, and health check. Do not publish ports.
 
-- [ ] **Step 4: Add safe verification script**
+- [x] **Step 4: Add safe verification script**
 
 The script must verify container health, sanitized recent logs, Clash/Supabase connectivity status, latest raw snapshot time, latest canonical war/member counts, and collection health. It must fail if duplicate canonical identities exist.
 

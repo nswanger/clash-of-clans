@@ -1,0 +1,29 @@
+services:
+  collector:
+    image: ${COLLECTOR_IMAGE:?Set COLLECTOR_IMAGE in the adjacent .env file}
+    container_name: cwl-collector
+    restart: unless-stopped
+    init: true
+    user: "1000:1000"
+    read_only: true
+    env_file:
+      - ./collector.env
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "node", "dist/main.js", "--healthcheck"]
+      interval: 5m
+      timeout: 15s
+      start_period: 2m
+      retries: 2
+    networks:
+      - collector-outbound
+
+networks:
+  collector-outbound:
+    driver: bridge

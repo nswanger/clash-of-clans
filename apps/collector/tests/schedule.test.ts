@@ -12,6 +12,17 @@ describe("collector scheduling", () => {
     expect(nextCollectionAt(now, null).toISOString()).toBe("2026-07-11T13:00:00.000Z");
   });
 
+  it("uses configured active and idle collection cadences", () => {
+    const now = new Date("2026-07-11T12:00:00.000Z");
+    const cadence = {
+      activeCwlIntervalMs: 15 * 60 * 1_000,
+      idleIntervalMs: 6 * 60 * 60 * 1_000,
+    };
+
+    expect(nextCollectionAt(now, true, cadence).toISOString()).toBe("2026-07-11T12:15:00.000Z");
+    expect(nextCollectionAt(now, false, cadence).toISOString()).toBe("2026-07-11T18:00:00.000Z");
+  });
+
   it("renews ownership throughout a collection longer than the initial lease", async () => {
     let now = new Date("2026-07-11T12:00:00.000Z");
     let heartbeat!: () => void;

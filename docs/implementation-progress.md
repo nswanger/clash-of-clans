@@ -1,6 +1,6 @@
 # CWL Operations Assistant Implementation Progress
 
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 
 | Task | Status | Notes |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Last updated: 2026-07-13
 | 6. Collector scheduling, health, and Docker packaging | Complete | Lease heartbeat and safety watchdog, abort propagation, health checks, and container packaging verified. |
 | 7. Authenticated dashboard and progressive-disclosure UX | Complete | Base-aware Discord auth, secure invitation redemption, guarded routes, live Supabase reads/mutations, explainable decisions, responsive states, and E2E coverage verified. |
 | 8. GitHub Pages and Supabase production configuration | Complete | Pages-safe base routing, verified deployment workflow, public-only build configuration, artifact secret scan, and production Supabase runbook implemented and reviewed. |
-| 9. UnRaid deployment and operator runbook | Not started | Requires explicit authorization before remote writes. |
+| 9. UnRaid deployment and operator runbook | In progress | Local assets and read-only preflight complete; remote deployment, idempotency, and rollback await explicit authorization. |
 | 10. End-to-end acceptance and production handoff | Not started | Depends on Tasks 7–9. |
 
 ## Latest Verification
@@ -20,7 +20,7 @@ Last updated: 2026-07-13
 - `pnpm --filter @cwl/web test`: 48 tests passed across 11 files.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 107 tests passed across the collector, domain, recommendations, and web packages.
+- `pnpm test`: 113 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
 - Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
@@ -31,16 +31,20 @@ Last updated: 2026-07-13
 - `pnpm exec playwright test`: 14 desktop, tablet-width, and mobile workflows passed.
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:test .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
+- Task 9 collector tests: 45 tests passed; optional logging/cadence overrides and health thresholds are covered.
+- `scripts/tests/verify-collector.test.sh`: healthy, unhealthy, duplicate-identity, and secret-redaction cases passed.
+- UnRaid Compose rendering: non-root read-only service, no ports or volumes, dropped capabilities, outbound-only bridge, and health check verified.
+- Read-only UnRaid preflight: SSH, `x86_64`, timezone, Docker 29.5.1, Compose, app-data space, outbound HTTPS, and name/path conflicts checked without remote writes.
 - `git diff --check`: passed.
 
 ## Continuation Point
 
-Task 8 is complete on `codex/cwl-assistant-mvp`; continue with Task 9 without creating a worktree unless Nick requests otherwise. Task 9 may create local deployment assets and run read-only UnRaid preflight checks, but remote writes require Nick's explicit authorization after the exact proposed changes are shown.
+Task 9 is in progress on `codex/cwl-assistant-mvp`. Local deployment assets and the read-only UnRaid preflight are complete. No remote files, images, networks, containers, Clash keys, or Supabase data were changed.
 
-Task 8 implementation commit: `4e8b15a`.
+- `deploy/unraid/docker-compose.yml` defines one non-root, read-only, capability-free collector with no published ports or persistent data mount.
+- `deploy/unraid/collector.env.example` separates the five required secrets/settings from validated optional log-level and cadence overrides.
+- `scripts/verify-collector.sh` sanitizes recent logs and checks container health, Clash/Supabase connectivity, raw freshness, canonical counts, collection health, and duplicate canonical identities.
+- `docs/runbooks/unraid.md` documents SSH and UnRaid UI deployment, WAN-IP/key verification, idempotency checks, and data-preserving rollback.
+- Read-only preflight found the documented server reachable with the required architecture, timezone, Docker/Compose support, free app-data space, outbound HTTPS, and no collector name/path conflicts.
 
-- `VITE_BASE_PATH` now supports both root/custom-domain and repository Pages paths.
-- The Pages workflow pins Node 22, pnpm 10.13.1, and current official Pages actions; it runs the workspace gates, scans the built artifact, uploads only `apps/web/dist`, and uses the required Pages permissions/environment.
-- The production Supabase runbook covers migration dry-runs/deployment, Discord OAuth callbacks and redirect allow-listing, public versus privileged keys, first-admin bootstrap, RLS checks, 90-day cleanup scheduling, and forward-only rollback.
-
-Task 8 verification covers 107 workspace tests, all workspace typechecks/builds, root/project base builds, valid workflow YAML, a clean artifact secret scan, and independent review with no findings. Live Pages deployment, production migrations/OAuth/admin bootstrap/RLS spot checks, and the cleanup Cron job remain production actions rather than Task 8 repository changes. Next: Task 9 UnRaid deployment assets, preflight, and operator runbook.
+Next: obtain Nick's explicit authorization for the exact remote changes, then perform Task 9 Steps 5–7: deploy, run two retry-idempotency collections, verify rollback/no exposed port, and commit. Production Supabase and Pages prerequisites from Task 8 remain external prerequisites for a healthy live collector.

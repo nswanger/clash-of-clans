@@ -7,7 +7,7 @@
   },
   "scripts": {
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && sh scripts/tests/verify-collector.test.sh",
     "build": "pnpm -r build"
   },
   "devDependencies": {
