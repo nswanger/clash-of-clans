@@ -4,6 +4,9 @@ import {
   isSupportedSupabaseServerKey,
 } from "../src/supabase-auth.js";
 
+const legacyServiceRoleKey = "header.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature";
+const legacyAnonKey = "header.eyJyb2xlIjoiYW5vbiJ9.signature";
+
 describe("Supabase server credentials", () => {
   it("uses a current secret key only as an API key", () => {
     expect(buildSupabaseRequestHeaders("sb_secret_test-value")).toEqual({
@@ -13,7 +16,7 @@ describe("Supabase server credentials", () => {
   });
 
   it("preserves bearer authorization for a legacy service_role JWT", () => {
-    const key = "header.payload.signature";
+    const key = legacyServiceRoleKey;
     expect(buildSupabaseRequestHeaders(key, "return=representation")).toEqual({
       apikey: key,
       authorization: `Bearer ${key}`,
@@ -24,7 +27,9 @@ describe("Supabase server credentials", () => {
 
   it.each([
     ["sb_secret_test-value", true],
-    ["header.payload.signature", true],
+    [legacyServiceRoleKey, true],
+    [legacyAnonKey, false],
+    ["header.payload.signature", false],
     ["sb_publishable_test-value", false],
     ["sbp_test-value", false],
     ["not-a-server-key", false],

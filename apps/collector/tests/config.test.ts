@@ -8,6 +8,8 @@ const validEnvironment = {
   SUPABASE_SERVICE_ROLE_KEY: "sb_secret_test-value",
   TZ: "UTC",
 };
+const legacyServiceRoleKey = "header.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature";
+const legacyAnonKey = "header.eyJyb2xlIjoiYW5vbiJ9.signature";
 
 describe("loadConfig", () => {
   it("requires every collector environment variable", () => {
@@ -30,13 +32,14 @@ describe("loadConfig", () => {
   it("accepts a legacy JWT-based service_role key", () => {
     expect(loadConfig({
       ...validEnvironment,
-      SUPABASE_SERVICE_ROLE_KEY: "header.payload.signature",
-    }).supabaseServiceRoleKey).toBe("header.payload.signature");
+      SUPABASE_SERVICE_ROLE_KEY: legacyServiceRoleKey,
+    }).supabaseServiceRoleKey).toBe(legacyServiceRoleKey);
   });
 
   it.each([
     "sb_publishable_test-value",
     "sbp_test-value",
+    legacyAnonKey,
     "not-a-server-key",
   ])("rejects non-server Supabase credential %s without revealing it", (credential) => {
     expect(() => loadConfig({

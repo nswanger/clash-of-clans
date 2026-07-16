@@ -36,6 +36,9 @@ import {
   isSupportedSupabaseServerKey,
 } from "../src/supabase-auth.js";
 
+const legacyServiceRoleKey = "header.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature";
+const legacyAnonKey = "header.eyJyb2xlIjoiYW5vbiJ9.signature";
+
 describe("Supabase server credentials", () => {
   it("uses a current secret key only as an API key", () => {
     expect(buildSupabaseRequestHeaders("sb_secret_test-value")).toEqual({
@@ -45,7 +48,7 @@ describe("Supabase server credentials", () => {
   });
 
   it("preserves bearer authorization for a legacy service_role JWT", () => {
-    const key = "header.payload.signature";
+    const key = legacyServiceRoleKey;
     expect(buildSupabaseRequestHeaders(key, "return=representation")).toEqual({
       apikey: key,
       authorization: `Bearer ${key}`,
@@ -56,7 +59,9 @@ describe("Supabase server credentials", () => {
 
   it.each([
     ["sb_secret_test-value", true],
-    ["header.payload.signature", true],
+    [legacyServiceRoleKey, true],
+    [legacyAnonKey, false],
+    ["header.payload.signature", false],
     ["sb_publishable_test-value", false],
     ["sbp_test-value", false],
     ["not-a-server-key", false],
@@ -77,15 +82,29 @@ Expected: FAIL because `../src/supabase-auth.js` does not exist.
 ```ts
 const CURRENT_SECRET_PREFIX = "sb_secret_";
 
-function isLegacyJwt(key: string): boolean {
+function decodeBase64Url(value: string): string {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function isLegacyServiceRoleJwt(key: string): boolean {
   const segments = key.split(".");
-  return segments.length === 3 && segments.every(Boolean);
+  if (segments.length !== 3 || !segments.every(Boolean)) return false;
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(segments[1]!)) as { role?: unknown };
+    return payload.role === "service_role";
+  } catch {
+    return false;
+  }
 }
 
 export function isSupportedSupabaseServerKey(key: string): boolean {
   return (
     (key.startsWith(CURRENT_SECRET_PREFIX) && key.length > CURRENT_SECRET_PREFIX.length)
-    || isLegacyJwt(key)
+    || isLegacyServiceRoleJwt(key)
   );
 }
 
@@ -139,6 +158,8 @@ const validEnvironment = {
   SUPABASE_SERVICE_ROLE_KEY: "sb_secret_test-value",
   TZ: "UTC",
 };
+const legacyServiceRoleKey = "header.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature";
+const legacyAnonKey = "header.eyJyb2xlIjoiYW5vbiJ9.signature";
 ```
 
 Replace repeated valid values with `...validEnvironment`, then add:
@@ -147,13 +168,14 @@ Replace repeated valid values with `...validEnvironment`, then add:
 it("accepts a legacy JWT-based service_role key", () => {
   expect(loadConfig({
     ...validEnvironment,
-    SUPABASE_SERVICE_ROLE_KEY: "header.payload.signature",
-  }).supabaseServiceRoleKey).toBe("header.payload.signature");
+    SUPABASE_SERVICE_ROLE_KEY: legacyServiceRoleKey,
+  }).supabaseServiceRoleKey).toBe(legacyServiceRoleKey);
 });
 
 it.each([
   "sb_publishable_test-value",
   "sbp_test-value",
+  legacyAnonKey,
   "not-a-server-key",
 ])("rejects non-server Supabase credential %s without revealing it", (credential) => {
   expect(() => loadConfig({

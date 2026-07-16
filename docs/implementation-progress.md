@@ -20,7 +20,7 @@ Last updated: 2026-07-14
 - `pnpm --filter @cwl/web test`: 48 tests passed across 11 files.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 124 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
+- `pnpm test`: 127 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
 - Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
@@ -31,7 +31,7 @@ Last updated: 2026-07-14
 - `pnpm exec playwright test`: 14 desktop, tablet-width, and mobile workflows passed.
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:test .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
-- Task 9 collector tests: 56 tests passed; current/legacy Supabase server credentials, invalid credential rejection, optional logging/cadence overrides, and health thresholds are covered.
+- Task 9 collector tests: 59 tests passed; current/legacy Supabase server credentials, legacy role verification, invalid credential rejection, optional logging/cadence overrides, and health thresholds are covered.
 - `scripts/tests/verify-collector.test.sh`: healthy, unhealthy, duplicate-identity, and secret-redaction cases passed.
 - UnRaid Compose rendering: non-root read-only service, no ports or volumes, dropped capabilities, outbound-only bridge, and health check verified.
 - Read-only UnRaid preflight: SSH, `x86_64`, timezone, Docker 29.5.1, Compose, app-data space, outbound HTTPS, and name/path conflicts checked without remote writes.
