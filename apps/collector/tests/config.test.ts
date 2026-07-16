@@ -1,23 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 
+const validEnvironment = {
+  CLASH_API_TOKEN: "fake-token",
+  CLAN_TAG: "#PQLG",
+  SUPABASE_URL: "https://example.invalid",
+  SUPABASE_SERVICE_ROLE_KEY: "sb_secret_test-value",
+  TZ: "UTC",
+};
+
 describe("loadConfig", () => {
   it("requires every collector environment variable", () => {
     expect(() => loadConfig({})).toThrow(/CLASH_API_TOKEN.*CLAN_TAG.*SUPABASE_URL.*SUPABASE_SERVICE_ROLE_KEY.*TZ/);
   });
 
   it("returns validated non-empty values", () => {
-    expect(loadConfig({
-      CLASH_API_TOKEN: "fake-token",
-      CLAN_TAG: "#PQLG",
-      SUPABASE_URL: "https://example.invalid",
-      SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key",
-      TZ: "UTC",
-    })).toEqual({
+    expect(loadConfig(validEnvironment)).toEqual({
       clashApiToken: "fake-token",
       clanTag: "#PQLG",
       supabaseUrl: "https://example.invalid",
-      supabaseServiceRoleKey: "fake-service-role-key",
+      supabaseServiceRoleKey: "sb_secret_test-value",
       timezone: "UTC",
       logLevel: "error",
       activeCwlIntervalMs: 60 * 60 * 1_000,
@@ -25,13 +27,33 @@ describe("loadConfig", () => {
     });
   });
 
+  it("accepts a legacy JWT-based service_role key", () => {
+    expect(loadConfig({
+      ...validEnvironment,
+      SUPABASE_SERVICE_ROLE_KEY: "header.payload.signature",
+    }).supabaseServiceRoleKey).toBe("header.payload.signature");
+  });
+
+  it.each([
+    "sb_publishable_test-value",
+    "sbp_test-value",
+    "not-a-server-key",
+  ])("rejects non-server Supabase credential %s without revealing it", (credential) => {
+    expect(() => loadConfig({
+      ...validEnvironment,
+      SUPABASE_SERVICE_ROLE_KEY: credential,
+    })).toThrow(/SUPABASE_SERVICE_ROLE_KEY.*sb_secret.*service_role/);
+
+    try {
+      loadConfig({ ...validEnvironment, SUPABASE_SERVICE_ROLE_KEY: credential });
+    } catch (error) {
+      expect((error as Error).message).not.toContain(credential);
+    }
+  });
+
   it("accepts supported logging and cadence overrides", () => {
     expect(loadConfig({
-      CLASH_API_TOKEN: "fake-token",
-      CLAN_TAG: "#PQLG",
-      SUPABASE_URL: "https://example.invalid",
-      SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key",
-      TZ: "UTC",
+      ...validEnvironment,
       LOG_LEVEL: "silent",
       ACTIVE_CWL_INTERVAL_MINUTES: "15",
       IDLE_INTERVAL_HOURS: "6",
@@ -49,22 +71,15 @@ describe("loadConfig", () => {
     ["IDLE_INTERVAL_HOURS", "tomorrow"],
   ])("rejects invalid optional setting %s=%s", (name, value) => {
     expect(() => loadConfig({
-      CLASH_API_TOKEN: "fake-token",
-      CLAN_TAG: "#PQLG",
-      SUPABASE_URL: "https://example.invalid",
-      SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key",
-      TZ: "UTC",
+      ...validEnvironment,
       [name]: value,
     })).toThrow(new RegExp(name));
   });
 
   it.each(["FAKECLAN", "#fake", "#BAD-I", "#BAD1"])("rejects invalid clan tag %s", (clanTag) => {
     expect(() => loadConfig({
-      CLASH_API_TOKEN: "fake-token",
+      ...validEnvironment,
       CLAN_TAG: clanTag,
-      SUPABASE_URL: "https://example.invalid",
-      SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key",
-      TZ: "UTC",
     })).toThrow(/CLAN_TAG/);
   });
 
@@ -72,21 +87,15 @@ describe("loadConfig", () => {
     "rejects invalid Supabase URL %s",
     (supabaseUrl) => {
       expect(() => loadConfig({
-        CLASH_API_TOKEN: "fake-token",
-        CLAN_TAG: "#PQLG",
+        ...validEnvironment,
         SUPABASE_URL: supabaseUrl,
-        SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key",
-        TZ: "UTC",
       })).toThrow(/SUPABASE_URL/);
     },
   );
 
   it("rejects an unknown IANA timezone", () => {
     expect(() => loadConfig({
-      CLASH_API_TOKEN: "fake-token",
-      CLAN_TAG: "#PQLG",
-      SUPABASE_URL: "https://example.invalid",
-      SUPABASE_SERVICE_ROLE_KEY: "fake-service-role-key",
+      ...validEnvironment,
       TZ: "Moon/Sea_of_Tranquility",
     })).toThrow(/TZ/);
   });

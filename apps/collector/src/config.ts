@@ -1,4 +1,5 @@
 import { ACTIVE_CWL_INTERVAL_MS, IDLE_INTERVAL_MS } from "./schedule.js";
+import { isSupportedSupabaseServerKey } from "./supabase-auth.js";
 
 export type CollectorLogLevel = "silent" | "error";
 
@@ -37,6 +38,13 @@ export function loadConfig(environment: Environment): CollectorConfig {
     throw new Error(`Missing required environment variables: ${missingKeys.join(", ")}`);
   }
 
+  const supabaseServiceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY!.trim();
+  if (!isSupportedSupabaseServerKey(supabaseServiceRoleKey)) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY must be a Supabase sb_secret key or legacy service_role JWT",
+    );
+  }
+
   if (!/^#[0289PYLQGRJCUV]+$/.test(environment.CLAN_TAG!.trim())) {
     throw new Error("CLAN_TAG must use valid Clash tag syntax");
   }
@@ -63,7 +71,7 @@ export function loadConfig(environment: Environment): CollectorConfig {
     clashApiToken: environment.CLASH_API_TOKEN!.trim(),
     clanTag: environment.CLAN_TAG!.trim(),
     supabaseUrl: supabaseUrl.toString().replace(/\/$/, ""),
-    supabaseServiceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY!.trim(),
+    supabaseServiceRoleKey,
     timezone: environment.TZ!.trim(),
     logLevel,
     activeCwlIntervalMs: positiveInteger(
