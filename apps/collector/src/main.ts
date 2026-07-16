@@ -1,6 +1,7 @@
 import { ClashClient } from "./clash-client.js";
 import { collectOnce } from "./collect.js";
 import { loadConfig } from "./config.js";
+import { buildSupabaseRequestHeaders } from "./supabase-auth.js";
 import type {
   CreateAttemptInput,
   FinishAttemptInput,
@@ -114,12 +115,7 @@ class SupabaseCollectorRepository implements RawSnapshotStore, CollectionLease {
   private async rest<T = unknown>(path: string, options: RestOptions = {}): Promise<T> {
     const response = await fetch(`${this.url}/rest/v1/${path}`, {
       method: options.method ?? "GET",
-      headers: {
-        apikey: this.key,
-        authorization: `Bearer ${this.key}`,
-        "content-type": "application/json",
-        ...(options.prefer ? { prefer: options.prefer } : {}),
-      },
+      headers: buildSupabaseRequestHeaders(this.key, options.prefer),
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     });
     if (!response.ok) throw new Error(`Supabase request failed (${response.status})`);

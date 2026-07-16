@@ -20,7 +20,7 @@ Last updated: 2026-07-14
 - `pnpm --filter @cwl/web test`: 48 tests passed across 11 files.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 113 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
+- `pnpm test`: 124 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
 - Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
@@ -31,10 +31,11 @@ Last updated: 2026-07-14
 - `pnpm exec playwright test`: 14 desktop, tablet-width, and mobile workflows passed.
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:test .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
-- Task 9 collector tests: 45 tests passed; optional logging/cadence overrides and health thresholds are covered.
+- Task 9 collector tests: 56 tests passed; current/legacy Supabase server credentials, invalid credential rejection, optional logging/cadence overrides, and health thresholds are covered.
 - `scripts/tests/verify-collector.test.sh`: healthy, unhealthy, duplicate-identity, and secret-redaction cases passed.
 - UnRaid Compose rendering: non-root read-only service, no ports or volumes, dropped capabilities, outbound-only bridge, and health check verified.
 - Read-only UnRaid preflight: SSH, `x86_64`, timezone, Docker 29.5.1, Compose, app-data space, outbound HTTPS, and name/path conflicts checked without remote writes.
+- Read-only credential preflight: required local variables, modern Supabase server key and browser key formats, linked-project match, Supabase REST access, Clash clan access, and production migration dry-run all passed without printing credential values.
 - `git diff --check`: passed.
 
 ## Continuation Point
@@ -42,6 +43,7 @@ Last updated: 2026-07-14
 Task 9 is in progress on `codex/cwl-assistant-mvp`. Local deployment assets and the read-only UnRaid preflight are complete. No remote files, images, networks, containers, Clash keys, or Supabase data were changed.
 
 - `deploy/unraid/docker-compose.yml` defines one non-root, read-only, capability-free collector with no published ports or persistent data mount.
+- The collector sends current `sb_secret_...` credentials only as an API key, retains legacy JWT `service_role` compatibility, and rejects browser/personal/unrecognized credentials before network access.
 - `deploy/unraid/collector.env.example` separates the five required secrets/settings from validated optional log-level and cadence overrides.
 - `scripts/verify-collector.sh` sanitizes recent logs and checks container health, Clash/Supabase connectivity, raw freshness, canonical counts, collection health, and duplicate canonical identities.
 - `docs/runbooks/unraid.md` documents SSH and UnRaid UI deployment, WAN-IP/key verification, idempotency checks, and data-preserving rollback.

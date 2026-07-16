@@ -90,7 +90,7 @@ Never add `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `CLASH_API_TOKEN`,
 
 The collector runs server-side on UnRaid and needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLASH_API_TOKEN`, `CLAN_TAG`, and `TZ`. Store them only in protected UnRaid container variables or a protected server-side environment file.
 
-Prefer a current Supabase `sb_secret_...` key when it is compatible with the collector. The existing compatibility variable `SUPABASE_SERVICE_ROLE_KEY` may contain that current secret key; it does not require the legacy JWT-based `service_role` value. If compatibility testing requires the legacy `service_role` key, it must remain server-only. Both key types bypass normal RLS and must never be used in the browser. Supabase describes the current and legacy key types in [Understanding API keys](https://supabase.com/docs/guides/getting-started/api-keys).
+Use a current Supabase `sb_secret_...` key for the collector. The compatibility-named `SUPABASE_SERVICE_ROLE_KEY` variable accepts that current secret key and sends it only as an API key; it also retains support for the legacy JWT-based `service_role` key. Collector startup rejects publishable keys, personal access tokens, and unrecognized formats before making a request. Both supported server key types bypass normal RLS and must never be used in the browser. Supabase describes the current and legacy key types in [Understanding API keys](https://supabase.com/docs/guides/getting-started/api-keys).
 
 ## Bootstrap Nick as the first admin
 
