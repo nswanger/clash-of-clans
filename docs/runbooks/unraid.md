@@ -114,7 +114,7 @@ These commands change UnRaid and require explicit authorization. Set `UNRAID_SSH
    docker port cwl-collector
    ```
 
-   Verification must report a healthy container, successful Clash and Supabase connectivity, a recent raw snapshot, latest-season canonical war/member counts, and zero duplicate canonical identities. The latest collection must be `healthy`, except that `partial` is accepted and remains visible when the only failed attempt is the current CWL league-group endpoint returning `404 not_found` while the clan and member attempts are healthy. `docker port` must print nothing.
+   Verification must report a healthy container, successful Clash and Supabase connectivity, a recent raw snapshot, latest-season canonical war/member counts, and zero duplicate canonical identities. The latest collection must be `healthy`, except that `partial` is accepted and remains visible when the only failed attempt is the current CWL league-group endpoint returning `404 not_found`, the clan and member attempts are healthy, and complete, unique healthy player attempts match the live clan member count. `docker port` must print nothing.
 
 ## Public WAN IP and Clash key
 

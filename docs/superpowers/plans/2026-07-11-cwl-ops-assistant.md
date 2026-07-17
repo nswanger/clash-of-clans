@@ -509,7 +509,7 @@ Commit: `git commit -m "ci: deploy dashboard to GitHub Pages"`
 
 **Interfaces:**
 - Consumes: built collector image, Supabase production values, Clash token, and SSH connection details stored in `Personal-Vault` project/session documentation.
-- Produces: a reproducible UnRaid deployment, manual fallback, and verified healthy first collection.
+- Produces: a reproducible UnRaid deployment, manual fallback, and verified first collection. The collection must be `healthy`, except that an explicitly visible `partial` is accepted outside active CWL when the only failure is `league_group` returning `404 not_found`, clan and member attempts are healthy, and complete, unique healthy player attempts match the live clan member count.
 
 - [x] **Step 1: Preflight without changing UnRaid**
 
@@ -527,15 +527,15 @@ Define one collector service with `restart: unless-stopped`, read-only root file
 
 The script must verify container health, sanitized recent logs, Clash/Supabase connectivity status, latest raw snapshot time, latest canonical war/member counts, and collection health. It must fail if duplicate canonical identities exist.
 
-- [ ] **Step 5: Perform an authorized deployment or manual handoff**
+- [x] **Step 5: Perform an authorized deployment or manual handoff**
 
 If Nick authorizes SSH writes, copy only deployment assets, create protected directories/files, start the container, and run verification. Otherwise, walk Nick through the exact UnRaid UI fields and commands from the runbook and wait for returned verification output.
 
-- [ ] **Step 6: Test retry idempotency on UnRaid**
+- [x] **Step 6: Test retry idempotency on UnRaid**
 
 Record canonical counts, invoke two consecutive collection runs against the same latest API state, and assert the duplicate query remains empty and canonical counts do not inflate except for raw collection-run/snapshot evidence.
 
-- [ ] **Step 7: Verify rollback and commit**
+- [x] **Step 7: Verify rollback and commit**
 
 Demonstrate stopping the new container and restoring the prior image/config without deleting Supabase data. Confirm no inbound port is exposed.
 

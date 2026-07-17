@@ -12,8 +12,8 @@ Last updated: 2026-07-16
 | 6. Collector scheduling, health, and Docker packaging | Complete | Lease heartbeat and safety watchdog, abort propagation, health checks, and container packaging verified. |
 | 7. Authenticated dashboard and progressive-disclosure UX | Complete | Base-aware Discord auth, secure invitation redemption, guarded routes, live Supabase reads/mutations, explainable decisions, responsive states, and E2E coverage verified. |
 | 8. GitHub Pages and Supabase production configuration | Complete | Pages-safe base routing, verified deployment workflow, public-only build configuration, artifact secret scan, and production Supabase runbook implemented and reviewed. |
-| 9. UnRaid deployment and operator runbook | In progress | Deployment authorized; local assets, safety hardening, and read-only preflight complete; remote deployment, idempotency, and rollback remain. |
-| 10. End-to-end acceptance and production handoff | Not started | Depends on Tasks 7–9. |
+| 9. UnRaid deployment and operator runbook | Complete | Immutable collector deployed to UnRaid; protected configuration, live verification, two-restart idempotency, rollback, restoration, and no-port checks passed. |
+| 10. End-to-end acceptance and production handoff | Not started | Ready to begin; Tasks 7–9 are complete. |
 
 ## Latest Verification
 
@@ -36,17 +36,23 @@ Last updated: 2026-07-16
 - UnRaid Compose rendering: non-root read-only service, no ports or volumes, dropped capabilities, isolated bridge, and health check verified.
 - Read-only UnRaid preflight: SSH, `x86_64`, timezone, Docker 29.5.1, Compose, app-data space, outbound HTTPS, and name/path conflicts checked without remote writes.
 - Read-only credential preflight: required local variables, modern Supabase server key and browser key formats, linked-project match, Supabase REST access, Clash clan access, and production migration dry-run all passed without printing credential values.
+- UnRaid deployment: immutable `linux/amd64` image `cwl-collector:bbfe29f3d3cb` loaded from a matching archive digest; app-data directory mode `700`, environment mode `600`, non-root read-only runtime, and `restart: unless-stopped` verified.
+- Production collection: Clash and Supabase connectivity passed; the only partial attempt was the expected idle-CWL league-group `404 not_found`, with complete healthy clan/member/player attempts and zero duplicate canonical identities.
+- Two-restart idempotency: both restarts produced distinct completed collection-run IDs; canonical CWL war/member counts stayed stable at `0`; duplicate canonical identities stayed `0`.
+- Data-preserving rollback: the prior immutable image was restored and verified, then `cwl-collector:bbfe29f3d3cb` was restored as the final running image; counts stayed stable and no Supabase data was deleted.
+- `docker port cwl-collector`: no published ports before, during, or after rollback.
 - `git diff --check`: passed.
 
 ## Continuation Point
 
-Task 9 is in progress on `codex/cwl-assistant-mvp`. Local deployment assets and the read-only UnRaid preflight are complete. No remote files, images, networks, containers, Clash keys, or Supabase data were changed.
+Task 9 is complete on `codex/cwl-assistant-mvp`. UnRaid is running immutable image `cwl-collector:bbfe29f3d3cb` with protected configuration under `/mnt/user/appdata/cwl-collector` and no published ports.
 
 - `deploy/unraid/docker-compose.yml` defines one non-root, read-only, capability-free collector with no published ports or persistent data mount.
 - The collector sends current `sb_secret_...` credentials only as an API key, retains legacy JWT `service_role` compatibility, and rejects browser/personal/unrecognized credentials before network access.
 - `deploy/unraid/collector.env.example` separates the five required secrets/settings from validated optional log-level and cadence overrides.
-- `scripts/verify-collector.sh` sanitizes recent logs, reuses the collector's Supabase header compatibility, and checks container health, Clash/Supabase connectivity, raw freshness, completed-run identity, canonical counts, collection health, and duplicate canonical identities.
+- `scripts/verify-collector.sh` sanitizes recent logs, reuses the collector's Supabase header compatibility, checks complete player-attempt coverage for expected idle-CWL partial runs, and verifies container health, connectivity, raw freshness, completed-run identity, canonical counts, collection health, and duplicate canonical identities.
 - `docs/runbooks/unraid.md` documents SSH and UnRaid UI deployment, WAN-IP/key verification, idempotency checks, and data-preserving rollback.
-- Read-only preflight found the documented server reachable with the required architecture, timezone, Docker/Compose support, free app-data space, outbound HTTPS, and no collector name/path conflicts.
+- Two restart collections and the rollback/restoration collection each produced distinct completed runs without canonical count inflation or duplicate identities.
+- The prior image selector remains protected as `.env.rollback-task9`; the final active selector points to `cwl-collector:bbfe29f3d3cb`.
 
-Nick authorized the documented Task 9 remote writes and intended Supabase collection writes. Next: perform Task 9 Steps 5–7, run two retry-idempotency collections, verify first-deployment rollback/no exposed port, and commit the final checkpoint. Production Supabase is an external prerequisite for a healthy live collector; Pages is not required for collector health.
+Next: begin Task 10 end-to-end production acceptance and handoff. Production Supabase and the UnRaid collector are live; Pages acceptance remains part of Task 10.
