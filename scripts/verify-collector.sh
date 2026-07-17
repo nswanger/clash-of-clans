@@ -24,9 +24,11 @@ fi
 printf '\nRecent logs (sanitized):\n'
 docker logs --tail "$log_lines" "$container_name" 2>&1 | awk '
   {
+    gsub(/(CLASH_API_TOKEN|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|CLAN_TAG|PLAYER_TAG|clan_tag|player_tag)=[^[:space:]]+/, "<redacted-env>")
     gsub(/sb_secret_[A-Za-z0-9_-]+/, "<redacted>")
+    gsub(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, "<redacted-jwt>")
     gsub(/Bearer [A-Za-z0-9._-]+/, "Bearer <redacted>")
-    gsub(/(CLASH_API_TOKEN|SUPABASE_SERVICE_ROLE_KEY)=[^[:space:]]+/, "<redacted-env>")
+    gsub(/#[A-Z0-9][A-Z0-9][A-Z0-9]+/, "<redacted-tag>")
     print
   }
 '
@@ -52,10 +54,8 @@ if (missingEnvironmentVariables.length > 0) {
 }
 
 const supabaseUrl = process.env.SUPABASE_URL.replace(/\/$/, "");
-const supabaseHeaders = {
-  apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-};
+const { buildSupabaseRequestHeaders } = await import("./dist/supabase-auth.js");
+const supabaseHeaders = buildSupabaseRequestHeaders(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 function printMetric(name, value) {
   console.log(`${name}=${value ?? "none"}`);
@@ -113,7 +113,7 @@ try {
 try {
   const [latestSnapshotResponse, latestRunResponse, latestSeasonResponse] = await Promise.all([
     fetchSupabase("raw_snapshots?select=collected_at&order=collected_at.desc&limit=1"),
-    fetchSupabase("collection_runs?select=status,last_fresh_at&status=neq.running&order=started_at.desc&limit=1"),
+    fetchSupabase("collection_runs?select=id,status,started_at,last_fresh_at&status=neq.running&order=started_at.desc&limit=1"),
     fetchSupabase("cwl_seasons?select=clan_tag,season_id&order=season_id.desc&limit=1"),
   ]);
 
@@ -155,6 +155,8 @@ try {
   printMetric("CANONICAL_MEMBER_COUNT", canonicalMemberCount);
   printMetric("COLLECTION_HEALTH", latestRuns[0]?.status);
   printMetric("COLLECTION_LAST_FRESH_AT", latestRuns[0]?.last_fresh_at);
+  printMetric("COLLECTION_RUN_ID", latestRuns[0]?.id);
+  printMetric("COLLECTION_RUN_STARTED_AT", latestRuns[0]?.started_at);
   printMetric("DUPLICATE_CANONICAL_IDENTITIES", duplicateCanonicalIdentities);
 
   verificationFailed ||= !latestSnapshots[0]?.collected_at;
@@ -181,6 +183,8 @@ printf '%s\n' "$metrics_output" | awk '
   /^CANONICAL_MEMBER_COUNT=/ { sub(/^[^=]*=/, ""); print "Canonical members: " $0 }
   /^COLLECTION_HEALTH=/ { sub(/^[^=]*=/, ""); print "Collection health: " $0 }
   /^COLLECTION_LAST_FRESH_AT=/ { sub(/^[^=]*=/, ""); print "Collection last fresh: " $0 }
+  /^COLLECTION_RUN_ID=/ { sub(/^[^=]*=/, ""); print "Collection run: " $0 }
+  /^COLLECTION_RUN_STARTED_AT=/ { sub(/^[^=]*=/, ""); print "Collection run started: " $0 }
   /^DUPLICATE_CANONICAL_IDENTITIES=/ { sub(/^[^=]*=/, ""); print "Duplicate canonical identities: " $0 }
 '
 

@@ -44,11 +44,20 @@ Sanitized preflight recorded on 2026-07-14:
 Build an immutable `linux/amd64` image from the reviewed commit. Do not use a floating tag for the first production deployment.
 
 ```sh
+set -eu
 commit_sha=$(git rev-parse --short=12 HEAD)
 image="cwl-collector:$commit_sha"
-docker buildx build --platform linux/amd64 --load -f docker/collector.Dockerfile -t "$image" .
+build_context=$(mktemp -d)
+trap 'rm -rf "$build_context"' EXIT HUP INT TERM
+git archive HEAD | tar -x -C "$build_context"
+docker buildx build --platform linux/amd64 --load \
+  -f "$build_context/docker/collector.Dockerfile" \
+  -t "$image" \
+  "$build_context"
 docker save "$image" | gzip > "/tmp/cwl-collector-$commit_sha.tar.gz"
 ```
+
+The temporary build context comes only from the committed `HEAD` archive. Tracked modifications and untracked local files cannot enter an image tagged with the reviewed commit.
 
 Record the image tag and source commit in the deployment handoff. If a registry is added later, use an immutable digest or commit tag and keep registry credentials outside this repository.
 
@@ -59,7 +68,7 @@ These commands change UnRaid and require explicit authorization. Set `UNRAID_SSH
 1. Copy only the reviewed assets and image archive:
 
    ```sh
-   ssh "$UNRAID_SSH" 'install -d -m 700 /mnt/user/appdata/cwl-collector'
+   ssh "$UNRAID_SSH" 'test ! -e /mnt/user/appdata/cwl-collector && install -d -m 700 /mnt/user/appdata/cwl-collector'
    scp deploy/unraid/docker-compose.yml \
      deploy/unraid/collector.env.example \
      scripts/verify-collector.sh \
@@ -67,16 +76,19 @@ These commands change UnRaid and require explicit authorization. Set `UNRAID_SSH
      "$UNRAID_SSH:/mnt/user/appdata/cwl-collector/"
    ```
 
-2. On UnRaid, import the image and prepare protected configuration:
+   This create-only guard intentionally stops if the path appeared after preflight. For an upgrade, back up the existing selector and protected environment first; do not run the first-deployment commands over an existing directory.
+
+2. From the same local shell where `commit_sha` was set, import the image and prepare protected configuration:
 
    ```sh
-   cd /mnt/user/appdata/cwl-collector
-   umask 077
-   gunzip -c "cwl-collector-$commit_sha.tar.gz" | docker load
-   cp collector.env.example collector.env
-   printf 'COLLECTOR_IMAGE=cwl-collector:%s\n' "$commit_sha" > .env
-   chmod 600 collector.env .env
-   vi collector.env
+   ssh "$UNRAID_SSH" "cd /mnt/user/appdata/cwl-collector && \
+     umask 077 && \
+     gunzip -c 'cwl-collector-$commit_sha.tar.gz' | docker load && \
+     install -m 600 collector.env.example collector.env && \
+     printf 'COLLECTOR_IMAGE=cwl-collector:%s\\n' '$commit_sha' > .env && \
+     chmod 700 verify-collector.sh && \
+     chmod 600 collector.env .env"
+   ssh -t "$UNRAID_SSH" 'vi /mnt/user/appdata/cwl-collector/collector.env'
    ```
 
    Quote `CLAN_TAG` in the env file because its value begins with `#`. Required values are `CLASH_API_TOKEN`, `CLAN_TAG`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `TZ`.
@@ -141,10 +153,10 @@ Add the five required environment variables and any reviewed optional overrides 
 
 Perform this only after the first healthy collection. The test restarts the collector twice so each startup performs a fresh leased collection against the same latest API state.
 
-1. Run `./verify-collector.sh` and record the latest raw timestamp, canonical war count, canonical member count, collection health, and duplicate count.
+1. Run `./verify-collector.sh` and record the completed collection-run ID and start time, latest raw timestamp, canonical war count, canonical member count, collection health, and duplicate count.
 2. Run `docker restart cwl-collector`, wait for health to return to `healthy`, then run `./verify-collector.sh` again.
 3. Repeat step 2 once more without changing the API or environment configuration.
-4. Confirm canonical war/member counts did not inflate and duplicate canonical identities remain `0`. New collection-run/attempt evidence is expected; identical raw response fingerprints may be deduplicated.
+4. Confirm each restart produced a different completed collection-run ID, canonical war/member counts did not inflate, and duplicate canonical identities remain `0`. If the live Clash response legitimately changed during the test, investigate the count delta rather than treating every delta as inflation. Identical raw response fingerprints may be deduplicated.
 
 If counts inflate or duplicates appear, stop the collector and preserve the sanitized verification output for diagnosis. Do not delete or hand-edit Supabase rows.
 
@@ -168,3 +180,12 @@ docker port cwl-collector
 ```
 
 This stops and replaces only the collector container. It does not delete Supabase data. Do not run `docker compose down -v`, database resets, or destructive SQL during rollback. If the previous deployment used the UnRaid UI, restore its saved template/image tag and start it after stopping the new container.
+
+For a first deployment with no prior collector image or configuration, the rollback is to stop only the new service:
+
+```sh
+docker compose stop collector
+docker inspect --format '{{.State.Status}}' cwl-collector
+```
+
+The expected state is `exited`. Supabase data and the protected deployment directory remain intact. To complete the rollback drill without changing configuration, restart the same immutable deployment with `docker compose up -d collector`, wait for health, rerun `./verify-collector.sh`, and confirm the canonical counts and duplicate result are unchanged.

@@ -1,6 +1,6 @@
 # CWL Operations Assistant Implementation Progress
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 | Task | Status | Notes |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Last updated: 2026-07-14
 | 6. Collector scheduling, health, and Docker packaging | Complete | Lease heartbeat and safety watchdog, abort propagation, health checks, and container packaging verified. |
 | 7. Authenticated dashboard and progressive-disclosure UX | Complete | Base-aware Discord auth, secure invitation redemption, guarded routes, live Supabase reads/mutations, explainable decisions, responsive states, and E2E coverage verified. |
 | 8. GitHub Pages and Supabase production configuration | Complete | Pages-safe base routing, verified deployment workflow, public-only build configuration, artifact secret scan, and production Supabase runbook implemented and reviewed. |
-| 9. UnRaid deployment and operator runbook | In progress | Local assets and read-only preflight complete; remote deployment, idempotency, and rollback await explicit authorization. |
+| 9. UnRaid deployment and operator runbook | In progress | Deployment authorized; local assets, safety hardening, and read-only preflight complete; remote deployment, idempotency, and rollback remain. |
 | 10. End-to-end acceptance and production handoff | Not started | Depends on Tasks 7–9. |
 
 ## Latest Verification
@@ -32,8 +32,8 @@ Last updated: 2026-07-14
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:test .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
 - Task 9 collector tests: 59 tests passed; current/legacy Supabase server credentials, legacy role verification, invalid credential rejection, optional logging/cadence overrides, and health thresholds are covered.
-- `scripts/tests/verify-collector.test.sh`: healthy, unhealthy, duplicate-identity, and secret-redaction cases passed.
-- UnRaid Compose rendering: non-root read-only service, no ports or volumes, dropped capabilities, outbound-only bridge, and health check verified.
+- `scripts/tests/verify-collector.test.sh`: healthy, unhealthy, duplicate-identity, completed-run evidence, Supabase header compatibility, and expanded secret-redaction cases passed.
+- UnRaid Compose rendering: non-root read-only service, no ports or volumes, dropped capabilities, isolated bridge, and health check verified.
 - Read-only UnRaid preflight: SSH, `x86_64`, timezone, Docker 29.5.1, Compose, app-data space, outbound HTTPS, and name/path conflicts checked without remote writes.
 - Read-only credential preflight: required local variables, modern Supabase server key and browser key formats, linked-project match, Supabase REST access, Clash clan access, and production migration dry-run all passed without printing credential values.
 - `git diff --check`: passed.
@@ -45,8 +45,8 @@ Task 9 is in progress on `codex/cwl-assistant-mvp`. Local deployment assets and 
 - `deploy/unraid/docker-compose.yml` defines one non-root, read-only, capability-free collector with no published ports or persistent data mount.
 - The collector sends current `sb_secret_...` credentials only as an API key, retains legacy JWT `service_role` compatibility, and rejects browser/personal/unrecognized credentials before network access.
 - `deploy/unraid/collector.env.example` separates the five required secrets/settings from validated optional log-level and cadence overrides.
-- `scripts/verify-collector.sh` sanitizes recent logs and checks container health, Clash/Supabase connectivity, raw freshness, canonical counts, collection health, and duplicate canonical identities.
+- `scripts/verify-collector.sh` sanitizes recent logs, reuses the collector's Supabase header compatibility, and checks container health, Clash/Supabase connectivity, raw freshness, completed-run identity, canonical counts, collection health, and duplicate canonical identities.
 - `docs/runbooks/unraid.md` documents SSH and UnRaid UI deployment, WAN-IP/key verification, idempotency checks, and data-preserving rollback.
 - Read-only preflight found the documented server reachable with the required architecture, timezone, Docker/Compose support, free app-data space, outbound HTTPS, and no collector name/path conflicts.
 
-Next: obtain Nick's explicit authorization for the exact remote changes, then perform Task 9 Steps 5–7: deploy, run two retry-idempotency collections, verify rollback/no exposed port, and commit. Production Supabase and Pages prerequisites from Task 8 remain external prerequisites for a healthy live collector.
+Nick authorized the documented Task 9 remote writes and intended Supabase collection writes. Next: perform Task 9 Steps 5–7, run two retry-idempotency collections, verify first-deployment rollback/no exposed port, and commit the final checkpoint. Production Supabase is an external prerequisite for a healthy live collector; Pages is not required for collector health.
