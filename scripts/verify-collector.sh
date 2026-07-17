@@ -96,15 +96,47 @@ function countDuplicateKeys(rows, fields) {
   return duplicates;
 }
 
+function isExpectedIdleCwlPartial(run, attempts, expectedPlayerCount) {
+  if (run?.status !== "partial") return false;
+  const failedAttempts = attempts.filter((attempt) => attempt.status !== "healthy");
+  const healthyPlayerAttempts = attempts.filter(
+    (attempt) => attempt.endpoint === "player" && attempt.status === "healthy",
+  );
+  const uniquePlayerRequests = new Set(
+    healthyPlayerAttempts.map((attempt) => attempt.request_identity),
+  );
+  const [failure] = failedAttempts;
+  return (
+    Number.isInteger(expectedPlayerCount)
+    && expectedPlayerCount >= 0
+    && failedAttempts.length === 1
+    && failure?.endpoint === "league_group"
+    && failure.http_status === 404
+    && failure.error_category === "not_found"
+    && attempts.some((attempt) => attempt.endpoint === "clan" && attempt.status === "healthy")
+    && attempts.some((attempt) => attempt.endpoint === "members" && attempt.status === "healthy")
+    && healthyPlayerAttempts.length === expectedPlayerCount
+    && uniquePlayerRequests.size === expectedPlayerCount
+  );
+}
+
 let verificationFailed = false;
+let currentClanMemberCount = null;
 
 try {
   const clashResponse = await fetch(
     `https://api.clashofclans.com/v1/clans/${encodeURIComponent(process.env.CLAN_TAG)}`,
     { headers: { authorization: `Bearer ${process.env.CLASH_API_TOKEN}` } },
   );
-  printMetric("CLASH_CONNECTIVITY", clashResponse.ok ? "ok" : `http_${clashResponse.status}`);
-  verificationFailed ||= !clashResponse.ok;
+  if (clashResponse.ok) {
+    const clan = await clashResponse.json();
+    currentClanMemberCount = Array.isArray(clan.memberList) ? clan.memberList.length : null;
+    printMetric("CLASH_CONNECTIVITY", "ok");
+    verificationFailed ||= currentClanMemberCount === null;
+  } else {
+    printMetric("CLASH_CONNECTIVITY", `http_${clashResponse.status}`);
+    verificationFailed = true;
+  }
 } catch {
   printMetric("CLASH_CONNECTIVITY", "network_error");
   verificationFailed = true;
@@ -120,7 +152,21 @@ try {
   const latestSnapshots = await latestSnapshotResponse.json();
   const latestRuns = await latestRunResponse.json();
   const latestSeasons = await latestSeasonResponse.json();
+  const latestRun = latestRuns[0];
   const latestSeason = latestSeasons[0];
+
+  let latestAttempts = [];
+  if (latestRun?.id) {
+    const latestAttemptResponse = await fetchSupabase(
+      `collection_attempts?select=endpoint,status,http_status,error_category,request_identity&run_id=eq.${encodeURIComponent(latestRun.id)}`,
+    );
+    latestAttempts = await latestAttemptResponse.json();
+  }
+  const expectedIdleCwlPartial = isExpectedIdleCwlPartial(
+    latestRun,
+    latestAttempts,
+    currentClanMemberCount,
+  );
 
   let canonicalWarCount = 0;
   let canonicalMemberCount = 0;
@@ -153,14 +199,15 @@ try {
   printMetric("LATEST_RAW_SNAPSHOT_AT", latestSnapshots[0]?.collected_at);
   printMetric("CANONICAL_WAR_COUNT", canonicalWarCount);
   printMetric("CANONICAL_MEMBER_COUNT", canonicalMemberCount);
-  printMetric("COLLECTION_HEALTH", latestRuns[0]?.status);
-  printMetric("COLLECTION_LAST_FRESH_AT", latestRuns[0]?.last_fresh_at);
-  printMetric("COLLECTION_RUN_ID", latestRuns[0]?.id);
-  printMetric("COLLECTION_RUN_STARTED_AT", latestRuns[0]?.started_at);
+  printMetric("COLLECTION_HEALTH", latestRun?.status);
+  printMetric("COLLECTION_LAST_FRESH_AT", latestRun?.last_fresh_at);
+  printMetric("COLLECTION_RUN_ID", latestRun?.id);
+  printMetric("COLLECTION_RUN_STARTED_AT", latestRun?.started_at);
+  printMetric("EXPECTED_IDLE_CWL_PARTIAL", expectedIdleCwlPartial ? "yes" : "no");
   printMetric("DUPLICATE_CANONICAL_IDENTITIES", duplicateCanonicalIdentities);
 
   verificationFailed ||= !latestSnapshots[0]?.collected_at;
-  verificationFailed ||= latestRuns[0]?.status !== "healthy";
+  verificationFailed ||= latestRun?.status !== "healthy" && !expectedIdleCwlPartial;
   verificationFailed ||= duplicateCanonicalIdentities > 0;
 } catch (error) {
   printMetric("SUPABASE_CONNECTIVITY", "error");
@@ -185,6 +232,7 @@ printf '%s\n' "$metrics_output" | awk '
   /^COLLECTION_LAST_FRESH_AT=/ { sub(/^[^=]*=/, ""); print "Collection last fresh: " $0 }
   /^COLLECTION_RUN_ID=/ { sub(/^[^=]*=/, ""); print "Collection run: " $0 }
   /^COLLECTION_RUN_STARTED_AT=/ { sub(/^[^=]*=/, ""); print "Collection run started: " $0 }
+  /^EXPECTED_IDLE_CWL_PARTIAL=/ { sub(/^[^=]*=/, ""); print "Expected idle CWL partial: " $0 }
   /^DUPLICATE_CANONICAL_IDENTITIES=/ { sub(/^[^=]*=/, ""); print "Duplicate canonical identities: " $0 }
 '
 

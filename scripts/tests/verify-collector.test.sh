@@ -32,12 +32,14 @@ SUPABASE_CONNECTIVITY=ok
 LATEST_RAW_SNAPSHOT_AT=2026-07-14T12:00:00.000Z
 CANONICAL_WAR_COUNT=7
 CANONICAL_MEMBER_COUNT=30
-COLLECTION_HEALTH=healthy
+COLLECTION_HEALTH=${MOCK_COLLECTION_HEALTH:-healthy}
 COLLECTION_LAST_FRESH_AT=2026-07-14T12:00:00.000Z
 COLLECTION_RUN_ID=11111111-1111-4111-8111-111111111111
 COLLECTION_RUN_STARTED_AT=2026-07-14T11:59:00.000Z
+EXPECTED_IDLE_CWL_PARTIAL=${MOCK_EXPECTED_IDLE_CWL_PARTIAL:-no}
 DUPLICATE_CANONICAL_IDENTITIES=${MOCK_DUPLICATES:-0}
 EOF_OUTPUT
+    exit "${MOCK_METRICS_EXIT:-0}"
     ;;
   *)
     exit 2
@@ -82,6 +84,9 @@ run_verification() {
     MOCK_RUNNING="${MOCK_RUNNING:-true}" \
     MOCK_HEALTH="${MOCK_HEALTH:-healthy}" \
     MOCK_DUPLICATES="${MOCK_DUPLICATES:-0}" \
+    MOCK_COLLECTION_HEALTH="${MOCK_COLLECTION_HEALTH:-healthy}" \
+    MOCK_EXPECTED_IDLE_CWL_PARTIAL="${MOCK_EXPECTED_IDLE_CWL_PARTIAL:-no}" \
+    MOCK_METRICS_EXIT="${MOCK_METRICS_EXIT:-0}" \
     MOCK_DOCKER_STDIN_FILE="$temporary_directory/docker-stdin" \
     "$verify_script" 2>&1)
   verification_status=$?
@@ -123,6 +128,100 @@ const legacyHeaders = buildSupabaseRequestHeaders("legacy.runtime.jwt");
 assert.equal(legacyHeaders.apikey, "legacy.runtime.jwt");
 assert.equal(legacyHeaders.authorization, "Bearer legacy.runtime.jwt");
 NODE
+
+cat > "$temporary_directory/fetch-mock.mjs" <<'NODE'
+process.env.CLASH_API_TOKEN = "test-clash-token";
+process.env.CLAN_TAG = "#TEST";
+process.env.SUPABASE_URL = "https://example.supabase.co";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_test";
+
+const baseAttempts = [
+  { endpoint: "clan", status: "healthy", http_status: 200, error_category: null },
+  { endpoint: "members", status: "healthy", http_status: 200, error_category: null },
+  {
+    endpoint: "player", status: "healthy", http_status: 200, error_category: null,
+    request_identity: "#ONE",
+  },
+  {
+    endpoint: "player", status: "healthy", http_status: 200, error_category: null,
+    request_identity: "#TWO",
+  },
+  { endpoint: "league_group", status: "error", http_status: 404, error_category: "not_found" },
+];
+
+function attemptsForScenario() {
+  if (process.env.MOCK_SCENARIO === "missing_player") {
+    return baseAttempts.filter((attempt, index) => attempt.endpoint !== "player" || index === 2);
+  }
+  if (process.env.MOCK_SCENARIO === "additional_failure") {
+    return [...baseAttempts, {
+      endpoint: "player", status: "error", http_status: 429, error_category: "rate_limited",
+    }];
+  }
+  return baseAttempts;
+}
+
+globalThis.fetch = async (input) => {
+  const url = new URL(String(input));
+  if (url.hostname === "api.clashofclans.com") {
+    return new Response(JSON.stringify({ memberList: [{ tag: "#ONE" }, { tag: "#TWO" }] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  const table = url.pathname.split("/rest/v1/")[1];
+  let body;
+  if (table === "raw_snapshots") body = [{ collected_at: "2026-07-14T12:00:00.000Z" }];
+  else if (table === "collection_runs") body = [{
+    id: "11111111-1111-4111-8111-111111111111",
+    status: "partial",
+    started_at: "2026-07-14T11:59:00.000Z",
+    last_fresh_at: "2026-07-14T12:00:00.000Z",
+  }];
+  else if (table === "collection_attempts") body = attemptsForScenario();
+  else body = [];
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+};
+NODE
+
+run_captured_metrics() {
+  set +e
+  captured_metrics_output=$(cd "$temporary_directory" && \
+    MOCK_SCENARIO=$1 node --import ./fetch-mock.mjs --input-type=module < docker-stdin 2>&1)
+  captured_metrics_status=$?
+  set -e
+}
+
+run_captured_metrics expected_idle
+assert_equal 0 "$captured_metrics_status" 'executed verifier accepts complete idle-CWL attempts'
+assert_contains "$captured_metrics_output" 'EXPECTED_IDLE_CWL_PARTIAL=yes' 'executed verifier identifies expected idle-CWL partial'
+
+run_captured_metrics missing_player
+assert_equal 1 "$captured_metrics_status" 'executed verifier rejects missing player attempts'
+assert_contains "$captured_metrics_output" 'EXPECTED_IDLE_CWL_PARTIAL=no' 'missing player attempts are not expected idle-CWL partial'
+
+run_captured_metrics additional_failure
+assert_equal 1 "$captured_metrics_status" 'executed verifier rejects additional endpoint failures'
+assert_contains "$captured_metrics_output" 'EXPECTED_IDLE_CWL_PARTIAL=no' 'additional failures are not expected idle-CWL partial'
+
+MOCK_COLLECTION_HEALTH=partial
+MOCK_EXPECTED_IDLE_CWL_PARTIAL=yes
+run_verification
+assert_equal 0 "$verification_status" 'idle-CWL league-group absence is an acceptable partial run'
+assert_contains "$verification_output" 'Expected idle CWL partial: yes' 'accepted partial reason remains visible'
+
+MOCK_EXPECTED_IDLE_CWL_PARTIAL=no
+MOCK_METRICS_EXIT=1
+run_verification
+assert_equal 1 "$verification_status" 'other partial runs fail verification'
+
+MOCK_COLLECTION_HEALTH=healthy
+MOCK_EXPECTED_IDLE_CWL_PARTIAL=no
+MOCK_METRICS_EXIT=0
 
 MOCK_DUPLICATES=2
 run_verification
