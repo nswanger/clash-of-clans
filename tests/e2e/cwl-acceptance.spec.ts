@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { recommendationContextSchema } from "@cwl/domain";
 import { OrderedRulesStrategy } from "@cwl/recommendations";
 import { collectOnce } from "../../apps/collector/src/collect.js";
@@ -12,6 +13,11 @@ const seasonId = "2099-07";
 const currentWarTag = "#WAR3";
 const recommendationId = "30000000-0000-0000-0000-000000000010";
 const fixtureStorageKey = "e2e:cwl-acceptance-fixture";
+
+interface AcceptanceFixtureData extends Record<string, unknown> {
+  member_availability: Array<{ player_tag: string; status: string; [key: string]: unknown }>;
+  recommendations?: unknown;
+}
 
 const roster = [
   ["#UNAVAILABLE", "Unavailable Member", 16],
@@ -163,10 +169,9 @@ async function buildAcceptanceFixture() {
   if (!season) throw new Error("Canonical season was not created");
 
   const availability = new Map(roster.map(([playerTag]) => [playerTag, "available"] as const));
-  availability.set("#UNAVAILABLE", "unavailable");
   availability.set("#UNKNOWN", "unknown");
   availability.set("#GAP", "unavailable");
-  expect(availability.get("#UNAVAILABLE")).toBe("unavailable");
+  expect(availability.get("#UNAVAILABLE")).toBe("available");
   expect(availability.get("#UNKNOWN")).toBe("unknown");
 
   const assignedOpportunities = new Map<string, number>();
@@ -180,51 +185,45 @@ async function buildAcceptanceFixture() {
     stars.set(attack.attackerTag, (stars.get(attack.attackerTag) ?? 0) + attack.stars);
   }
 
-  const context = recommendationContextSchema.parse({
-    seasonTag: season.seasonId,
-    settings: {
-      warSize: season.warSize,
-      targetCoreSize: season.targetCoreSize,
-      rotationPositions: season.rotationPositions,
-      priorityMode: season.priorityMode,
-      eightStarRotationEnabled: season.eightStarRotationEnabled,
-    },
-    members: [...repository.members.values()].map((member) => ({
-      playerTag: member.playerTag,
-      name: member.name,
-      townHallLevel: member.townHallLevel,
-      availability: availability.get(member.playerTag) ?? "unknown",
-      assignedOpportunities: assignedOpportunities.get(member.playerTag) ?? 0,
-      completedAssignedAttacks: completedAssignedAttacks.get(member.playerTag) ?? 0,
-      stars: stars.get(member.playerTag) ?? 0,
-      eightStarEligible: (stars.get(member.playerTag) ?? 0) >= 8,
-    })),
-    currentLineup: currentLineupTags.map((playerTag, index) => ({
-      playerTag,
-      position: index + 1,
-      isCore: index < 10,
-    })),
-    collectionHealth: { status: "healthy", collectedAt: collection.lastFreshAt },
-  });
-  const recommendation = new OrderedRulesStrategy().recommend(context);
-  const allReasonCodes = recommendation.changes.flatMap(({ reasons }) => reasons.map(({ code }) => code));
-  expect(allReasonCodes).toEqual(expect.arrayContaining([
-    "unavailable", "availability_unknown", "missed_attack", "eight_star_rotation", "limited_confidence",
-  ]));
-  expect(recommendation.contacts).toContainEqual(expect.objectContaining({ playerTag: "#UNKNOWN" }));
-  expect(recommendation.coverageGaps).toEqual([expect.objectContaining({ position: 15 })]);
-  expect(recommendation.changes).toContainEqual(expect.objectContaining({
-    outPlayerTag: "#EIGHT",
-    inPlayerTag: "#NEW",
-    confidenceNote: expect.stringMatching(/limited confidence/i),
+  const memberFacts = [...repository.members.values()].map((member) => ({
+    playerTag: member.playerTag,
+    name: member.name,
+    townHallLevel: member.townHallLevel,
+    assignedOpportunities: assignedOpportunities.get(member.playerTag) ?? 0,
+    completedAssignedAttacks: completedAssignedAttacks.get(member.playerTag) ?? 0,
+    stars: stars.get(member.playerTag) ?? 0,
+    eightStarEligible: (stars.get(member.playerTag) ?? 0) >= 8,
   }));
-  expect(recommendation.changes.map(({ inPlayerTag }) => inPlayerTag)).not.toEqual(
-    expect.arrayContaining(["#UNAVAILABLE", "#UNKNOWN"]),
-  );
+  const generateRecommendation = (fixtureData: AcceptanceFixtureData) => {
+    const savedAvailability = new Map(
+      fixtureData.member_availability.map((row: { player_tag: string; status: string }) => [row.player_tag, row.status]),
+    );
+    const context = recommendationContextSchema.parse({
+      seasonTag: season.seasonId,
+      settings: {
+        warSize: season.warSize,
+        targetCoreSize: season.targetCoreSize,
+        rotationPositions: season.rotationPositions,
+        priorityMode: season.priorityMode,
+        eightStarRotationEnabled: season.eightStarRotationEnabled,
+      },
+      members: memberFacts.map((member) => ({
+        ...member,
+        availability: savedAvailability.get(member.playerTag) ?? "unknown",
+      })),
+      currentLineup: currentLineupTags.map((playerTag, index) => ({
+        playerTag,
+        position: index + 1,
+        isCore: index < 10,
+      })),
+      collectionHealth: { status: "healthy", collectedAt: collection.lastFreshAt },
+    });
+    return { context, recommendation: new OrderedRulesStrategy().recommend(context) };
+  };
 
   const currentWarMembers = [...repository.warMembers.values()].filter(({ warTag }) => warTag === currentWarTag);
   const currentAttacks = [...repository.attacks.values()].filter(({ warTag }) => warTag === currentWarTag);
-  return {
+  const fixture = {
     profiles: { display_name: "Acceptance Leader" },
     cwl_seasons: {
       clan_tag: clanTag,
@@ -247,50 +246,34 @@ async function buildAcceptanceFixture() {
     })),
     cwl_attacks: currentAttacks.map((attack) => ({ attacker_tag: attack.attackerTag })),
     member_availability: [...availability].map(([playerTag, status]) => ({ player_tag: playerTag, status })),
-    cwl_eight_star_eligibility: context.members.map((member) => ({
+    cwl_eight_star_eligibility: memberFacts.map((member) => ({
       player_tag: member.playerTag,
       stars: member.stars,
       eight_star_eligible: member.eightStarEligible,
     })),
     collection_attempts: { run_id: collection.runId },
     collection_runs: { status: "healthy", last_fresh_at: collection.lastFreshAt, error_message: null },
-    recommendations: { id: recommendationId, output: recommendation },
     user_roles: [{ user_id: "e2e-user", role: "admin", profiles: { display_name: "Acceptance Leader" } }],
   };
+  return { fixture, generateRecommendation };
 }
 
-async function accessibilityViolations(page: Page) {
-  return page.evaluate(() => {
-    const violations: string[] = [];
-    const accessibleName = (element: Element) =>
-      element.getAttribute("aria-label")?.trim()
-      || element.getAttribute("title")?.trim()
-      || element.textContent?.trim();
-    for (const image of document.querySelectorAll("img")) {
-      if (!image.hasAttribute("alt")) violations.push("Image is missing alt text");
-    }
-    for (const element of document.querySelectorAll("button,a[href]")) {
-      if (!accessibleName(element)) violations.push(`${element.tagName.toLowerCase()} is missing an accessible name`);
-    }
-    for (const control of document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input,textarea,select")) {
-      if (control.type !== "hidden" && control.labels?.length === 0 && !control.getAttribute("aria-label")) {
-        violations.push(`${control.tagName.toLowerCase()} is missing a label`);
-      }
-    }
-    if (document.querySelectorAll("h1").length !== 1) violations.push("Page must contain exactly one h1");
-    return violations;
-  });
+async function expectNoAccessibilityViolations(page: Page) {
+  const scan = await new AxeBuilder({ page }).analyze();
+  expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
 test("runs the fixture through collection, normalization, recommendation, explanation, and leader decisions", async ({ page }) => {
-  const fixture = await buildAcceptanceFixture();
+  const { fixture, generateRecommendation } = await buildAcceptanceFixture();
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   page.on("requestfailed", (request) => failedRequests.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`));
   page.on("response", (response) => { if (response.status() >= 400) failedRequests.push(`${response.status()} ${response.url()}`); });
-  await page.addInitScript(([key, value]) => window.localStorage.setItem(key, JSON.stringify(value)), [fixtureStorageKey, fixture] as const);
+  await page.addInitScript(([key, value]) => {
+    if (!window.localStorage.getItem(key)) window.localStorage.setItem(key, JSON.stringify(value));
+  }, [fixtureStorageKey, fixture] as const);
 
   await page.goto("/#/availability");
   await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();
@@ -300,7 +283,30 @@ test("runs the fixture through collection, normalization, recommendation, explan
   await unavailableForm.getByRole("button", { name: "Save availability" }).click();
   await expect(page.getByRole("status")).toContainText("Saved availability for Unavailable Member");
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("e2e:last-mutation"))).toContain("availability");
-  expect(await accessibilityViolations(page)).toEqual([]);
+  await expectNoAccessibilityViolations(page);
+
+  const savedFixture = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? "null"), fixtureStorageKey);
+  expect(savedFixture.member_availability).toContainEqual(expect.objectContaining({
+    player_tag: "#UNAVAILABLE",
+    status: "unavailable",
+  }));
+  const { recommendation } = generateRecommendation(savedFixture);
+  const allReasonCodes = recommendation.changes.flatMap(({ reasons }) => reasons.map(({ code }) => code));
+  expect(allReasonCodes).toEqual(expect.arrayContaining([
+    "unavailable", "availability_unknown", "missed_attack", "eight_star_rotation", "limited_confidence",
+  ]));
+  expect(recommendation.contacts).toContainEqual(expect.objectContaining({ playerTag: "#UNKNOWN" }));
+  expect(recommendation.coverageGaps).toEqual([expect.objectContaining({ position: 15 })]);
+  expect(recommendation.changes).toContainEqual(expect.objectContaining({
+    outPlayerTag: "#EIGHT",
+    inPlayerTag: "#NEW",
+    confidenceNote: expect.stringMatching(/limited confidence/i),
+  }));
+  expect(recommendation.changes.map(({ inPlayerTag }) => inPlayerTag)).not.toEqual(
+    expect.arrayContaining(["#UNAVAILABLE", "#UNKNOWN"]),
+  );
+  savedFixture.recommendations = { id: recommendationId, output: recommendation };
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, JSON.stringify(value)), [fixtureStorageKey, savedFixture] as const);
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Daily command" })).toBeVisible();
@@ -312,7 +318,7 @@ test("runs the fixture through collection, normalization, recommendation, explan
   await expect(page.getByText(/Limited confidence for #NEW/)).toBeVisible();
   await page.getByRole("button", { name: "Why Eight Star Rotation?" }).click();
   await expect(page.getByText(/eight_star_rotation.*limited_confidence/)).toBeVisible();
-  expect(await accessibilityViolations(page)).toEqual([]);
+  await expectNoAccessibilityViolations(page);
 
   await page.getByRole("button", { name: "Approve changes" }).click();
   await expect(page.getByRole("status")).toContainText("approved");
@@ -339,5 +345,5 @@ test("runs the fixture through collection, normalization, recommendation, explan
 
   expect(consoleErrors).toEqual([]);
   expect(failedRequests).toEqual([]);
-  expect(await accessibilityViolations(page)).toEqual([]);
+  await expectNoAccessibilityViolations(page);
 });

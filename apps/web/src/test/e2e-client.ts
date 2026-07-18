@@ -31,12 +31,24 @@ function recordMutation(name: string, value: unknown) {
   window.localStorage.setItem("e2e:last-mutation", JSON.stringify({ name, value }));
 }
 
-function builder(table: string, tableData: Record<string, unknown>): any {
+function builder(table: string, tableData: Record<string, unknown>, persistFixture?: () => void): any {
   const result = () => ({ data: tableData[table] ?? [], error: null });
   const query: any = {
     select: () => query, eq: () => query, in: () => query, order: () => query, limit: () => query,
     single: async () => result(), maybeSingle: async () => result(),
-    upsert: async (value: unknown) => { recordMutation("availability", value); return { error: null }; },
+    upsert: async (value: unknown) => {
+      if (table === "member_availability" && Array.isArray(tableData[table]) && value !== null && typeof value === "object") {
+        const rows = tableData[table] as Array<Record<string, unknown>>;
+        const upsertValue = value as Record<string, unknown>;
+        const existingIndex = rows.findIndex((row) => row.player_tag === upsertValue.player_tag);
+        tableData[table] = existingIndex === -1
+          ? [...rows, upsertValue]
+          : rows.map((row, index) => index === existingIndex ? { ...row, ...upsertValue } : row);
+        persistFixture?.();
+      }
+      recordMutation("availability", value);
+      return { error: null };
+    },
     insert: async (value: unknown) => { recordMutation(`insert:${table}`, value); return { error: null }; },
     delete: () => ({ eq: async (_column: string, value: string) => { recordMutation("revoke", value); return { error: null }; } }),
     then: (resolve: (value: unknown) => void) => resolve(result()),
@@ -47,6 +59,9 @@ function builder(table: string, tableData: Record<string, unknown>): any {
 export function createE2EClient(): any {
   const acceptanceFixture = window.localStorage.getItem("e2e:cwl-acceptance-fixture");
   const tableData: Record<string, unknown> = acceptanceFixture ? JSON.parse(acceptanceFixture) : defaultTableData;
+  const persistFixture = acceptanceFixture
+    ? () => window.localStorage.setItem("e2e:cwl-acceptance-fixture", JSON.stringify(tableData))
+    : undefined;
   return {
     auth: {
       getSession: async () => ({ data: { session: { user: { id: "e2e-user" } } }, error: null }),
@@ -54,7 +69,7 @@ export function createE2EClient(): any {
       signInWithOAuth: async () => ({ error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
-    from: (table: string) => builder(table, tableData),
+    from: (table: string) => builder(table, tableData, persistFixture),
     rpc: async (name: string, args: unknown) => {
       if (name === "has_app_role") return { data: true, error: null };
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };
