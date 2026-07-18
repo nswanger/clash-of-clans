@@ -22,7 +22,14 @@ importers:
         version: 3.2.7(jsdom@29.1.1)(lightningcss@1.32.0)
 
   apps/collector:
+    dependencies:
+      '@cwl/recommendations':
+        specifier: workspace:*
+        version: link:../../packages/recommendations
     devDependencies:
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

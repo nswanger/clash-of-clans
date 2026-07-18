@@ -45,6 +45,20 @@ https://<project-ref>.supabase.co
 
 Do not use the production Table Editor or SQL Editor for schema changes. Add a migration under `supabase/migrations`, test it locally, run the dry-run, and push it. The one-time admin role insert below is operational data bootstrap, not a schema change. See Supabase's [migration deployment guide](https://supabase.com/docs/guides/deployment/database-migrations) and [`db push` reference](https://supabase.com/docs/reference/cli/supabase-db-push).
 
+## Deploy manual recommendation regeneration
+
+The UnRaid collector regenerates recommendations after every finalized active-CWL collection. The `regenerate-recommendations` Edge Function provides the leader-only bypass used by the future dashboard button; it recalculates from already normalized CWL data and current availability without calling Clash or opening an inbound UnRaid port.
+
+Deploy it after the database migrations:
+
+```sh
+supabase functions deploy regenerate-recommendations --project-ref <project-ref>
+```
+
+Supabase supplies `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the function. It forwards the caller's Discord-authenticated JWT to the protected database functions and does not use a service-role key. The production GitHub Pages origin defaults to `https://nswanger.github.io`; set `CWL_WEB_ORIGIN` through the function environment before deployment when hosting from another origin.
+
+Do not disable JWT verification. Verify an anonymous request returns `401`, an authenticated non-leader receives access denied, and a leader request either creates an idempotent proposal or reports that no normalized CWL lineup is available.
+
 ## Configure Discord authentication
 
 1. In the Discord Developer Portal, create or select the application. Under **OAuth2 > Redirects**, add exactly the Supabase Auth callback URL, not the Pages URL:
@@ -159,13 +173,13 @@ After deployment, use these non-destructive production checks:
 
 ## Schedule 90-day raw cleanup
 
-Migration `202607110003_retention.sql` creates `public.purge_expired_raw_snapshots()`, deletes only `public.raw_snapshots` older than 90 days, returns the deleted row count, and grants execution to `service_role`. It deliberately does not create a schedule.
+Migration `202607110003_retention.sql` creates `public.purge_expired_raw_snapshots()`, deletes only `public.raw_snapshots` older than 90 days, returns the deleted row count, and grants execution to `service_role`. Migration `202607180011_retention_cron_configuration.sql` enables `pg_cron` and creates an idempotent configuration function, but deliberately does not register a job in every local, branch, or test database.
 
-Prerequisite: enable the Supabase Cron integration (`pg_cron`) for the production project. Then create a daily database job in **Integrations > Cron** with:
+After deploying the migrations, run `supabase/production/configure_retention_cron.sql` once against production through the SQL Editor. It registers exactly one active job with:
 
 - Name: `purge-expired-raw-snapshots`
-- Schedule: `15 3 * * *` (03:15 UTC daily)
-- SQL snippet: `select public.purge_expired_raw_snapshots();`
+- Schedule: `17 3 * * *` (03:17 UTC daily)
+- SQL snippet: `SELECT public.purge_expired_raw_snapshots();`
 
 Verify the registered job without changing data:
 

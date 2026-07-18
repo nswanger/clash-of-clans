@@ -8,8 +8,8 @@ values ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000
 insert into user_roles (user_id, role) values ('20000000-0000-0000-0000-000000000001', 'leader');
 insert into cwl_seasons (clan_tag, season_id, war_size, target_core_size, rotation_positions) values ('#DECIDE', '2026-07', 15, 10, 5);
 insert into recommendations (id, clan_tag, season_id, strategy_version, input, output) values
-  ('20000000-0000-0000-0000-000000000010', '#DECIDE', '2026-07', 'test', '{}', '{}'),
-  ('20000000-0000-0000-0000-000000000011', '#DECIDE', '2026-07', 'test', '{}', '{}');
+  ('20000000-0000-0000-0000-000000000010', '#DECIDE', '2026-07', 'test', '{"revision":1}', '{}'),
+  ('20000000-0000-0000-0000-000000000011', '#DECIDE', '2026-07', 'test', '{"revision":2}', '{}');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);

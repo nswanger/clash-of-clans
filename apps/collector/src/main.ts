@@ -1,7 +1,9 @@
+import { generateAndPersistRecommendation } from "@cwl/recommendations";
 import { ClashClient } from "./clash-client.js";
 import { collectOnce } from "./collect.js";
 import { loadConfig } from "./config.js";
 import { normalizeSnapshot } from "./normalize.js";
+import { collectAndGenerateRecommendation } from "./recommendation-collection.js";
 import { CollectionScheduler, evaluateHealth } from "./schedule.js";
 import { SupabaseCollectorRepository } from "./supabase-collector-repository.js";
 
@@ -29,12 +31,18 @@ async function main(): Promise<void> {
   const client = new ClashClient({ token: config.clashApiToken });
   const scheduler = new CollectionScheduler({
     lease: repository,
-    collect: (signal) => collectOnce({
-      client,
-      store: repository,
-      clanTag: config.clanTag,
-      normalize: (snapshot) => normalizeSnapshot(repository, snapshot),
-      signal,
+    collect: (signal) => collectAndGenerateRecommendation({
+      collect: () => collectOnce({
+        client,
+        store: repository,
+        clanTag: config.clanTag,
+        normalize: (snapshot) => normalizeSnapshot(repository, snapshot),
+        signal,
+      }),
+      generate: () => generateAndPersistRecommendation(
+        (name, args) => repository.recommendationRpc(name, args),
+        { clanTag: config.clanTag, source: "collection" },
+      ),
     }),
     activeCwlIntervalMs: config.activeCwlIntervalMs,
     idleIntervalMs: config.idleIntervalMs,

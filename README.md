@@ -5,8 +5,8 @@ Decision support for Clan War League (CWL) operations. The project collects Clas
 ## Architecture
 
 - **GitHub Pages:** hosts only the static web dashboard. The browser build supports availability entry, lineup review, overrides, and operational status checks; it must never contain collector credentials.
-- **Supabase:** provides Discord authentication, Postgres storage, row-level authorization, and application RPCs for raw data, derived history, availability, recommendations, leader decisions, and audit events.
-- **UnRaid:** runs the outbound-only collector container and schedules collection and raw-snapshot retention jobs. The collector fetches Clash API data, stores immutable raw snapshots, and normalizes CWL history in Supabase.
+- **Supabase:** provides Discord authentication, Postgres storage, row-level authorization, application RPCs, the leader-triggered recommendation function, and the daily raw-snapshot retention job.
+- **UnRaid:** runs the outbound-only collector container. The collector fetches Clash API data, stores immutable raw snapshots, normalizes CWL history, and regenerates recommendations after each active-CWL collection.
 
 The MVP focuses on CWL collection, trustworthy history, availability, explainable lineup recommendations, and leader review. It never silently promotes, demotes, benches, or assigns a player; every consequential decision remains subject to human approval.
 

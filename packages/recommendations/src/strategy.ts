@@ -6,3 +6,12 @@ export interface RecommendationStrategy {
 }
 
 export { OrderedRulesStrategy } from "./ordered-rules.js";
+export {
+  createManualRecommendationHandler,
+  generateAndPersistRecommendation,
+} from "./portable-production.js";
+export type {
+  RecommendationGenerationResult,
+  RecommendationRpc,
+  RecommendationSource,
+} from "./portable-production.js";
