@@ -1,6 +1,6 @@
 # CWL Operations Assistant Implementation Progress
 
-Last updated: 2026-07-16
+Last updated: 2026-07-18
 
 | Task | Status | Notes |
 | --- | --- | --- |
@@ -13,23 +13,23 @@ Last updated: 2026-07-16
 | 7. Authenticated dashboard and progressive-disclosure UX | Complete | Base-aware Discord auth, secure invitation redemption, guarded routes, live Supabase reads/mutations, explainable decisions, responsive states, and E2E coverage verified. |
 | 8. GitHub Pages and Supabase production configuration | Complete | Pages-safe base routing, verified deployment workflow, public-only build configuration, artifact secret scan, and production Supabase runbook implemented and reviewed. |
 | 9. UnRaid deployment and operator runbook | Complete | Immutable collector deployed to UnRaid; protected configuration, live verification, two-restart idempotency, rollback, restoration, and no-port checks passed. |
-| 10. End-to-end acceptance and production handoff | Not started | Ready to begin; Tasks 7–9 are complete. |
+| 10. End-to-end acceptance and production handoff | In progress | Fixture acceptance, production normalization wiring, local verification, and operations guidance are complete; Pages publication and production smoke checks remain. |
 
 ## Latest Verification
 
 - `pnpm --filter @cwl/web test`: 48 tests passed across 11 files.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 127 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
+- `pnpm test`: 131 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
 - Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
 - `.github/workflows/deploy-pages.yml`: YAML structure and required build/deploy jobs verified.
 - Pages artifact scan: zero collector-only secret names or `sb_secret_` prefixes found.
-- `supabase db reset`: all six migrations applied successfully.
+- `supabase db reset`: all eight migrations applied successfully.
 - `supabase test db`: 55 tests passed across four pgTAP files.
-- `pnpm exec playwright test`: 14 desktop, tablet-width, and mobile workflows passed.
-- `docker build -f docker/collector.Dockerfile -t cwl-collector:test .`: passed.
+- `pnpm exec playwright test`: 16 desktop, tablet-width, and mobile workflows passed.
+- `docker build -f docker/collector.Dockerfile -t cwl-collector:acceptance .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
 - Task 9 collector tests: 59 tests passed; current/legacy Supabase server credentials, legacy role verification, invalid credential rejection, optional logging/cadence overrides, and health thresholds are covered.
 - `scripts/tests/verify-collector.test.sh`: healthy, unhealthy, duplicate-identity, completed-run evidence, Supabase header compatibility, expected idle-CWL partial, unexpected partial, and expanded secret-redaction cases passed.
@@ -45,14 +45,13 @@ Last updated: 2026-07-16
 
 ## Continuation Point
 
-Task 9 is complete on `codex/cwl-assistant-mvp`. UnRaid is running immutable image `cwl-collector:bbfe29f3d3cb` with protected configuration under `/mnt/user/appdata/cwl-collector` and no published ports.
+Task 10 is in progress on `codex/cwl-assistant-mvp`. Fixture acceptance and the complete local verification chain pass. UnRaid still runs immutable Task 9 image `cwl-collector:bbfe29f3d3cb` with protected configuration under `/mnt/user/appdata/cwl-collector` and no published ports.
 
-- `deploy/unraid/docker-compose.yml` defines one non-root, read-only, capability-free collector with no published ports or persistent data mount.
-- The collector sends current `sb_secret_...` credentials only as an API key, retains legacy JWT `service_role` compatibility, and rejects browser/personal/unrecognized credentials before network access.
-- `deploy/unraid/collector.env.example` separates the five required secrets/settings from validated optional log-level and cadence overrides.
-- `scripts/verify-collector.sh` sanitizes recent logs, reuses the collector's Supabase header compatibility, checks complete player-attempt coverage for expected idle-CWL partial runs, and verifies container health, connectivity, raw freshness, completed-run identity, canonical counts, collection health, and duplicate canonical identities.
-- `docs/runbooks/unraid.md` documents SSH and UnRaid UI deployment, WAN-IP/key verification, idempotency checks, and data-preserving rollback.
-- Two restart collections and the rollback/restoration collection each produced distinct completed runs without canonical count inflation or duplicate identities.
-- The prior image selector remains protected as `.env.rollback-task9`; the final active selector points to `cwl-collector:bbfe29f3d3cb`.
+- Fixture acceptance covers raw collection, canonical normalization, availability, recommendation generation and explanations, approval/override behavior, error detection, and accessibility.
+- The production collector now resolves a stable raw-snapshot identity, normalizes each successful snapshot, and classifies normalization failures as `normalization_error` before dependent CWL collection continues.
+- `README.md` distinguishes GitHub Pages, Supabase, and UnRaid responsibilities and documents the actual browser and collector environment variable names.
+- `docs/runbooks/operations.md` covers monthly operation, recovery, and application-role promotion to admin while preserving human approval for clan-policy decisions.
+- The local chain passes: Supabase reset and 55 pgTAP checks, workspace typecheck, 131 tests plus collector verification scripts, production build, 16 Playwright scenarios, and the `cwl-collector:acceptance` image build.
+- Production still requires a new immutable UnRaid image, nonzero canonical-data verification during active CWL, Pages publication, Discord/authorization/freshness/audit smoke checks, and Nick's explicit choice for any real recommendation approval or override.
 
-Next: begin Task 10 end-to-end production acceptance and handoff. Production Supabase and the UnRaid collector are live; Pages acceptance remains part of Task 10.
+Next: publish the verified history to the empty GitHub remote so Pages can deploy, then obtain authorization for the UnRaid image update and complete the remaining production smoke checks. Do not approve or override a real recommendation without Nick's explicit choice.

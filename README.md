@@ -4,25 +4,26 @@ Decision support for Clan War League (CWL) operations. The project collects Clas
 
 ## Architecture
 
-- **Collector:** fetches clan, member, and CWL data and stores immutable raw snapshots.
-- **Supabase:** holds raw data, derived history, availability, recommendations, leader decisions, and audit events.
-- **Web dashboard:** supports availability entry, lineup review, overrides, and operational status checks.
-- **Scheduled operations:** run collection and retention jobs, with UnRaid hosting the deployed services.
+- **GitHub Pages:** hosts only the static web dashboard. The browser build supports availability entry, lineup review, overrides, and operational status checks; it must never contain collector credentials.
+- **Supabase:** provides Discord authentication, Postgres storage, row-level authorization, and application RPCs for raw data, derived history, availability, recommendations, leader decisions, and audit events.
+- **UnRaid:** runs the outbound-only collector container and schedules collection and raw-snapshot retention jobs. The collector fetches Clash API data, stores immutable raw snapshots, and normalizes CWL history in Supabase.
 
 The MVP focuses on CWL collection, trustworthy history, availability, explainable lineup recommendations, and leader review. It never silently promotes, demotes, benches, or assigns a player; every consequential decision remains subject to human approval.
 
 ## Local setup
 
-Keep secrets in ignored local environment files or your deployment secret store. Start from the repository's example environment files when present, and use placeholders such as:
+Keep secrets in ignored local environment files or your deployment secret store. The browser configuration is public and uses the exact Vite variable names from `.env.example`:
 
 ```dotenv
-CLASH_API_TOKEN=replace-with-local-token
-SUPABASE_URL=https://replace-with-project-url
-SUPABASE_ANON_KEY=replace-with-local-anon-key
-SUPABASE_SERVICE_ROLE_KEY=replace-with-local-service-role-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=replace-with-public-anon-key
+VITE_CLAN_TAG=#YOURCLAN
+VITE_BASE_PATH=/
 ```
 
-Never commit real API tokens, clan or player tags, private member notes, or production credentials. The UnRaid runbook contains the deployment-specific connection procedure; do not copy its sensitive values into source files or tickets.
+For project GitHub Pages, set `VITE_BASE_PATH` to `/repository-name/`; the deploy workflow otherwise derives that path from the repository name. Configure these values as GitHub Actions repository variables, not secrets, because Vite embeds them in the browser artifact.
+
+The UnRaid collector uses the separate server-only names in `deploy/unraid/collector.env.example`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLASH_API_TOKEN`, `CLAN_TAG`, and `TZ`. Never expose those server credentials through a `VITE_` variable. Never commit real API tokens, clan or player tags, private member notes, or production credentials. The UnRaid runbook contains the deployment-specific connection procedure; do not copy its sensitive values into source files or tickets.
 
 Use the bundled Node 24 toolchain for local work. CI runs Node 22. Avoid Node 25 for this project because of the current jsdom compatibility issue.
 

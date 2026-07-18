@@ -551,23 +551,23 @@ Commit: `git commit -m "docs: add UnRaid collector deployment runbook"`
 **Interfaces:**
 - Produces: verified MVP and monthly operating instructions.
 
-- [ ] **Step 1: Write the fixture-driven acceptance test**
+- [x] **Step 1: Write the fixture-driven acceptance test**
 
 Exercise collect → raw snapshot → canonical normalization → availability entry → recommendation → explanation → approval/override. Include an unavailable member, unknown contact, missed attacker, eight-star rotation, limited-confidence substitute, and coverage-gap case.
 
-- [ ] **Step 2: Run the acceptance test and fix only integration defects**
+- [x] **Step 2: Run the acceptance test and fix only integration defects**
 
 Run: `pnpm exec playwright test tests/e2e/cwl-acceptance.spec.ts`
 
 Expected: PASS with no console errors, failed requests, or accessibility violations.
 
-- [ ] **Step 3: Run complete verification**
+- [x] **Step 3: Run complete verification**
 
 Run: `supabase db reset && supabase test db && pnpm typecheck && pnpm test && pnpm build && pnpm exec playwright test && docker build -f docker/collector.Dockerfile -t cwl-collector:acceptance .`
 
 Expected: every command exits 0.
 
-- [ ] **Step 4: Write monthly operations and recovery guidance**
+- [x] **Step 4: Write monthly operations and recovery guidance**
 
 Document season creation, defaults, availability entry, daily approval, Elder review, stale/partial data, `invalidIp`, token rotation, invitation/revocation, raw cleanup, Supabase backup/restore assumptions, collector update/rollback, and the regular-war fast-follow scope.
 
