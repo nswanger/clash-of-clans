@@ -1,4 +1,4 @@
-const tableData: Record<string, unknown> = {
+const defaultTableData: Record<string, unknown> = {
   profiles: { display_name: "E2E Leader" },
   cwl_seasons: { clan_tag: "#E2E", season_id: "2026-07", war_size: 15 },
   cwl_wars: { war_tag: "#WAR3", war_day: 3, end_time: "2026-07-13T23:59:59.000Z", attacks_per_member: 1 },
@@ -31,7 +31,7 @@ function recordMutation(name: string, value: unknown) {
   window.localStorage.setItem("e2e:last-mutation", JSON.stringify({ name, value }));
 }
 
-function builder(table: string): any {
+function builder(table: string, tableData: Record<string, unknown>): any {
   const result = () => ({ data: tableData[table] ?? [], error: null });
   const query: any = {
     select: () => query, eq: () => query, in: () => query, order: () => query, limit: () => query,
@@ -45,6 +45,8 @@ function builder(table: string): any {
 }
 
 export function createE2EClient(): any {
+  const acceptanceFixture = window.localStorage.getItem("e2e:cwl-acceptance-fixture");
+  const tableData: Record<string, unknown> = acceptanceFixture ? JSON.parse(acceptanceFixture) : defaultTableData;
   return {
     auth: {
       getSession: async () => ({ data: { session: { user: { id: "e2e-user" } } }, error: null }),
@@ -52,7 +54,7 @@ export function createE2EClient(): any {
       signInWithOAuth: async () => ({ error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
-    from: (table: string) => builder(table),
+    from: (table: string) => builder(table, tableData),
     rpc: async (name: string, args: unknown) => {
       if (name === "has_app_role") return { data: true, error: null };
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };

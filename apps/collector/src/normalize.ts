@@ -28,8 +28,10 @@ async function normalizeGroup(repository: CanonicalRepository, snapshot: RawSnap
   const members = array(clan.members).map(value => object(value, "member"));
   const warSize = members.length >= 30 ? 30 : 15;
   const season: SeasonRecord = {
-    clanTag: snapshot.requestIdentity, seasonId, warSize, targetCoreSize: warSize,
-    rotationPositions: 0, priorityMode: "balanced", eightStarRotationEnabled: true,
+    clanTag: snapshot.requestIdentity, seasonId, warSize,
+    targetCoreSize: warSize === 15 ? 10 : 20,
+    rotationPositions: warSize === 15 ? 5 : 10,
+    priorityMode: "balanced", eightStarRotationEnabled: true,
   };
   await repository.upsertSeason(season); summary.seasons++;
   for (const member of members) {
