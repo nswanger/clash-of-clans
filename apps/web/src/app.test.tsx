@@ -18,6 +18,7 @@ describe("App access boundaries", () => {
   it("routes signed-out users to Discord login", () => {
     render(<App session={signedOut} />);
 
+    expect(screen.getByText("CWL War Ops")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Leader access" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Continue with Discord" })).toBeVisible();
   });

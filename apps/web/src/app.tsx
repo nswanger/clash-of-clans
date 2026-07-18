@@ -20,7 +20,7 @@ export function App({ session, onSignIn, children }: AppProps) {
   if (session.status === "signed_out") {
     return (
       <main className="access-shell">
-        <p className="eyebrow">Ironwood War Ops</p>
+        <p className="eyebrow">CWL War Ops</p>
         <h1>Leader access</h1>
         <p>Sign in with the Discord account connected to your invitation.</p>
         <button className="primary-button" type="button" onClick={onSignIn}>Continue with Discord</button>
@@ -31,7 +31,7 @@ export function App({ session, onSignIn, children }: AppProps) {
   if (session.status === "access_denied") {
     return (
       <main className="access-shell">
-        <p className="eyebrow">Ironwood War Ops</p>
+        <p className="eyebrow">CWL War Ops</p>
         <h1>Access unavailable</h1>
         <p>{session.message}</p>
       </main>

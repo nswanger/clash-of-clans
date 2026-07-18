@@ -50,14 +50,28 @@ function emptySnapshot(
 }
 
 export async function loadDashboardSnapshot(client: DashboardDataClient, clanTag: string): Promise<DashboardSnapshot> {
-  const seasonResult = await client.from("cwl_seasons")
-    .select("clan_tag,season_id,war_size")
-    .eq("clan_tag", clanTag)
-    .order("season_id", { ascending: false })
-    .limit(1)
-    .maybeSingle() as QueryResult<DashboardSnapshot["season"] | null>;
+  const [seasonResult, clanSnapshotResult] = await Promise.all([
+    client.from("cwl_seasons")
+      .select("clan_tag,season_id,war_size")
+      .eq("clan_tag", clanTag)
+      .order("season_id", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    client.from("raw_snapshots")
+      .select("response_body")
+      .eq("endpoint", "clan")
+      .eq("request_identity", clanTag)
+      .order("collected_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]) as [QueryResult<DashboardSnapshot["season"] | null>, QueryResult<{ response_body: unknown } | null>];
   const season = valueOrThrow(seasonResult, "Unable to load the current CWL season");
-  if (!season) return emptySnapshot(clanTag, "no_season", null);
+  const clanSnapshot = valueOrThrow(clanSnapshotResult, "Unable to load the clan profile");
+  const responseBody = clanSnapshot?.response_body;
+  const clanName = responseBody && typeof responseBody === "object" && "name" in responseBody && typeof responseBody.name === "string"
+    ? responseBody.name
+    : clanTag;
+  if (!season) return emptySnapshot(clanName, "no_season", null);
 
   const warResult = await client.from("cwl_wars")
     .select("war_tag,war_day,end_time,attacks_per_member")
@@ -68,7 +82,7 @@ export async function loadDashboardSnapshot(client: DashboardDataClient, clanTag
     .limit(1)
     .maybeSingle() as QueryResult<DashboardSnapshot["war"] | null>;
   const war = valueOrThrow(warResult, "Unable to load the current CWL war");
-  if (!war?.end_time) return emptySnapshot(clanTag, "no_active_war", season);
+  if (!war?.end_time) return emptySnapshot(clanName, "no_active_war", season);
 
   const [membersResult, assignmentsResult, attacksResult, availabilityResult, eligibilityResult, attemptResult, recommendationResult] = await Promise.all([
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", season.season_id),
@@ -87,7 +101,7 @@ export async function loadDashboardSnapshot(client: DashboardDataClient, clanTag
   const collection = valueOrThrow(collectionResult, "Unable to load collection health") as DashboardSnapshot["collection"] | null;
   const recommendationRow = valueOrThrow(recommendationResult!, "Unable to load recommendations") as { id: string; output: DashboardSnapshot["recommendation"] } | null;
   return {
-    clanName: clanTag,
+    clanName,
     state: "ready",
     season,
     war,
