@@ -3,6 +3,7 @@ set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 verify_script="$project_root/scripts/verify-collector.sh"
+collector_dockerfile="$project_root/docker/collector.Dockerfile"
 temporary_directory=$(mktemp -d)
 trap 'rm -rf "$temporary_directory"' EXIT HUP INT TERM
 
@@ -77,6 +78,9 @@ assert_not_contains() {
     exit 1
   fi
 }
+
+assert_contains "$(cat "$collector_dockerfile")" 'src/supabase-auth.ts' \
+  'collector image packages the Supabase auth module required by the production verifier'
 
 run_verification() {
   set +e

@@ -10,12 +10,12 @@ COPY apps/collector/src ./apps/collector/src
 COPY packages/domain/src ./packages/domain/src
 COPY packages/recommendations/src ./packages/recommendations/src
 RUN pnpm --filter @cwl/collector exec tsc --noEmit
-RUN pnpm --filter @cwl/collector exec esbuild src/main.ts \
+RUN pnpm --filter @cwl/collector exec esbuild src/main.ts src/supabase-auth.ts \
     --bundle \
     --format=esm \
     --platform=node \
     --target=node22 \
-    --outfile=dist/main.js
+    --outdir=dist
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \
