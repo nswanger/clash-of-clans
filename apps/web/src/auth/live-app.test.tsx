@@ -37,6 +37,19 @@ describe("LiveApp", () => {
     expect(client.auth.signInWithOAuth).toHaveBeenCalledWith(expect.objectContaining({ options: { redirectTo: "https://ops.example/?authCallback=1&returnTo=%23%2F" } }));
   });
 
+  it("shows a clear access error when Discord sign-in cannot start", async () => {
+    const user = userEvent.setup();
+    const client = createClient();
+    vi.mocked(client.auth.getSession).mockResolvedValue({ data: { session: null }, error: null });
+    vi.mocked(client.auth.signInWithOAuth).mockResolvedValue({ error: { message: "Discord provider is not enabled" } });
+    render(<LiveApp client={client} location={{ href: "https://ops.example/", origin: "https://ops.example", pathname: "/" }} />);
+
+    await user.click(await screen.findByRole("button", { name: "Continue with Discord" }));
+
+    expect(await screen.findByRole("heading", { name: "Access unavailable" })).toBeVisible();
+    expect(screen.getByText("Discord provider is not enabled")).toBeVisible();
+  });
+
   it("subscribes to auth changes and unsubscribes on unmount", () => {
     const client = createClient();
     const unsubscribe = vi.fn();

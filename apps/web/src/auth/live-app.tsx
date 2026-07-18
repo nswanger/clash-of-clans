@@ -87,7 +87,12 @@ export function LiveApp({ client, location, children, navigation = defaultNaviga
         const currentUrl = new URL(location.href);
         const invitation = currentUrl.searchParams.get("invitation");
         if (invitation) window.sessionStorage.setItem("pending-invitation", invitation);
-        void signInWithDiscord(client, location.origin, currentUrl.hash || "#/", basePath);
+        void signInWithDiscord(client, location.origin, currentUrl.hash || "#/", basePath).catch((error) => {
+          setSession({
+            status: "access_denied",
+            message: error instanceof Error ? error.message : "Discord sign-in is currently unavailable.",
+          });
+        });
       }}
     >
       {session.status === "signed_in" && typeof children === "function" ? children(session) : typeof children === "function" ? null : children}
