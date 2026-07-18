@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ClashClient } from "../src/clash-client.js";
 import { collectOnce } from "../src/collect.js";
-import type { RawSnapshotStore } from "../src/raw-snapshots.js";
+import type { RawSnapshot, RawSnapshotStore } from "../src/raw-snapshots.js";
 import { CollectionScheduler, nextCollectionAt } from "../src/schedule.js";
 
 describe("collector scheduling", () => {
@@ -144,7 +144,7 @@ describe("collector scheduling", () => {
     const store: RawSnapshotStore = {
       createRun: vi.fn().mockResolvedValue("run-1"),
       createAttempt: vi.fn().mockResolvedValue("attempt-1"),
-      saveSnapshot: vi.fn().mockResolvedValue(undefined),
+      saveSnapshot: vi.fn().mockResolvedValue({} as RawSnapshot),
       finishAttempt: vi.fn().mockResolvedValue(undefined),
       finishRun: vi.fn().mockResolvedValue(undefined),
     };

@@ -1,13 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import { ClashApiError } from "../src/clash-client.js";
 import { collectOnce } from "../src/collect.js";
-import type { RawSnapshotStore } from "../src/raw-snapshots.js";
+import type { RawSnapshot, RawSnapshotStore, SaveSnapshotInput } from "../src/raw-snapshots.js";
+
+function rawSnapshot(input: SaveSnapshotInput): RawSnapshot {
+  return {
+    id: `snapshot-${input.collectionAttemptId}`,
+    endpoint: input.endpoint,
+    requestIdentity: input.requestIdentity,
+    collectedAt: input.collectedAt,
+    responseBody: input.responseBody,
+  };
+}
 
 function makeStore() {
   const store: RawSnapshotStore = {
     createRun: vi.fn().mockResolvedValue("run-1"),
     createAttempt: vi.fn().mockImplementation(async (input) => `attempt-${input.endpoint}`),
-    saveSnapshot: vi.fn().mockResolvedValue(undefined),
+    saveSnapshot: vi.fn().mockImplementation(async (input) => rawSnapshot(input)),
     finishAttempt: vi.fn().mockResolvedValue(undefined),
     finishRun: vi.fn().mockResolvedValue(undefined),
   };
@@ -18,11 +28,13 @@ describe("collectOnce", () => {
   it("persists exact raw responses before collecting dependent endpoints", async () => {
     const events: string[] = [];
     const store = makeStore();
-    vi.mocked(store.saveSnapshot).mockImplementation(async ({ endpoint, responseBody, contentSha256 }) => {
+    vi.mocked(store.saveSnapshot).mockImplementation(async (input) => {
+      const { endpoint, responseBody, contentSha256 } = input;
       events.push(`saved:${endpoint}`);
       if (endpoint === "clan") expect(responseBody).toBe(clan);
       if (endpoint === "league_group") expect(responseBody).toBe(leagueGroup);
       expect(contentSha256).toMatch(/^[0-9a-f]{64}$/);
+      return rawSnapshot(input);
     });
     const clan = {
       tag: "#FAKECLAN",

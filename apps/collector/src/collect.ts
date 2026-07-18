@@ -1,5 +1,10 @@
 import { ClashApiError, type ClashClient } from "./clash-client.js";
-import { fingerprintJson, type CollectionStatus, type RawSnapshotStore } from "./raw-snapshots.js";
+import {
+  fingerprintJson,
+  type CollectionStatus,
+  type RawSnapshot,
+  type RawSnapshotStore,
+} from "./raw-snapshots.js";
 
 type Endpoint = "clan" | "members" | "player" | "league_group" | "league_war";
 
@@ -11,7 +16,7 @@ export interface FinalizationError {
 
 export interface InternalCollectionError {
   endpoint: Endpoint;
-  operation: "create_attempt" | "save_snapshot";
+  operation: "create_attempt" | "save_snapshot" | "normalize_snapshot";
   message: string;
 }
 
@@ -32,6 +37,7 @@ export interface CollectDependencies {
   client: Pick<ClashClient, "getClan" | "getMembers" | "getPlayer" | "getLeagueGroup" | "getLeagueWar">;
   store: RawSnapshotStore;
   clanTag: string;
+  normalize?: (snapshot: RawSnapshot) => Promise<unknown>;
   now?: () => Date;
   signal?: AbortSignal;
 }
@@ -123,8 +129,9 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     dependencies.signal?.throwIfAborted();
 
     const collectedAt = now().toISOString();
+    let snapshot: RawSnapshot;
     try {
-      await dependencies.store.saveSnapshot({
+      snapshot = await dependencies.store.saveSnapshot({
         collectionAttemptId: attemptId,
         endpoint,
         requestIdentity,
@@ -144,6 +151,22 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
         errorCategory: "storage_error",
       });
       return undefined;
+    }
+    if (dependencies.normalize) {
+      try {
+        await dependencies.normalize(snapshot);
+      } catch (error) {
+        failEndpoint(endpoint, "normalization_error");
+        internalErrors.push({ endpoint, operation: "normalize_snapshot", message: errorMessage(error) });
+        await finishAttemptSafely(endpoint, {
+          attemptId,
+          status: "error",
+          httpStatus: 200,
+          finishedAt: now().toISOString(),
+          errorCategory: "normalization_error",
+        });
+        return undefined;
+      }
     }
 
     const finalized = await finishAttemptSafely(endpoint, {

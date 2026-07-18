@@ -1,3 +1,11 @@
+export interface RawSnapshot {
+  id: string;
+  endpoint: string;
+  requestIdentity: string;
+  collectedAt: string;
+  responseBody: unknown;
+}
+
 export type CollectionStatus = "running" | "healthy" | "partial" | "invalid_ip" | "error";
 
 export interface CreateAttemptInput {
@@ -36,7 +44,7 @@ export interface FinishRunInput {
 export interface RawSnapshotStore {
   createRun(input: { startedAt: string }): Promise<string>;
   createAttempt(input: CreateAttemptInput): Promise<string>;
-  saveSnapshot(input: SaveSnapshotInput): Promise<void>;
+  saveSnapshot(input: SaveSnapshotInput): Promise<RawSnapshot>;
   finishAttempt(input: FinishAttemptInput): Promise<void>;
   finishRun(input: FinishRunInput): Promise<void>;
 }
