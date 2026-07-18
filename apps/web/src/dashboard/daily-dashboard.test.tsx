@@ -5,6 +5,7 @@ import { DailyDashboard, type DailyDashboardData } from "./daily-dashboard.js";
 
 const dashboardData: DailyDashboardData = {
   clanName: "Ironwood",
+  clanMembers: [],
   warDay: 3,
   warEndsAt: "2026-07-12T20:14:08.000Z",
   attacksUsed: 11,
@@ -137,19 +138,15 @@ describe("DailyDashboard", () => {
     expect(screen.getByText("No lineup changes recommended")).toBeVisible();
   });
 
-  it.each([
-    ["no_season" as const, "No current CWL season is available."],
-    ["no_active_war" as const, "No active CWL war is available."],
-  ])("preserves the operational hierarchy for %s", (state, stateMessage) => {
+  it("shows a useful clan overview instead of war placeholders when CWL is inactive", () => {
     const {
       warDay: _warDay,
       warEndsAt: _warEndsAt,
-      updatedAt: _updatedAt,
       ...dashboardWithoutWar
     } = dashboardData;
     render(<DailyDashboard data={{
       ...dashboardWithoutWar,
-      state,
+      state: "no_season",
       attacksUsed: 0,
       attacksAvailable: 0,
       availableMembers: 0,
@@ -158,16 +155,51 @@ describe("DailyDashboard", () => {
       membersWithinThreeStars: 0,
       season: {
         verificationStatus: "unavailable",
-        message: state === "no_season"
-          ? "No current CWL season is available."
-          : "Verified CWL group standings are not available yet.",
+        message: "No current CWL season is available.",
+      },
+      recommendations: { remove: [], add: [] },
+      clanMembers: [
+        { playerTag: "#SAM", name: "Sam", townHallLevel: 16 },
+        { playerTag: "#KIRA", name: "Kira", townHallLevel: 14 },
+      ],
+    }} />);
+
+    expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible();
+    expect(screen.getByText(/Data refreshed/)).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("CWL is not active");
+    expect(screen.getByRole("region", { name: "Clan overview" })).toBeVisible();
+    expect(screen.getByText("2 members")).toBeVisible();
+    expect(screen.getByText("Sam")).toBeVisible();
+    expect(screen.getByText("#KIRA")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Daily summary" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Season position" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Recommended lineup update" })).not.toBeInTheDocument();
+  });
+
+  it("preserves the operational hierarchy when a CWL season has no active war", () => {
+    const {
+      warDay: _warDay,
+      warEndsAt: _warEndsAt,
+      updatedAt: _updatedAt,
+      ...dashboardWithoutWar
+    } = dashboardData;
+    render(<DailyDashboard data={{
+      ...dashboardWithoutWar,
+      state: "no_active_war",
+      attacksUsed: 0,
+      attacksAvailable: 0,
+      availableMembers: 0,
+      awaitingAvailability: 0,
+      membersAtEightStars: 0,
+      membersWithinThreeStars: 0,
+      season: {
+        verificationStatus: "unavailable",
+        message: "Verified CWL group standings are not available yet.",
       },
       recommendations: { remove: [], add: [] },
     }} />);
 
-    expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible();
-    expect(screen.getByText("Data freshness unavailable")).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent(stateMessage);
+    expect(screen.getByRole("status")).toHaveTextContent("No active CWL war is available.");
     expect(screen.getByRole("region", { name: "Daily summary" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Season position" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Recommended lineup update" })).toBeVisible();

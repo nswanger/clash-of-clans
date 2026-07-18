@@ -10,6 +10,7 @@ export interface DashboardMemberAction {
 
 export interface DailyDashboardData {
   clanName: string;
+  clanMembers: Array<{ playerTag: string; name: string; townHallLevel: number }>;
   state?: "ready" | "no_season" | "no_active_war";
   warDay?: number;
   warEndsAt?: string;
@@ -93,6 +94,38 @@ function ActionGroup({ title, actions }: { title: string; actions: DashboardMemb
   );
 }
 
+function ClanOverview({ members }: { members: DailyDashboardData["clanMembers"] }) {
+  return (
+    <section className="idle-overview" aria-label="Clan overview">
+      <div className="idle-summary">
+        <div className="metric">
+          <span>Current roster</span>
+          <strong>{members.length} members</strong>
+          <small>Latest collected clan roster</small>
+        </div>
+        <div className="metric">
+          <span>CWL status</span>
+          <strong>Not active</strong>
+          <small>Daily war metrics return when the next season begins</small>
+        </div>
+      </div>
+      <div className="roster-section">
+        <h2>Current clan roster</h2>
+        {members.length > 0 ? (
+          <ul className="clan-roster">
+            {members.map((member) => (
+              <li key={member.playerTag}>
+                <span className="town-hall">TH{member.townHallLevel}</span>
+                <span className="roster-member-copy"><strong>{member.name}</strong><small>{member.playerTag}</small></span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="empty-state">No clan roster snapshot is available yet.</p>}
+      </div>
+    </section>
+  );
+}
+
 export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, actionsDisabled = false }: DailyDashboardProps) {
   const [currentTime, setCurrentTime] = useState(now);
   const verifiedSeason = data.season.verificationStatus === "verified" ? data.season : undefined;
@@ -100,7 +133,7 @@ export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, acti
   const operationalState = data.state ?? "ready";
   const hasActiveWar = operationalState === "ready" && Boolean(data.warEndsAt);
   const stateMessage = operationalState === "no_season"
-    ? "No current CWL season is available."
+    ? "CWL is not active. Clan collection continues between seasons."
     : operationalState === "no_active_war"
       ? "No active CWL war is available."
       : undefined;
@@ -122,6 +155,7 @@ export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, acti
       })}` : "Data freshness unavailable"}</p>
       {stateMessage ? <p className="operational-state" role="status">{stateMessage}</p> : null}
       {data.warnings?.map((warning) => <div className="dashboard-warning" role="alert" key={`${warning.code}:${warning.message}`}>{warning.message}</div>)}
+      {operationalState === "no_season" ? <ClanOverview members={data.clanMembers} /> : <>
       <section className="daily-summary" aria-label="Daily summary">
         <div className="metric">
           <span>Time remaining</span>
@@ -160,6 +194,7 @@ export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, acti
         <button type="button" disabled={actionsDisabled} onClick={onEdit}>Edit lineup</button>
         <button className="primary-button" type="button" disabled={actionsDisabled} onClick={onApprove}>Approve changes</button>
       </footer> : null}
+      </>}
     </main>
   );
 }

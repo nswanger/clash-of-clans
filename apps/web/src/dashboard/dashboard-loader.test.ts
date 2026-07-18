@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import { loadDashboardSnapshot, type DashboardDataClient } from "./dashboard-loader.js";
 
 const rows: Record<string, unknown> = {
-  raw_snapshots: { response_body: { name: "Line Em Up" } },
+  raw_snapshots: {
+    collected_at: "2026-07-18T15:30:00.000Z",
+    response_body: {
+      name: "Line Em Up",
+      memberList: [
+        { tag: "#ONE", name: "One", townHallLevel: 16 },
+        { tag: "#TWO", name: "Two", townHallLevel: 15 },
+      ],
+    },
+  },
   cwl_seasons: { clan_tag: "#CLAN", season_id: "2026-07", war_size: 15 },
   cwl_wars: { war_tag: "#WAR", war_day: 2, end_time: "2026-07-12T20:00:00.000Z", attacks_per_member: 1 },
   cwl_members: [{ player_tag: "#ONE", name: "One", town_hall_level: 16 }],
@@ -67,6 +76,25 @@ describe("loadDashboardSnapshot", () => {
     await expect(loadDashboardSnapshot(client, "#CLAN")).resolves.toMatchObject({
       clanName: "Line Em Up",
       state: "no_season",
+    });
+  });
+
+  it("uses the raw clan roster and latest collection health when CWL is inactive", async () => {
+    const client = {
+      from(table: string) {
+        if (table === "cwl_seasons" || table === "recommendations") return queryResult(null);
+        return queryResult(rows[table]);
+      },
+    } as unknown as DashboardDataClient;
+
+    await expect(loadDashboardSnapshot(client, "#CLAN")).resolves.toMatchObject({
+      clanName: "Line Em Up",
+      state: "no_season",
+      members: [
+        { player_tag: "#ONE", name: "One", town_hall_level: 16 },
+        { player_tag: "#TWO", name: "Two", town_hall_level: 15 },
+      ],
+      collection: rows.collection_runs,
     });
   });
 

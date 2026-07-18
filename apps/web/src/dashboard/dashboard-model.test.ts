@@ -84,4 +84,25 @@ describe("mapDashboardData", () => {
     expect(result).not.toHaveProperty("warDay");
     expect(result).not.toHaveProperty("warEndsAt");
   });
+
+  it("maps the collected clan roster for an idle CWL overview", () => {
+    const result = mapDashboardData({
+      ...snapshot,
+      state: "no_season",
+      season: null,
+      war: null,
+      assignments: [],
+      attacks: [],
+      availability: [],
+      eligibility: [],
+      recommendation: { changes: [], contacts: [], coverageGaps: [], confidenceNotes: [] },
+    });
+
+    expect(result.clanMembers).toEqual([
+      { playerTag: "#IN", name: "Sam", townHallLevel: 16 },
+      { playerTag: "#OUT", name: "Mason", townHallLevel: 15 },
+      { playerTag: "#ASK", name: "Kira", townHallLevel: 14 },
+    ]);
+    expect(result.updatedAt).toBe(snapshot.collection.last_fresh_at);
+  });
 });

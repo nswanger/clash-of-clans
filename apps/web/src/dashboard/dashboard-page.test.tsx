@@ -5,7 +5,7 @@ import type { DailyDashboardData } from "./daily-dashboard.js";
 import { DashboardPage } from "./dashboard-page.js";
 
 const data: DailyDashboardData = {
-  clanName: "#CLAN", warDay: 1, warEndsAt: "2026-07-13T20:00:00.000Z",
+  clanName: "#CLAN", clanMembers: [], warDay: 1, warEndsAt: "2026-07-13T20:00:00.000Z",
   attacksUsed: 0, attacksAvailable: 15, availableMembers: 10, awaitingAvailability: 5,
   membersAtEightStars: 2, membersWithinThreeStars: 3,
   season: { verificationStatus: "verified", position: 1, groupSize: 1, stars: 0, roundsRemaining: 0, leagueName: "CWL" },

@@ -69,6 +69,13 @@ export function mapDashboardData(snapshot: DashboardSnapshot): DailyDashboardDat
   return {
     clanName: snapshot.clanName,
     state: snapshot.state,
+    clanMembers: snapshot.members
+      .map((member) => ({
+        playerTag: member.player_tag,
+        name: member.name,
+        townHallLevel: member.town_hall_level,
+      }))
+      .sort((left, right) => right.townHallLevel - left.townHallLevel || left.name.localeCompare(right.name)),
     ...(snapshot.war ? { warDay: snapshot.war.war_day, warEndsAt: snapshot.war.end_time } : {}),
     attacksUsed: snapshot.attacks.length,
     attacksAvailable: snapshot.assignments.reduce((total, row) => total + row.assigned_attacks, 0),
