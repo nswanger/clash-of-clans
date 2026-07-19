@@ -47,7 +47,7 @@ Do not use the production Table Editor or SQL Editor for schema changes. Add a m
 
 ## Deploy manual recommendation regeneration
 
-The UnRaid collector regenerates recommendations after every finalized active-CWL collection. The `regenerate-recommendations` Edge Function provides the leader-only bypass used by the future dashboard button; it recalculates from already normalized CWL data and current availability without calling Clash or opening an inbound UnRaid port.
+The UnRaid collector regenerates recommendations after every finalized active-CWL collection. The `regenerate-recommendations` Edge Function provides the leader-only bypass used by the dashboard; it recalculates from already normalized CWL data and current availability without calling Clash or opening an inbound UnRaid port.
 
 Deploy it after the database migrations:
 

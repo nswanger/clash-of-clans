@@ -293,7 +293,7 @@ class RpcRequestError extends Error {
 
 export function createManualRecommendationHandler(dependencies: ManualHandlerDependencies) {
   const corsHeaders = {
-    "access-control-allow-headers": "authorization, apikey, content-type",
+    "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, x-retry-count",
     "access-control-allow-methods": "POST, OPTIONS",
     "access-control-allow-origin": dependencies.allowedOrigin,
     "content-type": "application/json",

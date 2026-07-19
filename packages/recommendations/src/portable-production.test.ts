@@ -102,6 +102,25 @@ describe("production recommendation derivation", () => {
 });
 
 describe("manual recommendation handler", () => {
+  it("allows the headers sent by the Supabase browser client", async () => {
+    const handler = createManualRecommendationHandler({
+      supabaseUrl: "https://project.supabase.co",
+      supabaseAnonKey: "publishable-key",
+      allowedOrigin: "https://example.github.io",
+      fetch: vi.fn(),
+    });
+
+    const response = await handler(new Request("https://function.example", {
+      method: "OPTIONS",
+      headers: { origin: "https://example.github.io" },
+    }));
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-headers")).toBe(
+      "authorization, x-client-info, apikey, content-type, x-retry-count",
+    );
+  });
+
   it("requires the signed-in leader authorization header", async () => {
     const handler = createManualRecommendationHandler({
       supabaseUrl: "https://project.supabase.co",
