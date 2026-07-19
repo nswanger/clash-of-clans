@@ -50,7 +50,9 @@ interface DailyDashboardProps {
   now?: Date;
   onApprove?: () => void;
   onEdit?: () => void;
+  onRegenerate?: () => void;
   actionsDisabled?: boolean;
+  regenerating?: boolean;
 }
 
 function formatTimeRemaining(endTime: string, now: Date): string {
@@ -126,7 +128,15 @@ function ClanOverview({ members }: { members: DailyDashboardData["clanMembers"] 
   );
 }
 
-export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, actionsDisabled = false }: DailyDashboardProps) {
+export function DailyDashboard({
+  data,
+  now = new Date(),
+  onApprove,
+  onEdit,
+  onRegenerate,
+  actionsDisabled = false,
+  regenerating = false,
+}: DailyDashboardProps) {
   const [currentTime, setCurrentTime] = useState(now);
   const verifiedSeason = data.season.verificationStatus === "verified" ? data.season : undefined;
   const outcomeText = verifiedSeason?.outcome ? ` · currently ${verifiedSeason.outcome} in ${verifiedSeason.leagueName}` : "";
@@ -153,6 +163,15 @@ export function DailyDashboard({ data, now = new Date(), onApprove, onEdit, acti
         dateStyle: "medium",
         timeStyle: "short",
       })}` : "Data freshness unavailable"}</p>
+      {onRegenerate ? <section className="recommendation-refresh" aria-label="Recommendation controls">
+        <div>
+          <strong>Lineup recommendations</strong>
+          <small>Re-run the lineup rules using the latest collected data and availability.</small>
+        </div>
+        <button type="button" disabled={regenerating} onClick={onRegenerate}>
+          {regenerating ? "Regenerating recommendations" : "Regenerate recommendations"}
+        </button>
+      </section> : null}
       {stateMessage ? <p className="operational-state" role="status">{stateMessage}</p> : null}
       {data.warnings?.map((warning) => <div className="dashboard-warning" role="alert" key={`${warning.code}:${warning.message}`}>{warning.message}</div>)}
       {operationalState === "no_season" ? <ClanOverview members={data.clanMembers} /> : <>

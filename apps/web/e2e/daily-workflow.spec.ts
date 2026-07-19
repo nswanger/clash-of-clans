@@ -24,6 +24,18 @@ test("supports accessible primary actions", async ({ page }, testInfo) => {
   }
 });
 
+test("regenerates recommendations without recording a leader decision", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.removeItem("e2e:last-mutation"));
+
+  await page.getByRole("button", { name: "Regenerate recommendations" }).click();
+
+  await expect(page.getByRole("status").filter({ hasText: "Recommendations are already current." })).toBeVisible();
+  const mutation = await page.evaluate(() => localStorage.getItem("e2e:last-mutation"));
+  expect(mutation).toContain("function:regenerate-recommendations");
+  expect(mutation).not.toContain("record_leader_decision");
+});
+
 test("uses the compact operational layout and touch targets at tablet width", async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1_180 });
   await page.goto("/");

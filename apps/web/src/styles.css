@@ -39,6 +39,15 @@ button { font: inherit; }
 .eyebrow { margin: 0; color: #6f6e6b; font-size: 12px; font-weight: 600; }
 .dashboard-header h1 { margin: 8px 0 28px; font-size: clamp(32px, 5vw, 40px); letter-spacing: -1.4px; }
 .data-freshness { margin: -18px 0 20px; color: #6f6e6b; font-size: 12px; }
+.recommendation-refresh { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 16px; padding: 14px; border: 1px solid #d8e7f5; border-radius: 8px; background: #f5faff; }
+.recommendation-refresh strong, .recommendation-refresh small { display: block; }
+.recommendation-refresh strong { color: #183a59; font-size: 13px; }
+.recommendation-refresh small { margin-top: 3px; color: #58738c; font-size: 11px; line-height: 1.4; }
+.recommendation-refresh button { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 1px solid #9bbfdf; border-radius: 5px; color: #005bab; background: #fff; font-weight: 600; cursor: pointer; }
+.recommendation-refresh button:hover:not(:disabled) { border-color: #0075de; background: #edf6ff; }
+.recommendation-refresh button:disabled { color: #6f6e6b; cursor: wait; opacity: .75; }
+.dashboard-feedback { width: min(1080px, calc(100% - 48px)); margin: -20px auto 32px; padding: 12px 14px; border-left: 4px solid #0075de; border-radius: 5px; background: #edf6ff; color: #183a59; font-size: 13px; }
+.dashboard-feedback-error { border-left-color: #dd5b00; background: #fbede4; color: #523410; }
 .operational-state { margin: 0 0 16px; padding: 12px 14px; border-radius: 5px; background: #f1f1ef; color: #31302e; font-size: 13px; }
 .dashboard-warning { margin: 0 0 12px; padding: 12px 14px; border-left: 4px solid #dd5b00; border-radius: 5px; background: #fbede4; color: #523410; font-size: 13px; }
 .daily-summary { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid #e6e6e6; border-radius: 8px; }
@@ -85,6 +94,9 @@ button { font: inherit; }
   .app-shell > nav { gap: 2px; overflow-x: auto; padding: 6px 12px; }
   .app-shell > nav a, .season-summary a { display: inline-flex; align-items: center; min-height: 44px; }
   .dashboard-shell { width: min(100% - 24px, 680px); margin: 12px auto; padding: 28px 20px; }
+  .recommendation-refresh { align-items: stretch; flex-direction: column; gap: 12px; }
+  .recommendation-refresh button { width: 100%; }
+  .dashboard-feedback { width: min(100% - 24px, 680px); margin: 0 auto 12px; }
   .daily-summary { grid-template-columns: repeat(2, 1fr); }
   .idle-summary, .clan-roster { grid-template-columns: 1fr; }
   .idle-summary .metric { border-right: 0; border-bottom: 1px solid #e6e6e6; }

@@ -17,10 +17,10 @@ Last updated: 2026-07-18
 
 ## Latest Verification
 
-- `pnpm --filter @cwl/web test`: 52 tests passed across 11 files, including raw-snapshot idle loading, view-model mapping, and idle-CWL presentation.
+- `pnpm --filter @cwl/web test`: 55 tests passed across 11 files, including raw-snapshot idle loading, view-model mapping, idle-CWL presentation, and manual recommendation regeneration states.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 144 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
+- `pnpm test`: 147 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
 - Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
@@ -28,7 +28,7 @@ Last updated: 2026-07-18
 - Pages artifact scan: zero collector-only secret names or `sb_secret_` prefixes found.
 - `supabase db reset`: all 11 migrations applied successfully.
 - `supabase test db`: 88 tests passed across seven pgTAP files.
-- `pnpm exec playwright test`: 16 desktop, tablet-width, and mobile workflows passed.
+- `pnpm exec playwright test`: 18 desktop, tablet-width, and mobile workflows passed, including manual regeneration without a leader-decision mutation.
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:acceptance .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
 - Task 9 collector tests: 59 tests passed; current/legacy Supabase server credentials, legacy role verification, invalid credential rejection, optional logging/cadence overrides, and health thresholds are covered.
@@ -41,7 +41,7 @@ Last updated: 2026-07-18
 - Authenticated production smoke: the idle-CWL overview shows `Line Em Up`, current collection freshness, and 44 current members; the `Access` route loads Nick as `admin`; the browser reports no console warnings or errors.
 - Two-restart idempotency: both restarts produced distinct completed collection-run IDs; canonical CWL war/member counts stayed stable at `0`; duplicate canonical identities stayed `0`.
 - Task 9 data-preserving rollback: the prior immutable image was restored and verified, then `cwl-collector:bbfe29f3d3cb` was restored; counts stayed stable and no Supabase data was deleted. The Task 10 backend replacement advanced the running image to `cwl-collector:207283a21d08`.
-- Production recommendation backend: the shared ordered-rules writer, idempotent versioned persistence RPC, post-collection generation, and leader-authorized manual Edge Function are deployed. Manual UI triggering remains intentionally deferred to UI refinement.
+- Production recommendation backend: the shared ordered-rules writer, idempotent versioned persistence RPC, post-collection generation, and leader-authorized manual Edge Function are deployed. The Pages build includes the locally verified manual UI control with loading, current/success, idle-CWL, and error states.
 - Production audit backend: six database triggers append events for invitation, role, availability, recommendation-generation, and recommendation-decision changes; direct audit-table mutation is revoked.
 - Production retention: `purge-expired-raw-snapshots` is active in Supabase Cron at `17 3 * * *` UTC and calls only `purge_expired_raw_snapshots()`.
 - `docker port cwl-collector`: no published ports before, during, or after rollback.
@@ -55,10 +55,10 @@ Task 10 is in progress on `codex/cwl-assistant-mvp`. GitHub Pages serves the pro
 - The production collector now resolves a stable raw-snapshot identity, normalizes each successful snapshot, and classifies normalization failures as `normalization_error` before dependent CWL collection continues.
 - `README.md` distinguishes GitHub Pages, Supabase, and UnRaid responsibilities and documents the actual browser and collector environment variable names.
 - `docs/runbooks/operations.md` covers monthly operation, recovery, and application-role promotion to admin while preserving human approval for clan-policy decisions.
-- The local chain passes: Supabase reset and 88 pgTAP checks, workspace typecheck, 144 tests plus collector verification scripts, production build, 16 Playwright scenarios, and the committed `linux/amd64` collector image build.
+- The local chain passes: Supabase reset and 88 pgTAP checks, workspace typecheck, 147 tests plus collector verification scripts, production build, 18 Playwright scenarios, and the committed `linux/amd64` collector image build.
 - The production Pages asset path, signed-out route, anonymous role denial, anonymous profile isolation, Discord OAuth redirect, Nick's stored `admin` role, collection freshness, expected idle-CWL partial state, collector health, and zero published ports are verified.
 - The production collector has raw clan and roster data, while canonical CWL tables correctly remain empty because CWL is inactive. The deployed dashboard carries raw clan members and collection health through the no-season state and presents an explicit clan overview.
-- Automatic recommendations run only after a finalized active-CWL collection. Leaders can also invoke the deployed manual-regeneration Edge Function without waiting for the next collection; the UI button will be added during UI refinement.
+- Automatic recommendations run only after a finalized active-CWL collection. The authenticated dashboard exposes the deployed manual-regeneration function without calling approval or override paths.
 - No real recommendation was approved or overridden.
 
 One live-acceptance gate remains:

@@ -3,7 +3,7 @@ import { AccessPage } from "./admin/access-page.js";
 import { AvailabilityPage } from "./availability/availability-page.js";
 import { DashboardPage } from "./dashboard/dashboard-page.js";
 import type { DailyDashboardData } from "./dashboard/daily-dashboard.js";
-import { approveRecommendation, overrideRecommendation } from "./data/operations.js";
+import { approveRecommendation, overrideRecommendation, regenerateRecommendations } from "./data/operations.js";
 
 type Role = "leader" | "admin";
 type Route = "dashboard" | "availability" | "season" | "access" | "access_denied";
@@ -33,5 +33,6 @@ export function AppRoutes({ client, clanTag, role, origin, basePath, loadDashboa
     load={loadDashboard}
     onApprove={(recommendationId, changes) => approveRecommendation(client, recommendationId, changes)}
     onOverride={(recommendationId, changes, note) => overrideRecommendation(client, recommendationId, changes, note)}
+    onRegenerate={() => regenerateRecommendations(client, clanTag)}
   />;
 }

@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
+import type { RecommendationRegenerationResult } from "../data/operations.js";
 import { DailyDashboard, type DailyDashboardData } from "./daily-dashboard.js";
 
 interface DashboardPageProps {
   load: () => Promise<DailyDashboardData>;
   onApprove?: (recommendationId: string, changes: NonNullable<DailyDashboardData["finalChanges"]>) => Promise<void>;
   onOverride?: (recommendationId: string, changes: NonNullable<DailyDashboardData["finalChanges"]>, note: string) => Promise<void>;
+  onRegenerate?: () => Promise<RecommendationRegenerationResult>;
 }
 
 function DashboardDocumentState({ message, tone }: { message: string; tone: "loading" | "error" }) {
@@ -31,13 +33,15 @@ function DashboardDocumentState({ message, tone }: { message: string; tone: "loa
   </main>;
 }
 
-export function DashboardPage({ load, onApprove, onOverride }: DashboardPageProps) {
+export function DashboardPage({ load, onApprove, onOverride, onRegenerate }: DashboardPageProps) {
   const [data, setData] = useState<DailyDashboardData>();
   const [error, setError] = useState<string>();
   const [editing, setEditing] = useState(false);
   const [overrideNote, setOverrideNote] = useState("");
   const [includedChanges, setIncludedChanges] = useState<number[]>([]);
   const [decisionMessage, setDecisionMessage] = useState<string>();
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerationFeedback, setRegenerationFeedback] = useState<{ tone: "status" | "error"; message: string }>();
 
   useEffect(() => {
     let active = true;
@@ -59,8 +63,43 @@ export function DashboardPage({ load, onApprove, onOverride }: DashboardPageProp
     event.preventDefault();
     if (data.recommendationId && onOverride) void onOverride(data.recommendationId, changes.filter((_, index) => includedChanges.includes(index)), overrideNote.trim()).then(() => { setEditing(false); setDecisionMessage("Override recorded."); }).catch((reason) => setError(reason.message));
   };
+  const regenerate = async () => {
+    if (!onRegenerate || regenerating) return;
+    setRegenerating(true);
+    setRegenerationFeedback(undefined);
+    try {
+      const result = await onRegenerate();
+      if (result.status === "skipped") {
+        setRegenerationFeedback({ tone: "status", message: "No active CWL context is available yet." });
+        return;
+      }
+      setData(await load());
+      setRegenerationFeedback({
+        tone: "status",
+        message: result.created ? "Recommendations regenerated." : "Recommendations are already current.",
+      });
+    } catch (reason) {
+      setRegenerationFeedback({
+        tone: "error",
+        message: reason instanceof Error ? reason.message : "Unable to regenerate recommendations.",
+      });
+    } finally {
+      setRegenerating(false);
+    }
+  };
   return <>
-    <DailyDashboard data={data} onApprove={approve} onEdit={beginEdit} actionsDisabled={Boolean(decisionMessage)} />
+    <DailyDashboard
+      data={data}
+      onApprove={approve}
+      onEdit={beginEdit}
+      {...(onRegenerate ? { onRegenerate: () => { void regenerate(); } } : {})}
+      actionsDisabled={Boolean(decisionMessage)}
+      regenerating={regenerating}
+    />
+    {regenerationFeedback ? <p
+      className={`dashboard-feedback ${regenerationFeedback.tone === "error" ? "dashboard-feedback-error" : ""}`}
+      role={regenerationFeedback.tone === "error" ? "alert" : "status"}
+    >{regenerationFeedback.message}</p> : null}
     {decisionMessage ? <p className="dashboard-shell" role="status">{decisionMessage}</p> : null}
     {editing ? <form className="dashboard-shell" onSubmit={saveOverride}>
       <h2>Edit lineup</h2>

@@ -1,5 +1,9 @@
 interface Result<T = unknown> { data?: T; error: { message: string } | null }
 
+export type RecommendationRegenerationResult =
+  | { status: "skipped"; reason: "no_active_cwl_context" }
+  | { status: "persisted"; recommendationId: string; created: boolean };
+
 export interface InvitationClient {
   rpc(name: "create_invitation", args: { invitation_expires_at: string }): Promise<Result<string>>;
 }
@@ -11,6 +15,15 @@ export interface RoleMutationBuilder {
 
 export interface RoleMutationClient {
   from(table: "user_roles"): RoleMutationBuilder;
+}
+
+export interface RecommendationFunctionClient {
+  functions: {
+    invoke(
+      name: "regenerate-recommendations",
+      options: { body: { clanTag: string } },
+    ): Promise<Result<unknown>>;
+  };
 }
 
 function ensureSuccess(result: Result, context: string): void {
@@ -71,4 +84,27 @@ export async function overrideRecommendation(client: any, recommendationId: stri
     final_changes: finalChanges,
     decision_override_note: overrideNote,
   }), "Unable to override recommendation");
+}
+
+export async function regenerateRecommendations(
+  client: RecommendationFunctionClient,
+  clanTag: string,
+): Promise<RecommendationRegenerationResult> {
+  const result = await client.functions.invoke("regenerate-recommendations", {
+    body: { clanTag },
+  });
+  ensureSuccess(result, "Unable to regenerate recommendations");
+  if (!isRecommendationRegenerationResult(result.data)) {
+    throw new Error("Recommendation regeneration returned an invalid response.");
+  }
+  return result.data;
+}
+
+function isRecommendationRegenerationResult(value: unknown): value is RecommendationRegenerationResult {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  if (candidate.status === "skipped") return candidate.reason === "no_active_cwl_context";
+  return candidate.status === "persisted"
+    && typeof candidate.recommendationId === "string"
+    && typeof candidate.created === "boolean";
 }

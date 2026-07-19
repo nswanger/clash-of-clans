@@ -70,6 +70,19 @@ export function createE2EClient(): any {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
     from: (table: string) => builder(table, tableData, persistFixture),
+    functions: {
+      invoke: async (name: string, options: unknown) => {
+        recordMutation(`function:${name}`, options);
+        return {
+          data: {
+            status: "persisted",
+            recommendationId: "30000000-0000-0000-0000-000000000001",
+            created: false,
+          },
+          error: null,
+        };
+      },
+    },
     rpc: async (name: string, args: unknown) => {
       if (name === "has_app_role") return { data: true, error: null };
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };

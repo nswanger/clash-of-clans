@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { approveRecommendation, createInvitation, promoteLeader, revokeAccess, saveAvailability } from "./operations.js";
+import {
+  approveRecommendation,
+  createInvitation,
+  promoteLeader,
+  regenerateRecommendations,
+  revokeAccess,
+  saveAvailability,
+} from "./operations.js";
 
 describe("Supabase operations", () => {
   it("upserts availability using the current leader identity", async () => {
@@ -30,5 +37,19 @@ describe("Supabase operations", () => {
     const client = { rpc };
     await approveRecommendation(client, "recommendation-1", [{ outPlayerTag: "#OUT", inPlayerTag: "#IN" }]);
     expect(rpc).toHaveBeenCalledWith("record_leader_decision", expect.objectContaining({ recommendation_id: "recommendation-1", decision_status: "approved" }));
+  });
+
+  it("regenerates recommendations through the protected Edge Function", async () => {
+    const invoke = vi.fn().mockResolvedValue({
+      data: { status: "persisted", recommendationId: "recommendation-2", created: true },
+      error: null,
+    });
+
+    await expect(regenerateRecommendations({ functions: { invoke } }, "#CLAN")).resolves.toEqual({
+      status: "persisted",
+      recommendationId: "recommendation-2",
+      created: true,
+    });
+    expect(invoke).toHaveBeenCalledWith("regenerate-recommendations", { body: { clanTag: "#CLAN" } });
   });
 });

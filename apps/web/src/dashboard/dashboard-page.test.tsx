@@ -57,4 +57,41 @@ describe("DashboardPage", () => {
     expect(onApprove).toHaveBeenCalledWith("recommendation-1", data.finalChanges);
     expect(await screen.findByRole("button", { name: "Approve changes" })).toBeDisabled();
   });
+
+  it("regenerates recommendations, shows progress, and reloads dashboard data", async () => {
+    const user = userEvent.setup();
+    let resolveRegeneration!: () => void;
+    const onRegenerate = vi.fn(() => new Promise<{ status: "persisted"; recommendationId: string; created: boolean }>((resolve) => {
+      resolveRegeneration = () => resolve({ status: "persisted", recommendationId: "recommendation-2", created: true });
+    }));
+    const load = vi.fn().mockResolvedValue(data);
+
+    render(<DashboardPage load={load} onRegenerate={onRegenerate} />);
+    await screen.findByRole("heading", { name: "Daily command" });
+    await user.click(screen.getByRole("button", { name: "Regenerate recommendations" }));
+
+    expect(onRegenerate).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Regenerating recommendations" })).toBeDisabled();
+
+    resolveRegeneration();
+    expect(await screen.findByRole("status")).toHaveTextContent("Recommendations regenerated");
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  });
+
+  it("reports idle-CWL and failure results without replacing the dashboard", async () => {
+    const user = userEvent.setup();
+    const onRegenerate = vi.fn()
+      .mockResolvedValueOnce({ status: "skipped", reason: "no_active_cwl_context" })
+      .mockRejectedValueOnce(new Error("Recommendation regeneration failed"));
+
+    render(<DashboardPage load={vi.fn().mockResolvedValue({ ...data, state: "no_season" })} onRegenerate={onRegenerate} />);
+    await screen.findByRole("heading", { name: "Daily command" });
+
+    await user.click(screen.getByRole("button", { name: "Regenerate recommendations" }));
+    expect(await screen.findByText("No active CWL context is available yet.")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Regenerate recommendations" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Recommendation regeneration failed");
+    expect(screen.getByRole("heading", { name: "Daily command" })).toBeVisible();
+  });
 });
