@@ -27,6 +27,8 @@ describe("App access boundaries", () => {
     render(<App session={leader} />);
 
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "#/overview");
+    expect(screen.getByRole("link", { name: "Members" })).toHaveAttribute("href", "#/members");
     expect(screen.queryByRole("link", { name: "Access" })).not.toBeInTheDocument();
   });
 

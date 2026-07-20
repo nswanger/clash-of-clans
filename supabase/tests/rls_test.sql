@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(24);
+select plan(26);
 
 select has_function('public', 'has_app_role', array['app_role'], 'role helper exists');
 select has_function('public', 'redeem_invitation', array['text'], 'invitation redemption function exists');
@@ -12,6 +12,8 @@ select policies_are('public', 'user_roles', array['Admins manage roles'], 'only 
 select policies_are('public', 'invitations', array['Admins manage invitations'], 'only admins manage invitations');
 select policies_are('public', 'member_availability', array['Leaders read availability', 'Leaders write availability'], 'leaders manage availability');
 select policies_are('public', 'leader_decisions', array['Leaders read decisions', 'Leaders create decisions'], 'leader decisions are readable and append-only');
+select policies_are('public', 'clan_roster_daily_observations', array['Leaders read roster observations'], 'leaders can only read roster observations');
+select policies_are('public', 'member_daily_snapshots', array['Leaders read member history'], 'leaders can only read member history');
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data)
 values

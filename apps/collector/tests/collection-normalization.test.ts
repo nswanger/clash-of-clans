@@ -62,7 +62,7 @@ describe("collection normalization composition", () => {
       client: fixtureClient(),
       store: repository,
       clanTag: "#CLAN",
-      normalize: (snapshot: RawSnapshot) => normalizeSnapshot(repository, snapshot),
+      normalize: (snapshot: RawSnapshot, context: { clanTag: string; collectionRunId: string }) => normalizeSnapshot(repository, snapshot, context),
     };
 
     const summary = await collectOnce(dependencies);
@@ -79,9 +79,9 @@ describe("collection normalization composition", () => {
       client: fixtureClient(),
       store: repository,
       clanTag: "#CLAN",
-      normalize: async (snapshot: RawSnapshot) => {
+      normalize: async (snapshot: RawSnapshot, context: { clanTag: string; collectionRunId: string }) => {
         if (snapshot.endpoint === "league_group") throw new Error("invalid CWL group");
-        return normalizeSnapshot(repository, snapshot);
+        return normalizeSnapshot(repository, snapshot, context);
       },
     };
 

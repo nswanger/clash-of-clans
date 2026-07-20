@@ -58,6 +58,39 @@ export interface RawSnapshot {
 
 export interface CanonicalCounts { seasons: number; wars: number; warMembers: number; attacks: number }
 export interface WarUnit { war: WarRecord; members: WarMemberRecord[]; attacks: AttackRecord[] }
+export interface DailyRosterMemberRecord {
+  playerTag: string;
+  name: string;
+  role?: string;
+  clanRank?: number;
+  previousClanRank?: number;
+  townHallLevel: number;
+  trophies?: number;
+  leagueId?: number;
+  leagueName?: string;
+  donations?: number;
+  donationsReceived?: number;
+}
+export interface DailyRosterObservation {
+  clanTag: string;
+  observedOn: string;
+  rosterObservedAt: string;
+  collectionRunId: string;
+  members: DailyRosterMemberRecord[];
+}
+export interface DailyMemberProfile {
+  clanTag: string;
+  observedOn: string;
+  playerTag: string;
+  profileObservedAt: string;
+  collectionRunId: string;
+  warPreference?: string;
+  warStars?: number;
+  attackWins?: number;
+  defenseWins?: number;
+  clanCapitalContributions?: number;
+  clanGamesPoints?: number;
+}
 
 export interface CanonicalRepository {
   upsertSeason(record: SeasonRecord): Promise<void>;
@@ -66,6 +99,8 @@ export interface CanonicalRepository {
   upsertWarMember(record: WarMemberRecord): Promise<void>;
   upsertAttack(record: AttackRecord): Promise<void>;
   applyWarUnit(unit: WarUnit): Promise<void>;
+  applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number>;
+  applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;
   markSnapshotNormalized(snapshotId: string, normalizedAt: string): Promise<void>;
 }

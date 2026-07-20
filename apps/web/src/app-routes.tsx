@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { AccessPage } from "./admin/access-page.js";
 import { AvailabilityPage } from "./availability/availability-page.js";
 import { DashboardPage } from "./dashboard/dashboard-page.js";
+import { MembersPage, RosterOverviewPage } from "./members/members-page.js";
 import type { DailyDashboardData } from "./dashboard/daily-dashboard.js";
 import { approveRecommendation, overrideRecommendation, regenerateRecommendations } from "./data/operations.js";
 
 type Role = "leader" | "admin";
-type Route = "dashboard" | "availability" | "season" | "access" | "access_denied";
+type Route = "dashboard" | "overview" | "members" | "availability" | "season" | "access" | "access_denied";
 
 export function routeForPath(hash: string, role: Role): Route {
+  if (hash === "#/overview") return "overview";
+  if (hash === "#/members") return "members";
   if (hash === "#/availability") return "availability";
   if (hash === "#/season") return "season";
   if (hash === "#/access") return role === "admin" ? "access" : "access_denied";
@@ -25,6 +28,8 @@ export function AppRoutes({ client, clanTag, role, origin, basePath, loadDashboa
     return () => window.removeEventListener("hashchange", update);
   }, []);
   const route = routeForPath(hash, role);
+  if (route === "overview") return <RosterOverviewPage client={client} clanTag={clanTag} />;
+  if (route === "members") return <MembersPage client={client} clanTag={clanTag} />;
   if (route === "availability") return <AvailabilityPage client={client} clanTag={clanTag} />;
   if (route === "access") return <AccessPage client={client} origin={`${origin}${basePath}`} />;
   if (route === "access_denied") return <main className="access-shell"><h1>Access unavailable</h1><p>Admin access is required.</p></main>;

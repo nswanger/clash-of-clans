@@ -11,6 +11,8 @@ import type { CollectionLease } from "./schedule.js";
 import type {
   AttackRecord,
   CanonicalRepository,
+  DailyMemberProfile,
+  DailyRosterObservation,
   MemberRecord,
   SeasonRecord,
   WarMemberRecord,
@@ -125,6 +127,34 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
       p_war: snake(unit.war),
       p_members: unit.members.map(snake),
       p_attacks: unit.attacks.map(snake),
+    });
+  }
+
+  async applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number> {
+    return this.rpc<number>("apply_member_roster_daily", {
+      p_clan_tag: observation.clanTag,
+      p_observed_on: observation.observedOn,
+      p_roster_observed_at: observation.rosterObservedAt,
+      p_collection_run_id: observation.collectionRunId,
+      p_members: observation.members.map(snake),
+    });
+  }
+
+  async applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean> {
+    return this.rpc<boolean>("apply_member_profile_daily", {
+      p_clan_tag: profile.clanTag,
+      p_observed_on: profile.observedOn,
+      p_player_tag: profile.playerTag,
+      p_profile_observed_at: profile.profileObservedAt,
+      p_collection_run_id: profile.collectionRunId,
+      p_profile: snake({
+        warPreference: profile.warPreference,
+        warStars: profile.warStars,
+        attackWins: profile.attackWins,
+        defenseWins: profile.defenseWins,
+        clanCapitalContributions: profile.clanCapitalContributions,
+        clanGamesPoints: profile.clanGamesPoints,
+      }),
     });
   }
 

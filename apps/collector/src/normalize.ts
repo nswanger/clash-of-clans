@@ -56,6 +56,47 @@ export interface WarUnit {
   attacks: AttackRecord[];
 }
 
+export interface DailyRosterMemberRecord {
+  playerTag: string;
+  name: string;
+  role?: string;
+  clanRank?: number;
+  previousClanRank?: number;
+  townHallLevel: number;
+  trophies?: number;
+  leagueId?: number;
+  leagueName?: string;
+  donations?: number;
+  donationsReceived?: number;
+}
+
+export interface DailyRosterObservation {
+  clanTag: string;
+  observedOn: string;
+  rosterObservedAt: string;
+  collectionRunId: string;
+  members: DailyRosterMemberRecord[];
+}
+
+export interface DailyMemberProfile {
+  clanTag: string;
+  observedOn: string;
+  playerTag: string;
+  profileObservedAt: string;
+  collectionRunId: string;
+  warPreference?: string;
+  warStars?: number;
+  attackWins?: number;
+  defenseWins?: number;
+  clanCapitalContributions?: number;
+  clanGamesPoints?: number;
+}
+
+export interface NormalizationContext {
+  clanTag: string;
+  collectionRunId: string;
+}
+
 export interface CanonicalRepository {
   upsertSeason(record: SeasonRecord): Promise<void>;
   upsertMember(record: MemberRecord): Promise<void>;
@@ -63,6 +104,8 @@ export interface CanonicalRepository {
   upsertWarMember(record: WarMemberRecord): Promise<void>;
   upsertAttack(record: AttackRecord): Promise<void>;
   applyWarUnit(unit: WarUnit): Promise<void>;
+  applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number>;
+  applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;
   markSnapshotNormalized(snapshotId: string, normalizedAt: string): Promise<void>;
 }
@@ -74,17 +117,90 @@ export interface NormalizationSummary {
   wars: number;
   warMembers: number;
   attacks: number;
+  rosterMembers: number;
+  profiles: number;
 }
 
 type Json = Record<string, any>;
 
-export async function normalizeSnapshot(repository: CanonicalRepository, snapshot: RawSnapshot): Promise<NormalizationSummary> {
-  const summary: NormalizationSummary = { snapshotId: snapshot.id, seasons: 0, members: 0, wars: 0, warMembers: 0, attacks: 0 };
+export async function normalizeSnapshot(
+  repository: CanonicalRepository,
+  snapshot: RawSnapshot,
+  context?: NormalizationContext,
+): Promise<NormalizationSummary> {
+  const summary: NormalizationSummary = {
+    snapshotId: snapshot.id, seasons: 0, members: 0, wars: 0,
+    warMembers: 0, attacks: 0, rosterMembers: 0, profiles: 0,
+  };
   if (snapshot.endpoint === "league_group") await normalizeGroup(repository, snapshot, summary);
   else if (snapshot.endpoint === "league_war") await normalizeWar(repository, snapshot, summary);
+  else if (snapshot.endpoint === "members") await normalizeRoster(repository, snapshot, requiredContext(context), summary);
+  else if (snapshot.endpoint === "player") await normalizeProfile(repository, snapshot, requiredContext(context), summary);
   else return summary;
   await repository.markSnapshotNormalized(snapshot.id, new Date().toISOString());
   return summary;
+}
+
+async function normalizeRoster(
+  repository: CanonicalRepository,
+  snapshot: RawSnapshot,
+  context: NormalizationContext,
+  summary: NormalizationSummary,
+) {
+  const payload = object(snapshot.responseBody, "member list");
+  const members = array(payload.items).map((value) => object(value, "member"));
+  const records = members.map((member): DailyRosterMemberRecord => {
+    const league = member.league === undefined ? undefined : object(member.league, "league");
+    return {
+      playerTag: text(member.tag, "member tag"),
+      name: text(member.name, "member name"),
+      ...optional("role", optionalText(member.role)),
+      ...optional("clanRank", optionalInteger(member.clanRank)),
+      ...optional("previousClanRank", optionalInteger(member.previousClanRank)),
+      townHallLevel: integer(member.townHallLevel, "town hall"),
+      ...optional("trophies", optionalInteger(member.trophies)),
+      ...optional("leagueId", league ? optionalInteger(league.id) : undefined),
+      ...optional("leagueName", league ? optionalText(league.name) : undefined),
+      ...optional("donations", optionalInteger(member.donations)),
+      ...optional("donationsReceived", optionalInteger(member.donationsReceived)),
+    };
+  });
+  await repository.applyMemberRosterDaily({
+    clanTag: context.clanTag,
+    observedOn: observedOn(snapshot.collectedAt),
+    rosterObservedAt: snapshot.collectedAt,
+    collectionRunId: context.collectionRunId,
+    members: records,
+  });
+  summary.rosterMembers = records.length;
+}
+
+async function normalizeProfile(
+  repository: CanonicalRepository,
+  snapshot: RawSnapshot,
+  context: NormalizationContext,
+  summary: NormalizationSummary,
+) {
+  const profile = object(snapshot.responseBody, "player profile");
+  const playerTag = text(profile.tag, "player tag");
+  if (playerTag !== snapshot.requestIdentity) throw new Error(`Player profile tag does not match ${snapshot.requestIdentity}`);
+  const clanGames = array(profile.achievements)
+    .map((value) => object(value, "achievement"))
+    .find((achievement) => achievement.name === "Games Champion");
+  const applied = await repository.applyMemberProfileDaily({
+    clanTag: context.clanTag,
+    observedOn: observedOn(snapshot.collectedAt),
+    playerTag,
+    profileObservedAt: snapshot.collectedAt,
+    collectionRunId: context.collectionRunId,
+    ...optional("warPreference", optionalText(profile.warPreference)),
+    ...optional("warStars", optionalInteger(profile.warStars)),
+    ...optional("attackWins", optionalInteger(profile.attackWins)),
+    ...optional("defenseWins", optionalInteger(profile.defenseWins)),
+    ...optional("clanCapitalContributions", optionalInteger(profile.clanCapitalContributions)),
+    ...optional("clanGamesPoints", clanGames ? optionalInteger(clanGames.value) : undefined),
+  });
+  summary.profiles = applied ? 1 : 0;
 }
 
 async function normalizeGroup(repository: CanonicalRepository, snapshot: RawSnapshot, summary: NormalizationSummary) {
@@ -159,3 +275,8 @@ function integer(value: unknown, label: string): number { const result = numberV
 function optionalInteger(value: unknown): number | undefined { return typeof value === "number" && Number.isInteger(value) ? value : undefined; }
 function optional<Key extends string, Value>(key: Key, value: Value | undefined): { [Property in Key]?: Value } { return value === undefined ? {} : { [key]: value } as { [Property in Key]?: Value }; }
 function clashTime(value: unknown): string | undefined { const raw = optionalText(value); if (!raw) return undefined; const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})\.\d{3}Z$/.exec(raw); return match ? `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}.000Z` : raw; }
+function observedOn(collectedAt: string): string { return collectedAt.slice(0, 10); }
+function requiredContext(context: NormalizationContext | undefined): NormalizationContext {
+  if (!context) throw new Error("Member history normalization requires collection context");
+  return context;
+}

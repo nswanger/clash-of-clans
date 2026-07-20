@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalRepository, MemberRecord, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
+import type { AttackRecord, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
 
 interface QueryResult { data?: unknown; error?: { message: string } | null }
 interface QueryBuilder extends PromiseLike<QueryResult> {
@@ -32,6 +32,36 @@ export class SupabaseCanonicalRepository implements CanonicalRepository {
       p_members: unit.members.map(snake),
       p_attacks: unit.attacks.map(snake),
     }));
+  }
+  async applyMemberRosterDaily(observation: DailyRosterObservation) {
+    const result = await this.client.rpc("apply_member_roster_daily", {
+      p_clan_tag: observation.clanTag,
+      p_observed_on: observation.observedOn,
+      p_roster_observed_at: observation.rosterObservedAt,
+      p_collection_run_id: observation.collectionRunId,
+      p_members: observation.members.map(snake),
+    });
+    check(result);
+    return result.data as number;
+  }
+  async applyMemberProfileDaily(profile: DailyMemberProfile) {
+    const result = await this.client.rpc("apply_member_profile_daily", {
+      p_clan_tag: profile.clanTag,
+      p_observed_on: profile.observedOn,
+      p_player_tag: profile.playerTag,
+      p_profile_observed_at: profile.profileObservedAt,
+      p_collection_run_id: profile.collectionRunId,
+      p_profile: snake({
+        warPreference: profile.warPreference,
+        warStars: profile.warStars,
+        attackWins: profile.attackWins,
+        defenseWins: profile.defenseWins,
+        clanCapitalContributions: profile.clanCapitalContributions,
+        clanGamesPoints: profile.clanGamesPoints,
+      }),
+    });
+    check(result);
+    return result.data as boolean;
   }
   async findWarContext(warTag: string) {
     const result = await this.client.from("cwl_wars").select("clan_tag,season_id,war_day").eq("war_tag", warTag).maybeSingle();

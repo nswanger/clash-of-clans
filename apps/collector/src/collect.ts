@@ -37,7 +37,10 @@ export interface CollectDependencies {
   client: Pick<ClashClient, "getClan" | "getMembers" | "getPlayer" | "getLeagueGroup" | "getLeagueWar">;
   store: RawSnapshotStore;
   clanTag: string;
-  normalize?: (snapshot: RawSnapshot) => Promise<unknown>;
+  normalize?: (
+    snapshot: RawSnapshot,
+    context: { clanTag: string; collectionRunId: string },
+  ) => Promise<unknown>;
   now?: () => Date;
   signal?: AbortSignal;
 }
@@ -154,7 +157,10 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     }
     if (dependencies.normalize) {
       try {
-        await dependencies.normalize(snapshot);
+        await dependencies.normalize(
+          { ...snapshot, collectedAt, responseBody },
+          { clanTag: dependencies.clanTag, collectionRunId: runId },
+        );
       } catch (error) {
         failEndpoint(endpoint, "normalization_error");
         internalErrors.push({ endpoint, operation: "normalize_snapshot", message: errorMessage(error) });

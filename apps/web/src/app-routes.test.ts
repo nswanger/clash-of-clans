@@ -4,6 +4,8 @@ import { routeForPath } from "./app-routes.js";
 describe("routeForPath", () => {
   it("dispatches leader workflows", () => {
     expect(routeForPath("#/", "leader")).toBe("dashboard");
+    expect(routeForPath("#/overview", "leader")).toBe("overview");
+    expect(routeForPath("#/members", "leader")).toBe("members");
     expect(routeForPath("#/availability", "leader")).toBe("availability");
     expect(routeForPath("#/season", "leader")).toBe("season");
   });
