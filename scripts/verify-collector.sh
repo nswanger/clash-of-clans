@@ -28,6 +28,7 @@ docker logs --tail "$log_lines" "$container_name" 2>&1 | awk '
     gsub(/sb_secret_[A-Za-z0-9_-]+/, "<redacted>")
     gsub(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, "<redacted-jwt>")
     gsub(/Bearer [A-Za-z0-9._-]+/, "Bearer <redacted>")
+    gsub(/%23[A-Z0-9][A-Z0-9][A-Z0-9]+/, "<redacted-tag>")
     gsub(/#[A-Z0-9][A-Z0-9][A-Z0-9]+/, "<redacted-tag>")
     print
   }
