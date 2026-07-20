@@ -57,6 +57,8 @@ describe("SupabaseCollectorRepository", () => {
       upsertMember: expect.any(Function),
       upsertWar: expect.any(Function),
       applyWarUnit: expect.any(Function),
+      applyMemberRosterDaily: expect.any(Function),
+      applyMemberProfileDaily: expect.any(Function),
       findWarContext: expect.any(Function),
       markSnapshotNormalized: expect.any(Function),
     }));
@@ -82,6 +84,36 @@ describe("SupabaseCollectorRepository", () => {
       p_attacks: [expect.objectContaining({ attacker_tag: "#ONE" })],
     }));
     expect(fetchMock.mock.calls[0]?.[1].headers.authorization).toBeUndefined();
+  });
+
+  it("writes daily roster and profile facts through protected normalization RPCs", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(1))
+      .mockResolvedValueOnce(jsonResponse(true));
+    vi.stubGlobal("fetch", fetchMock);
+    const repository = new SupabaseCollectorRepository("https://example.supabase.co", "sb_secret_test");
+
+    await repository.applyMemberRosterDaily({
+      clanTag: "#CLAN", observedOn: "2099-01-02", rosterObservedAt: "2099-01-02T12:00:00.000Z",
+      collectionRunId: "run-1",
+      members: [{ playerTag: "#ONE", name: "One", townHallLevel: 17, donationsReceived: 25 }],
+    });
+    await repository.applyMemberProfileDaily({
+      clanTag: "#CLAN", observedOn: "2099-01-02", playerTag: "#ONE",
+      profileObservedAt: "2099-01-02T12:00:30.000Z", collectionRunId: "run-1",
+      attackWins: 12, clanGamesPoints: 3456,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://example.supabase.co/rest/v1/rpc/apply_member_roster_daily");
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual(expect.objectContaining({
+      p_clan_tag: "#CLAN",
+      p_members: [expect.objectContaining({ player_tag: "#ONE", donations_received: 25 })],
+    }));
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://example.supabase.co/rest/v1/rpc/apply_member_profile_daily");
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1].body).p_profile).toEqual({
+      attack_wins: 12,
+      clan_games_points: 3456,
+    });
   });
 
   it("exposes the authenticated RPC transport to the recommendation writer", async () => {

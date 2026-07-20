@@ -41,7 +41,9 @@ export function App({ session, onSignIn, children }: AppProps) {
   return (
     <div className="app-shell">
       <nav aria-label="Primary">
-        <a href="#/">Today</a>
+        <a href="#/overview">Overview</a>
+        <a href="#/members">Members</a>
+        <a href="#/">CWL Today</a>
         <a href="#/availability">Availability</a>
         <a href="#/season">Season</a>
         {session.role === "admin" ? <a href="#/access">Access</a> : null}

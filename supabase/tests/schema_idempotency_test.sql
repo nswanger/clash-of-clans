@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(21);
+select plan(27);
 
 select has_table('public', 'cwl_seasons', 'CWL seasons table exists');
 select col_is_unique('public', 'cwl_seasons', array['clan_tag', 'season_id'], 'season identity is unique');
@@ -10,6 +10,12 @@ select col_is_pk('public', 'cwl_wars', array['war_tag'], 'war tag is the primary
 select col_is_pk('public', 'cwl_war_members', array['war_tag', 'player_tag'], 'war membership is the primary identity');
 select col_is_pk('public', 'cwl_attacks', array['war_tag', 'attacker_tag', 'attack_order'], 'attack is the primary identity');
 select col_is_unique('public', 'raw_snapshots', array['endpoint', 'request_identity', 'content_sha256'], 'snapshot fingerprint identity is unique');
+select has_table('public', 'clan_roster_daily_observations', 'daily roster observation table exists');
+select has_table('public', 'member_daily_snapshots', 'daily member snapshot table exists');
+select col_is_pk('public', 'clan_roster_daily_observations', array['clan_tag', 'observed_on'], 'daily roster grain is canonical');
+select col_is_pk('public', 'member_daily_snapshots', array['clan_tag', 'observed_on', 'player_tag'], 'daily member grain is canonical');
+select has_function('public', 'apply_member_roster_daily', array['text', 'date', 'timestamp with time zone', 'uuid', 'jsonb'], 'roster normalization function exists');
+select has_function('public', 'apply_member_profile_daily', array['text', 'date', 'text', 'timestamp with time zone', 'uuid', 'jsonb'], 'profile normalization function exists');
 select col_is_unique('public', 'invitations', array['token_hash'], 'invitation token hash is unique');
 
 insert into cwl_seasons (clan_tag, season_id, war_size, target_core_size, rotation_positions)

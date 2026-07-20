@@ -36,7 +36,7 @@ async function main(): Promise<void> {
         client,
         store: repository,
         clanTag: config.clanTag,
-        normalize: (snapshot) => normalizeSnapshot(repository, snapshot),
+        normalize: (snapshot, context) => normalizeSnapshot(repository, snapshot, context),
         signal,
       }),
       generate: () => generateAndPersistRecommendation(

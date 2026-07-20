@@ -28,13 +28,14 @@ describe("collectOnce", () => {
   it("persists exact raw responses before collecting dependent endpoints", async () => {
     const events: string[] = [];
     const store = makeStore();
+    const normalize = vi.fn().mockResolvedValue(undefined);
     vi.mocked(store.saveSnapshot).mockImplementation(async (input) => {
       const { endpoint, responseBody, contentSha256 } = input;
       events.push(`saved:${endpoint}`);
       if (endpoint === "clan") expect(responseBody).toBe(clan);
       if (endpoint === "league_group") expect(responseBody).toBe(leagueGroup);
       expect(contentSha256).toMatch(/^[0-9a-f]{64}$/);
-      return rawSnapshot(input);
+      return { ...rawSnapshot(input), collectedAt: "2098-12-01T00:00:00.000Z" };
     });
     const clan = {
       tag: "#FAKECLAN",
@@ -58,7 +59,10 @@ describe("collectOnce", () => {
       }),
     };
 
-    const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
+    const summary = await collectOnce({
+      client, store, clanTag: "#FAKECLAN", normalize,
+      now: () => new Date("2099-01-02T12:00:00.000Z"),
+    });
 
     expect(summary.capturedWarTags).toEqual(["#FAKEWAR1"]);
     expect(summary.failedEndpoints).toEqual([]);
@@ -67,6 +71,14 @@ describe("collectOnce", () => {
     ]);
     expect(store.createAttempt).toHaveBeenCalledTimes(5);
     expect(store.saveSnapshot).toHaveBeenCalledTimes(5);
+    expect(normalize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: "members",
+        collectedAt: "2099-01-02T12:00:00.000Z",
+        responseBody: { items: clan.memberList },
+      }),
+      { clanTag: "#FAKECLAN", collectionRunId: "run-1" },
+    );
   });
 
   it("continues sibling collection after a partial failure", async () => {

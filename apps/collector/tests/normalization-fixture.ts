@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalCounts, CanonicalRepository, MemberRecord, RawSnapshot, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "../../../packages/database/src/repository.js";
+import type { AttackRecord, CanonicalCounts, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RawSnapshot, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "../../../packages/database/src/repository.js";
 
 export class MemoryRepository implements CanonicalRepository {
   readonly seasons = new Map<string, SeasonRecord>();
@@ -7,6 +7,8 @@ export class MemoryRepository implements CanonicalRepository {
   readonly warMembers = new Map<string, WarMemberRecord>();
   readonly attacks = new Map<string, AttackRecord>();
   readonly normalized = new Set<string>();
+  readonly rosterObservations: DailyRosterObservation[] = [];
+  readonly profiles: DailyMemberProfile[] = [];
   failAfterWarMembers = false;
   async upsertSeason(value: SeasonRecord) { this.seasons.set(`${value.clanTag}:${value.seasonId}`, value); }
   async upsertMember(value: MemberRecord) { this.members.set(`${value.clanTag}:${value.seasonId}:${value.playerTag}`, value); }
@@ -34,6 +36,8 @@ export class MemoryRepository implements CanonicalRepository {
       throw error;
     }
   }
+  async applyMemberRosterDaily(value: DailyRosterObservation) { this.rosterObservations.push(value); return value.members.length; }
+  async applyMemberProfileDaily(value: DailyMemberProfile) { this.profiles.push(value); return true; }
   async markSnapshotNormalized(snapshotId: string) { this.normalized.add(snapshotId); }
   async counts(): Promise<CanonicalCounts> { return { seasons: this.seasons.size, wars: this.wars.size, warMembers: this.warMembers.size, attacks: this.attacks.size }; }
 }

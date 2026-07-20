@@ -1,6 +1,10 @@
 # CWL Operations Assistant Implementation Progress
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
+
+Post-MVP priorities are tracked in [Year-Round Clan Management Roadmap](./year-round-clan-management-roadmap.md). The member-history and roster-overview vertical slice is the current delivery item.
+
+Post-MVP Priority 1 is implemented locally: indefinite normalized daily roster/member history, explainable activity baselines, roster tenure/departure observations, Overview and Members navigation, and leader-facing filtering/sorting. Production migration and deployed collector/UI acceptance remain before the slice is operational.
 
 | Task | Status | Notes |
 | --- | --- | --- |
