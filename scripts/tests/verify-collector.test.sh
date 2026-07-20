@@ -23,7 +23,8 @@ case "$1" in
     printf '%s\n' \
       'collector token sb_secret_not-safe Bearer eyJ.bad.value' \
       'CLASH_API_TOKEN=clash-raw-secret SUPABASE_SERVICE_ROLE_KEY=eyJ.raw.jwt' \
-      'CLAN_TAG=#2ABCDEF player_tag=#9XYZ123'
+      'CLAN_TAG=#2ABCDEF player_tag=#9XYZ123' \
+      'Clash API error for /clans/%232ENCODED/currentwar/leaguegroup'
     ;;
   exec)
     cat > "${MOCK_DOCKER_STDIN_FILE:-/dev/null}"
@@ -112,6 +113,7 @@ assert_not_contains "$verification_output" 'eyJ.raw.jwt' 'bare JWT-looking value
 assert_not_contains "$verification_output" 'clash-raw-secret' 'named Clash tokens are redacted'
 assert_not_contains "$verification_output" '#2ABCDEF' 'clan tags are redacted'
 assert_not_contains "$verification_output" '#9XYZ123' 'player tags are redacted'
+assert_not_contains "$verification_output" '%232ENCODED' 'URL-encoded clan tags are redacted'
 docker_exec_script=$(cat "$temporary_directory/docker-stdin")
 assert_contains "$docker_exec_script" 'buildSupabaseRequestHeaders' 'verification reuses collector Supabase header compatibility'
 assert_not_contains "$docker_exec_script" 'authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`' 'verification does not force modern secret keys into bearer auth'
