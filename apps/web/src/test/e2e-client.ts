@@ -27,6 +27,34 @@ const defaultTableData: Record<string, unknown> = {
   ],
 };
 
+const accessManagementSnapshot = {
+  people: [
+    { id: "e2e-user", name: "E2E Leader", role: "admin", isCurrentUser: true },
+    { id: "other-leader", name: "Other Leader", role: "leader", isCurrentUser: false },
+  ],
+  invitations: [{
+    id: "e2e-invitation",
+    status: "pending",
+    createdAt: "2026-07-20T12:00:00.000Z",
+    expiresAt: "2026-07-21T12:00:00.000Z",
+    createdByName: "E2E Leader",
+    usedAt: null,
+    usedByName: null,
+    revokedAt: null,
+    revokedByName: null,
+    reissuedFromId: null,
+    reissuedInvitationId: null,
+  }],
+  auditEvents: [{
+    id: "e2e-access-event",
+    eventType: "invitation_created",
+    actorName: "E2E Leader",
+    targetName: null,
+    eventData: {},
+    occurredAt: "2026-07-20T12:00:00.000Z",
+  }],
+};
+
 function recordMutation(name: string, value: unknown) {
   window.localStorage.setItem("e2e:last-mutation", JSON.stringify({ name, value }));
 }
@@ -86,6 +114,7 @@ export function createE2EClient(): any {
     rpc: async (name: string, args: unknown) => {
       if (name === "has_app_role") return { data: true, error: null };
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };
+      if (name === "get_access_management_snapshot") return { data: accessManagementSnapshot, error: null };
       recordMutation(`rpc:${name}`, args);
       return { data: null, error: null };
     },

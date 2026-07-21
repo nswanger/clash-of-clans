@@ -2,9 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   approveRecommendation,
   createInvitation,
+  demoteAdmin,
+  loadAccessManagement,
   promoteLeader,
   regenerateRecommendations,
+  reissueInvitation,
   revokeAccess,
+  revokeInvitation,
   saveAvailability,
 } from "./operations.js";
 
@@ -22,14 +26,33 @@ describe("Supabase operations", () => {
     expect(rpc).toHaveBeenCalledWith("create_invitation", { invitation_expires_at: "2026-07-14T00:00:00.000Z" });
   });
 
-  it("promotes and revokes leaders through role mutations", async () => {
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    const deleteEq = vi.fn().mockResolvedValue({ error: null });
-    const client = { from: vi.fn().mockReturnValue({ insert, delete: vi.fn().mockReturnValue({ eq: deleteEq }) }) };
+  it("uses protected functions for role and invitation lifecycle mutations", async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+    const client = { rpc };
     await promoteLeader(client, "leader-1");
+    await demoteAdmin(client, "admin-2");
     await revokeAccess(client, "leader-1");
-    expect(insert).toHaveBeenCalledWith({ user_id: "leader-1", role: "admin" });
-    expect(deleteEq).toHaveBeenCalledWith("user_id", "leader-1");
+    await revokeInvitation(client, "invitation-1");
+    expect(rpc).toHaveBeenCalledWith("promote_to_admin", { target_user_id: "leader-1" });
+    expect(rpc).toHaveBeenCalledWith("demote_to_leader", { target_user_id: "admin-2" });
+    expect(rpc).toHaveBeenCalledWith("revoke_user_access", { target_user_id: "leader-1" });
+    expect(rpc).toHaveBeenCalledWith("revoke_invitation", { invitation_id: "invitation-1" });
+  });
+
+  it("loads the access snapshot and returns a one-time reissue token", async () => {
+    const snapshot = { people: [], invitations: [], auditEvents: [] };
+    const rpc = vi.fn().mockImplementation((name: string) => Promise.resolve({
+      data: name === "get_access_management_snapshot" ? snapshot : "replacement-token",
+      error: null,
+    }));
+    const client = { rpc };
+    await expect(loadAccessManagement(client)).resolves.toEqual(snapshot);
+    await expect(reissueInvitation(client, "invitation-1", "2026-07-21T00:00:00Z")).resolves.toBe("replacement-token");
+    expect(rpc).toHaveBeenCalledWith("get_access_management_snapshot", { access_audit_limit: 50 });
+    expect(rpc).toHaveBeenCalledWith("reissue_invitation", {
+      invitation_id: "invitation-1",
+      invitation_expires_at: "2026-07-21T00:00:00Z",
+    });
   });
 
   it("appends an approval decision using the current leader identity", async () => {

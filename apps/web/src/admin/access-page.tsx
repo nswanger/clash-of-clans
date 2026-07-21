@@ -1,51 +1,73 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createInvitation,
+  demoteAdmin,
+  loadAccessManagement,
   promoteLeader,
+  reissueInvitation,
   revokeAccess,
-  type InvitationClient,
-  type RoleMutationBuilder,
+  revokeInvitation,
+  type AccessManagementClient,
+  type AccessManagementSnapshot,
 } from "../data/operations.js";
 import { AccessManagement } from "./access-management.js";
 
-interface Leader { id: string; name: string; role: "leader" | "admin" }
-interface AccessRoleRow {
-  user_id: string;
-  role: "leader" | "admin";
-  profiles: { display_name: string } | null;
-}
-interface AccessQueryResult {
-  data: AccessRoleRow[];
-  error: { message: string } | null;
-}
-interface AccessQueryBuilder extends RoleMutationBuilder, PromiseLike<AccessQueryResult> {
-  select(columns: string): AccessQueryBuilder;
-  order(column: string): AccessQueryBuilder;
-}
-interface AccessPageClient extends InvitationClient {
-  from(table: "user_roles"): AccessQueryBuilder;
+function expiresTomorrow(): string {
+  return new Date(Date.now() + 86_400_000).toISOString();
 }
 
-export function AccessPage({ client, origin }: { client: AccessPageClient; origin: string }) {
-  const [leaders, setLeaders] = useState<Leader[]>();
-  const [error, setError] = useState<string>();
-  const load = async () => {
-    const result = await client.from("user_roles").select("user_id,role,profiles!user_roles_user_id_fkey(display_name)").order("created_at");
-    if (result.error) throw new Error(result.error.message);
-    const leadersById = new Map<string, Leader>();
-    for (const row of result.data) {
-      const existing = leadersById.get(row.user_id);
-      if (!existing || row.role === "admin") leadersById.set(row.user_id, { id: row.user_id, role: row.role, name: row.profiles?.display_name ?? row.user_id });
+function invitationUrl(origin: string, token: string): string {
+  return `${origin.replace(/\/$/, "")}/?invitation=${encodeURIComponent(token)}`;
+}
+
+export function AccessPage({ client, origin }: { client: AccessManagementClient; origin: string }) {
+  const [snapshot, setSnapshot] = useState<AccessManagementSnapshot>();
+  const [loadError, setLoadError] = useState<string>();
+
+  const load = useCallback(async () => {
+    try {
+      setSnapshot(await loadAccessManagement(client));
+      setLoadError(undefined);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to load access management.");
     }
-    setLeaders([...leadersById.values()]);
+  }, [client]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (!snapshot && loadError) {
+    return <main className="dashboard-shell access-management">
+      <h1>Access management</h1>
+      <p className="dashboard-warning" role="alert">{loadError}</p>
+      <button type="button" onClick={() => void load()}>Retry</button>
+    </main>;
+  }
+  if (!snapshot) return <main className="dashboard-shell"><p role="status">Loading access…</p></main>;
+
+  const refreshAfter = async (mutation: () => Promise<void>) => {
+    await mutation();
+    await load();
   };
-  useEffect(() => { void load().catch((reason) => setError(reason.message)); }, [client]);
-  if (error) return <main className="dashboard-shell"><div role="alert">{error}</div></main>;
-  if (!leaders) return <main className="dashboard-shell"><p role="status">Loading access…</p></main>;
+
   return <AccessManagement
-    leaders={leaders}
-    onCreateInvitation={async () => `${origin.replace(/\/$/, "")}/?invitation=${encodeURIComponent(await createInvitation(client, new Date(Date.now() + 86_400_000).toISOString()))}`}
-    onPromote={(id) => void promoteLeader(client, id).then(load).catch((reason) => setError(reason.message))}
-    onRevoke={(id) => void revokeAccess(client, id).then(load).catch((reason) => setError(reason.message))}
+    snapshot={snapshot}
+    loadError={loadError}
+    onRetryLoad={load}
+    onCreateInvitation={async () => {
+      const token = await createInvitation(client, expiresTomorrow());
+      await load();
+      return invitationUrl(origin, token);
+    }}
+    onReissueInvitation={async (id) => {
+      const token = await reissueInvitation(client, id, expiresTomorrow());
+      await load();
+      return invitationUrl(origin, token);
+    }}
+    onRevokeInvitation={(id) => refreshAfter(() => revokeInvitation(client, id))}
+    onPromote={(id) => refreshAfter(() => promoteLeader(client, id))}
+    onDemote={(id) => refreshAfter(() => demoteAdmin(client, id))}
+    onRevokeAccess={(id) => refreshAfter(() => revokeAccess(client, id))}
+    onCopyInvitation={(value) => navigator.clipboard.writeText(value)}
+    confirmAction={(message) => window.confirm(message)}
   />;
 }

@@ -80,10 +80,12 @@ test("routes to availability and access workflows", async ({ page }) => {
 
   await page.getByRole("link", { name: "Access" }).click();
   await expect(page.getByRole("heading", { name: "Access management" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Invitation history" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent access activity" })).toBeVisible();
   await page.getByRole("button", { name: "Create invitation" }).click();
   await expect(page.getByText(/e2e-one-time-token/)).toBeVisible();
   await page.getByRole("button", { name: "Promote to admin" }).click();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("insert:user_roles");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("rpc:promote_to_admin");
 });
 
 test("redeems an invitation and restores a hash route without leaking the token", async ({ page }) => {

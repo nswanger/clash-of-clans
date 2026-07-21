@@ -53,15 +53,15 @@ Leaders review the current-CWL evidence, exceptions, and clan context before app
 
 ## Invitations, promotions, and access revocation
 
-- **Invitation:** an admin may provision application access after a leader confirms the intended clan role and scope. Use the least privilege needed.
+- **Invitation:** an admin may provision application access after a leader confirms the intended clan role and scope. Create the invitation from `#/access` and copy the displayed link before dismissing it; plaintext links are never stored and cannot be recovered later. The history shows pending, redeemed, expired, and revoked states. Reissuing a pending invitation disables the original link and displays one replacement link.
 - **Application-role promotion to admin:** only an existing application admin may promote an invited leader. After Nick explicitly approves the added operational authority, open `#/access`, confirm the intended account, and select **Promote to admin**. Verify the account is shown as `admin` and can open access management; record the approver, operator, account identifier, timestamp, and reason. This changes application access only and does not authorize clan-policy or in-game role decisions.
 - **Promotion or demotion:** only a clan leader approves game-role changes. The application can summarize evidence but must not execute or imply the decision.
-- **Revocation:** admins promptly revoke application access when a leader confirms departure, role loss, or suspected compromise. Rotate affected credentials when shared access may have been exposed.
+- **Application-role demotion and revocation:** use **Demote to leader** when an admin should retain ordinary leader access; use **Revoke access** to remove every application role. Administrators cannot demote or revoke their own account, and the database preserves at least one admin. Rotate affected credentials when shared access may have been exposed.
 - Record the action type, approving authority, operator, timestamp, and non-sensitive reason in the audit trail.
 
 ## Audit evidence
 
-There is no dedicated audit screen. Use the dashboard and Supabase table viewer to correlate:
+The Access page shows invitation and application-role history under **Recent access activity**. For broader operational evidence, use the dashboard and Supabase table viewer to correlate:
 
 - `recommendations` for the generated proposal and its reasons or uncertainty;
 - `leader_decisions` for approvals, overrides, and the leader's recorded rationale;

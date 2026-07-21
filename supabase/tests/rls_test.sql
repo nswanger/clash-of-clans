@@ -8,8 +8,8 @@ select has_function('public', 'has_app_role', array['app_role'], 'role helper ex
 select has_function('public', 'redeem_invitation', array['text'], 'invitation redemption function exists');
 select is((select prosecdef from pg_proc where oid = 'public.redeem_invitation(text)'::regprocedure), true, 'redemption is security definer');
 
-select policies_are('public', 'user_roles', array['Admins manage roles'], 'only admins manage role assignments');
-select policies_are('public', 'invitations', array['Admins manage invitations'], 'only admins manage invitations');
+select policies_are('public', 'user_roles', array['Admins read roles'], 'admins read roles while protected functions manage assignments');
+select policies_are('public', 'invitations', array['Admins read invitations'], 'admins read invitations while protected functions manage lifecycle changes');
 select policies_are('public', 'member_availability', array['Leaders read availability', 'Leaders write availability'], 'leaders manage availability');
 select policies_are('public', 'leader_decisions', array['Leaders read decisions', 'Leaders create decisions'], 'leader decisions are readable and append-only');
 select policies_are('public', 'clan_roster_daily_observations', array['Leaders read roster observations'], 'leaders can only read roster observations');
@@ -65,8 +65,8 @@ select isnt((select used_at from invitations where token_hash = extensions.diges
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000003', true);
-select throws_ok($$select redeem_invitation('valid-token')$$, 'P0001', 'Invitation is invalid, expired, or already used', 'invitation is single use');
-select throws_ok($$select redeem_invitation('expired-token')$$, 'P0001', 'Invitation is invalid, expired, or already used', 'expired invitation is rejected');
+select throws_ok($$select redeem_invitation('valid-token')$$, 'P0001', 'Invitation is invalid, expired, revoked, or already used', 'invitation is single use');
+select throws_ok($$select redeem_invitation('expired-token')$$, 'P0001', 'Invitation is invalid, expired, revoked, or already used', 'expired invitation is rejected');
 
 select lives_ok(
   $$insert into member_availability (clan_tag, season_id, player_tag, status, recorded_by)

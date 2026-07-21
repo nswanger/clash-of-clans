@@ -5,17 +5,46 @@ export type RecommendationRegenerationResult =
   | { status: "persisted"; recommendationId: string; created: boolean };
 
 export interface InvitationClient {
-  rpc(name: "create_invitation", args: { invitation_expires_at: string }): Promise<Result<string>>;
+  rpc(name: string, args: Record<string, unknown>): Promise<Result<any>>;
 }
 
-export interface RoleMutationBuilder {
-  insert(value: { user_id: string; role: "admin" }): Promise<Result>;
-  delete(): { eq(column: "user_id", value: string): Promise<Result> };
+export interface AccessPerson {
+  id: string;
+  name: string;
+  role: "leader" | "admin";
+  isCurrentUser: boolean;
 }
 
-export interface RoleMutationClient {
-  from(table: "user_roles"): RoleMutationBuilder;
+export interface AccessInvitation {
+  id: string;
+  status: "pending" | "redeemed" | "expired" | "revoked";
+  createdAt: string;
+  expiresAt: string;
+  createdByName: string;
+  usedAt: string | null;
+  usedByName: string | null;
+  revokedAt: string | null;
+  revokedByName: string | null;
+  reissuedFromId: string | null;
+  reissuedInvitationId: string | null;
 }
+
+export interface AccessAuditEvent {
+  id: string;
+  eventType: "invitation_created" | "invitation_redeemed" | "invitation_revoked" | "invitation_reissued" | "role_granted" | "role_revoked";
+  actorName: string;
+  targetName: string | null;
+  eventData: Record<string, unknown>;
+  occurredAt: string;
+}
+
+export interface AccessManagementSnapshot {
+  people: AccessPerson[];
+  invitations: AccessInvitation[];
+  auditEvents: AccessAuditEvent[];
+}
+
+export type AccessManagementClient = InvitationClient;
 
 export interface RecommendationFunctionClient {
   functions: {
@@ -60,12 +89,34 @@ export async function createInvitation(client: InvitationClient, expiresAt: stri
   return result.data;
 }
 
-export async function promoteLeader(client: RoleMutationClient, userId: string): Promise<void> {
-  ensureSuccess(await client.from("user_roles").insert({ user_id: userId, role: "admin" }), "Unable to promote leader");
+export async function loadAccessManagement(client: AccessManagementClient): Promise<AccessManagementSnapshot> {
+  const result = await client.rpc("get_access_management_snapshot", { access_audit_limit: 50 });
+  ensureSuccess(result, "Unable to load access management");
+  if (!result.data) throw new Error("Access management returned no data.");
+  return result.data;
 }
 
-export async function revokeAccess(client: RoleMutationClient, userId: string): Promise<void> {
-  ensureSuccess(await client.from("user_roles").delete().eq("user_id", userId), "Unable to revoke access");
+export async function reissueInvitation(client: AccessManagementClient, invitationId: string, expiresAt: string): Promise<string> {
+  const result = await client.rpc("reissue_invitation", { invitation_id: invitationId, invitation_expires_at: expiresAt });
+  ensureSuccess(result, "Unable to reissue invitation");
+  if (!result.data) throw new Error("Invitation reissue returned no token.");
+  return result.data;
+}
+
+export async function revokeInvitation(client: AccessManagementClient, invitationId: string): Promise<void> {
+  ensureSuccess(await client.rpc("revoke_invitation", { invitation_id: invitationId }), "Unable to revoke invitation");
+}
+
+export async function promoteLeader(client: AccessManagementClient, userId: string): Promise<void> {
+  ensureSuccess(await client.rpc("promote_to_admin", { target_user_id: userId }), "Unable to promote leader");
+}
+
+export async function demoteAdmin(client: AccessManagementClient, userId: string): Promise<void> {
+  ensureSuccess(await client.rpc("demote_to_leader", { target_user_id: userId }), "Unable to demote admin");
+}
+
+export async function revokeAccess(client: AccessManagementClient, userId: string): Promise<void> {
+  ensureSuccess(await client.rpc("revoke_user_access", { target_user_id: userId }), "Unable to revoke access");
 }
 
 export async function approveRecommendation(client: any, recommendationId: string, finalChanges: unknown[]): Promise<void> {
