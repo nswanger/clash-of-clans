@@ -1,6 +1,6 @@
 # Year-Round Clan Management Roadmap
 
-Last updated: 2026-07-18
+Last updated: 2026-07-20
 
 ## Product direction
 
@@ -48,7 +48,7 @@ Verify nonzero canonical normalization, availability entry, recommendation gener
 
 ### Priority 1 — Member history and roster overview
 
-**Status:** Implemented locally on 2026-07-19; production migration, collection, and UI acceptance remain.
+**Status:** Complete and deployed on 2026-07-20.
 
 Create an indefinitely useful, normalized history of current clan membership and selected activity counters rather than relying on 90-day raw snapshots. Deliver the data foundation and its first UI together.
 
@@ -69,6 +69,8 @@ Implementation now includes the approved two-table daily grain, protected collec
 
 ### Priority 2 — Access-management hardening
 
+**Status:** Implemented locally on 2026-07-20; production migration and deployed UI acceptance remain.
+
 The existing admin route already creates one-day invitations, lists leaders/admins, promotes leaders to admin, and revokes access. Refine it into a complete self-service workflow:
 
 - Show invitation status and history without exposing invitation token hashes.
@@ -79,6 +81,8 @@ The existing admin route already creates one-day invitations, lists leaders/admi
 - Show the relevant access audit history.
 
 This is mostly a focused UI and authorization slice because the core role, invitation, and audit tables already exist.
+
+Implementation now includes protected invitation and role RPCs, read-only authenticated access tables, pending/redeemed/expired/revoked invitation history, one-time copy and reissue links, admin demotion, self-lockout and final-admin protection, row-scoped progress/errors, confirmations, and access-specific audit visibility. Migration `202607200013_access_management_hardening.sql` and the web flow pass database, unit, build, and desktop/mobile browser verification.
 
 ### Priority 3 — CWL readiness and decision history
 
@@ -134,6 +138,4 @@ Keep these in the later backlog until a concrete leader decision justifies them:
 
 ## Next-session starting point
 
-Design and implement **Priority 1 — Member history and roster overview** using the normal development cycle.
-
-Start by inspecting the existing collector cadence, raw clan/member/player payloads, dashboard routing, and Supabase RLS patterns. Then propose the smallest canonical daily-snapshot schema and retention approach for Nick's approval before writing a migration. The intended first release is one end-to-end slice: collection/normalization, derived recent-change signals, a useful member roster page, navigation integration, tests, and deployment verification.
+Deploy and verify **Priority 2 — Access-management hardening**: apply migration `202607200013`, publish the Pages build, and perform non-destructive production acceptance for access history and guards. Then begin Priority 3 design.

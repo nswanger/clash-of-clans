@@ -1,10 +1,10 @@
 # CWL Operations Assistant Implementation Progress
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
 
-Post-MVP priorities are tracked in [Year-Round Clan Management Roadmap](./year-round-clan-management-roadmap.md). The member-history and roster-overview vertical slice is the current delivery item.
+Post-MVP priorities are tracked in [Year-Round Clan Management Roadmap](./year-round-clan-management-roadmap.md). Access-management hardening is the current delivery item.
 
-Post-MVP Priority 1 is implemented locally: indefinite normalized daily roster/member history, explainable activity baselines, roster tenure/departure observations, Overview and Members navigation, and leader-facing filtering/sorting. Production migration and deployed collector/UI acceptance remain before the slice is operational.
+Post-MVP Priority 1 is deployed. Priority 2 is implemented locally: protected access mutations, invitation lifecycle history, one-time copy/reissue links, role demotion and revocation, self-lockout/final-admin guards, recoverable UI actions, and access audit visibility. Production migration and deployed UI acceptance remain.
 
 | Task | Status | Notes |
 | --- | --- | --- |
@@ -21,17 +21,18 @@ Post-MVP Priority 1 is implemented locally: indefinite normalized daily roster/m
 
 ## Latest Verification
 
-- `pnpm --filter @cwl/web test`: 55 tests passed across 11 files, including raw-snapshot idle loading, view-model mapping, idle-CWL presentation, and manual recommendation regeneration states.
+- `pnpm --filter @cwl/web test`: 67 tests passed across 14 files, including access snapshot loading, invitation lifecycle actions, role changes, confirmations, retries, and audit presentation.
 - `pnpm --filter @cwl/web typecheck`: passed.
 - `pnpm --filter @cwl/web build`: Vite production build passed.
-- `pnpm test`: 148 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
+- `pnpm test`: 162 Vitest tests passed across the collector, domain, recommendations, and web packages; the verification-script shell suite also passed.
 - `pnpm typecheck`: all five workspace packages passed.
 - `pnpm build`: all five workspace packages passed.
 - Root and repository Pages builds emitted the expected `/assets/` and `/clash-of-clans/assets/` URLs.
 - `.github/workflows/deploy-pages.yml`: YAML structure and required build/deploy jobs verified.
 - Pages artifact scan: zero collector-only secret names or `sb_secret_` prefixes found.
-- `supabase db reset`: all 11 migrations applied successfully.
-- `supabase test db`: 88 tests passed across seven pgTAP files.
+- `supabase db reset`: all 13 migrations applied successfully.
+- `supabase test db`: 148 tests passed across nine pgTAP files, including protected access mutations, invitation lifecycle, audit safety, and lockout guards.
+- `supabase db lint --level warning`: no schema errors.
 - `pnpm exec playwright test`: 18 desktop, tablet-width, and mobile workflows passed, including manual regeneration without a leader-decision mutation.
 - `docker build -f docker/collector.Dockerfile -t cwl-collector:acceptance .`: passed.
 - Docker inspection: image runs as `node` and defines the collector health check.
@@ -54,7 +55,7 @@ Post-MVP Priority 1 is implemented locally: indefinite normalized daily roster/m
 
 ## Continuation Point
 
-Task 10 is in progress on `codex/cwl-assistant-mvp`. GitHub Pages serves the production build at `https://nswanger.github.io/clash-of-clans/`. UnRaid runs immutable Task 10 image `cwl-collector:207283a21d08` with protected configuration under `/mnt/user/appdata/cwl-collector` and no published ports.
+Task 10 remains calendar-blocked for active-CWL acceptance. Priority 2 is implemented on `codex/access-management-hardening`; migration `202607200013` and its Pages build are not yet deployed. GitHub Pages serves the current production build at `https://nswanger.github.io/clash-of-clans/`. UnRaid runs the healthy member-history collector with protected configuration under `/mnt/user/appdata/cwl-collector` and no published ports.
 
 - Fixture acceptance covers raw collection, canonical normalization, availability, recommendation generation and explanations, approval/override behavior, error detection, and accessibility.
 - The production collector now resolves a stable raw-snapshot identity, normalizes each successful snapshot, and classifies normalization failures as `normalization_error` before dependent CWL collection continues.
