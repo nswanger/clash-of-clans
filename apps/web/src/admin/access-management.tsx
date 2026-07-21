@@ -39,13 +39,14 @@ function InvitationDetail({ invitation }: { invitation: AccessInvitation }) {
 
 function AuditDescription({ event }: { event: AccessAuditEvent }) {
   const role = typeof event.eventData.role === "string" ? event.eventData.role : "access";
+  const target = event.targetName ?? "an account";
   switch (event.eventType) {
     case "invitation_created": return <>{event.actorName} created an invitation</>;
     case "invitation_reissued": return <>{event.actorName} reissued an invitation</>;
     case "invitation_revoked": return <>{event.actorName} revoked an invitation</>;
     case "invitation_redeemed": return <>{event.actorName} redeemed an invitation</>;
-    case "role_granted": return <>{event.actorName} granted {role} access to {event.targetName}</>;
-    case "role_revoked": return <>{event.actorName} revoked {role} access from {event.targetName}</>;
+    case "role_granted": return <>{event.actorName} granted {role} access to {target}</>;
+    case "role_revoked": return <>{event.actorName} revoked {role} access from {target}</>;
   }
 }
 

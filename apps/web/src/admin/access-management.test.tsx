@@ -38,14 +38,24 @@ const snapshot: AccessManagementSnapshot = {
       reissuedInvitationId: null,
     },
   ],
-  auditEvents: [{
-    id: "event-one",
-    eventType: "role_granted",
-    actorName: "Nick",
-    targetName: "Grace",
-    eventData: { role: "leader" },
-    occurredAt: "2026-07-18T13:00:00Z",
-  }],
+  auditEvents: [
+    {
+      id: "event-one",
+      eventType: "role_granted",
+      actorName: "Nick",
+      targetName: "Grace",
+      eventData: { role: "leader" },
+      occurredAt: "2026-07-18T13:00:00Z",
+    },
+    {
+      id: "event-two",
+      eventType: "role_granted",
+      actorName: "Nick",
+      targetName: null,
+      eventData: { role: "admin" },
+      occurredAt: "2026-07-18T12:00:00Z",
+    },
+  ],
 };
 
 function renderAccess(overrides: Partial<React.ComponentProps<typeof AccessManagement>> = {}) {
@@ -74,6 +84,7 @@ describe("AccessManagement", () => {
     expect(screen.getByText("Current account")).toBeVisible();
     expect(screen.getByText("Redeemed by Grace", { exact: false })).toBeVisible();
     expect(screen.getByText("Nick granted leader access to Grace")).toBeVisible();
+    expect(screen.getByText("Nick granted admin access to an account")).toBeVisible();
     expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
   });
 
