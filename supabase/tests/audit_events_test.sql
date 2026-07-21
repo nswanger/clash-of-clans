@@ -114,9 +114,7 @@ SELECT is(
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000001', true);
 SELECT set_config('request.jwt.claim.role', 'authenticated', true);
-DELETE FROM public.user_roles
-WHERE user_id = '40000000-0000-0000-0000-000000000003'
-  AND role = 'leader';
+SELECT public.revoke_user_access('40000000-0000-0000-0000-000000000003');
 
 RESET ROLE;
 SELECT is(
