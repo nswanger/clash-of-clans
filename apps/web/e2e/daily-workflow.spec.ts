@@ -88,6 +88,36 @@ test("routes to availability and access workflows", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("rpc:promote_to_admin");
 });
 
+test("operates the production CWL lineup workspace through the planning seam", async ({ page }) => {
+  await page.goto("/#/cwl-lineup");
+  await expect(page.getByRole("heading", { name: "Lineup workspace" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /planned · drag to reorder/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Day 3" })).toHaveClass(/selected/);
+  await expect(page.getByText(/Last refreshed/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Add" }).first().click();
+  await page.getByRole("button", { name: "Save plan" }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("rpc:save_cwl_daily_lineup_plan");
+
+  await page.getByRole("button", { name: "Lock day" }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("rpc:set_cwl_daily_lineup_plan_lock");
+  await expect(page.getByRole("button", { name: "Unlock day" })).toBeVisible();
+  expect(await page.getByRole("button", { name: "Save plan" }).isDisabled()).toBe(true);
+
+  await page.getByRole("button", { name: /Change Kira availability/ }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("availability");
+});
+
+test("exposes and operates the primary CWL lineup route", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "CWL Lineup" }).click();
+  await expect(page.getByRole("heading", { name: "Lineup workspace" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Day 2" }).click();
+  await page.getByRole("button", { name: "Re-inherit prior day" }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("rpc:reinherit_cwl_daily_lineup_plan");
+});
+
 test("redeems an invitation and restores a hash route without leaking the token", async ({ page }) => {
   await page.goto("/?authCallback=1&invitation=e2e-invite&returnTo=%23%2Favailability");
   await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();

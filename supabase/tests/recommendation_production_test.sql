@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(15);
+SELECT plan(17);
 
 SELECT has_column('public', 'recommendations', 'input_hash', 'recommendations store deterministic input hashes');
 SELECT has_column('public', 'recommendations', 'source', 'recommendations record their generation source');
@@ -110,6 +110,34 @@ VALUES (
   now() - INTERVAL '1 minute'
 );
 
+INSERT INTO public.clan_roster_daily_observations (
+  clan_tag,
+  observed_on,
+  roster_observed_at,
+  collection_run_id,
+  member_count
+)
+VALUES (
+  '#RECOMMEND',
+  '2026-07-18',
+  '2026-07-18T12:00:00Z',
+  '30000000-0000-0000-0000-000000000010',
+  2
+);
+
+INSERT INTO public.member_daily_snapshots (
+  clan_tag,
+  observed_on,
+  player_tag,
+  name,
+  role,
+  town_hall_level,
+  roster_observed_at
+)
+VALUES
+  ('#RECOMMEND', '2026-07-18', '#OUT', 'Outgoing', 'admin', 17, '2026-07-18T12:00:00Z'),
+  ('#RECOMMEND', '2026-07-18', '#IN', 'Incoming', 'member', 17, '2026-07-18T12:00:00Z');
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', true);
 SELECT set_config('request.jwt.claim.role', 'authenticated', true);
@@ -126,6 +154,26 @@ SELECT is(
   (SELECT recommendation_context.value ->> 'warTag' FROM recommendation_context),
   '#RECOMMENDWAR',
   'context targets the latest normalized lineup'
+);
+SELECT is(
+  (
+    SELECT member ->> 'clanRole'
+    FROM recommendation_context,
+      jsonb_array_elements(recommendation_context.value -> 'input' -> 'context' -> 'members') AS member
+    WHERE member ->> 'playerTag' = '#OUT'
+  ),
+  'elder',
+  'the Clash API admin wire role is normalized to Elder in recommendation context'
+);
+SELECT is(
+  (
+    SELECT member ->> 'clanRole'
+    FROM recommendation_context,
+      jsonb_array_elements(recommendation_context.value -> 'input' -> 'context' -> 'members') AS member
+    WHERE member ->> 'playerTag' = '#IN'
+  ),
+  'member',
+  'recognized non-Elder clan roles remain distinct in recommendation context'
 );
 
 CREATE TEMPORARY TABLE first_recommendation AS

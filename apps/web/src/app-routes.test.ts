@@ -7,6 +7,7 @@ describe("routeForPath", () => {
     expect(routeForPath("#/overview", "leader")).toBe("overview");
     expect(routeForPath("#/members", "leader")).toBe("members");
     expect(routeForPath("#/availability", "leader")).toBe("availability");
+    expect(routeForPath("#/cwl-lineup", "leader")).toBe("cwl_lineup");
     expect(routeForPath("#/season", "leader")).toBe("season");
   });
 

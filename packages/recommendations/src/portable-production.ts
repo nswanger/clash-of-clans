@@ -1,4 +1,5 @@
 export type PortableAvailability = "available" | "unavailable" | "unknown";
+export type PortableClanRole = "leader" | "coLeader" | "elder" | "member" | "unknown";
 export type PortableHealthStatus = "healthy" | "stale" | "partial" | "invalid_ip" | "error";
 export type PortablePriorityMode = "balanced" | "standings_first";
 export type RecommendationSource = "collection" | "manual";
@@ -13,6 +14,7 @@ export type PortableReasonCode =
   | "current_cwl_reliability"
   | "opportunity_count"
   | "town_hall_fit"
+  | "elder_tiebreaker"
   | "player_tag_fallback"
   | "limited_confidence";
 
@@ -20,6 +22,7 @@ export interface PortableMemberFacts {
   playerTag: string;
   name: string;
   townHallLevel: number;
+  clanRole?: PortableClanRole;
   availability: PortableAvailability;
   assignedOpportunities: number;
   completedAssignedAttacks: number;
@@ -107,6 +110,7 @@ const explanations: Record<PortableReasonCode, string> = {
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",
   town_hall_fit: "Town Hall level is matched to the open map position.",
+  elder_tiebreaker: "Verified current clan Elder status breaks an otherwise equal recommendation tie.",
   player_tag_fallback: "Player tag provides the final deterministic tie-break.",
   limited_confidence: "This member has no assigned opportunities in the current CWL.",
 };
@@ -137,6 +141,10 @@ function selectCandidate(candidates: PortableMemberFacts[], outgoing: PortableMe
       Math.abs(townHallLevel - outgoing.townHallLevel)));
     tied = tied.filter(({ townHallLevel }) =>
       Math.abs(townHallLevel - outgoing.townHallLevel) === closestTownHall);
+  }
+  if (tied.length > 1 && tied.some(({ clanRole }) => clanRole === "elder")) {
+    reachedRules.push("elder_tiebreaker");
+    tied = tied.filter(({ clanRole }) => clanRole === "elder");
   }
   if (tied.length > 1) reachedRules.push("player_tag_fallback");
   return { candidate: tied[0], reachedRules };
@@ -184,7 +192,7 @@ function reasonsForChange(
 }
 
 export class PortableOrderedRulesStrategy {
-  readonly version = "ordered-rules-v1";
+  readonly version = "ordered-rules-v2";
 
   recommend(context: PortableRecommendationContext): PortableRecommendationResult {
     const membersByTag = new Map(context.members.map((member) => [member.playerTag, member]));

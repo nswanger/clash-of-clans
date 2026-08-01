@@ -58,6 +58,10 @@ const validMemberFacts = {
 } as const;
 
 describe("memberFactsSchema", () => {
+  it("defaults missing clan role to unknown", () => {
+    expect(memberFactsSchema.parse(validMemberFacts).clanRole).toBe("unknown");
+  });
+
   it("derives current-CWL reliability", () => {
     expect(memberFactsSchema.parse(validMemberFacts).reliability).toBe(0.75);
   });

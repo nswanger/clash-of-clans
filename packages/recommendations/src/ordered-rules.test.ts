@@ -126,6 +126,20 @@ describe("OrderedRulesStrategy", () => {
     expect(new OrderedRulesStrategy().recommend(base)).toEqual(result);
   });
 
+  it("uses verified Elder status only as the final eligibility tie-breaker", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { availability: "unavailable", townHallLevel: 15 }),
+        member("#MEMBER", { assignedOpportunities: 1, completedAssignedAttacks: 1, townHallLevel: 15, clanRole: "member" }),
+        member("#ELDER", { assignedOpportunities: 1, completedAssignedAttacks: 1, townHallLevel: 15, clanRole: "elder" }),
+      ],
+      currentLineup: [{ playerTag: "#OUT", position: 11, isCore: false }],
+    }));
+
+    expect(result.changes[0]?.inPlayerTag).toBe("#ELDER");
+    expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("elder_tiebreaker");
+  });
+
   it("marks zero-opportunity substitutes as limited confidence", () => {
     const result = new OrderedRulesStrategy().recommend(context({
       members: [
