@@ -35,6 +35,7 @@ export const memberFactsSchema = z.object({
   playerTag: playerTagSchema,
   name: z.string().min(1),
   townHallLevel: z.number().int().positive(),
+  clanRole: z.enum(["leader", "coLeader", "elder", "member", "unknown"]).default("unknown"),
   availability: availabilitySchema,
   assignedOpportunities: z.number().int().nonnegative(),
   completedAssignedAttacks: z.number().int().nonnegative(),
@@ -73,6 +74,7 @@ export const reasonCodeSchema = z.enum([
   "current_cwl_reliability",
   "opportunity_count",
   "town_hall_fit",
+  "elder_tiebreaker",
   "player_tag_fallback",
   "limited_confidence",
 ]);

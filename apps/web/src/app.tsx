@@ -44,6 +44,7 @@ export function App({ session, onSignIn, children }: AppProps) {
         <a href="#/overview">Overview</a>
         <a href="#/members">Members</a>
         <a href="#/">CWL Today</a>
+        <a href="#/cwl-lineup">CWL Lineup</a>
         <a href="#/availability">Availability</a>
         <a href="#/season">Season</a>
         {session.role === "admin" ? <a href="#/access">Access</a> : null}

@@ -6,13 +6,25 @@ import {
   loadAccessManagement,
   promoteLeader,
   regenerateRecommendations,
+  normalizeClanRole,
+  reinheritCwlLineupPlan,
   reissueInvitation,
   revokeAccess,
   revokeInvitation,
+  saveCwlLineupPlan,
   saveAvailability,
+  setCwlLineupPlanLock,
 } from "./operations.js";
 
 describe("Supabase operations", () => {
+  it("normalizes the Clash admin wire role to the product Elder role", () => {
+    expect(normalizeClanRole("admin")).toBe("elder");
+    expect(normalizeClanRole("leader")).toBe("leader");
+    expect(normalizeClanRole("coLeader")).toBe("coLeader");
+    expect(normalizeClanRole("elder")).toBe("unknown");
+    expect(normalizeClanRole(undefined)).toBe("unknown");
+  });
+
   it("upserts availability using the current leader identity", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const client = { auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "leader-1" } }, error: null }) }, from: vi.fn().mockReturnValue({ upsert }) };
@@ -74,5 +86,38 @@ describe("Supabase operations", () => {
       created: true,
     });
     expect(invoke).toHaveBeenCalledWith("regenerate-recommendations", { body: { clanTag: "#CLAN" } });
+  });
+
+  it("saves lineup plans with the loaded revision and ordered player tags", async () => {
+    const plan = {
+      clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, revision: 4, isLocked: false,
+      lockedAt: null, lockedBy: null, inheritedFromWarDay: 1,
+      createdAt: "2026-08-01T00:00:00Z", createdBy: "leader-1", updatedAt: "2026-08-01T00:01:00Z", updatedBy: "leader-1",
+      playerTags: ["#ONE", "#TWO"],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: plan, error: null });
+    await expect(saveCwlLineupPlan({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, expectedRevision: 3, playerTags: ["#ONE", "#TWO"] })).resolves.toEqual(plan);
+    expect(rpc).toHaveBeenCalledWith("save_cwl_daily_lineup_plan", {
+      requested_clan_tag: "#CLAN",
+      requested_season_id: "2026-08",
+      requested_war_day: 2,
+      expected_revision: 3,
+      requested_player_tags: ["#ONE", "#TWO"],
+    });
+  });
+
+  it("uses revision checks for lock and explicit re-inheritance mutations", async () => {
+    const plan = {
+      clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, revision: 5, isLocked: true,
+      lockedAt: "2026-08-01T00:02:00Z", lockedBy: "leader-1", inheritedFromWarDay: 1,
+      createdAt: "2026-08-01T00:00:00Z", createdBy: "leader-1", updatedAt: "2026-08-01T00:02:00Z", updatedBy: "leader-1",
+      playerTags: ["#ONE"],
+    };
+    const rpc = vi.fn().mockResolvedValue({ data: plan, error: null });
+    const client = { rpc };
+    await expect(setCwlLineupPlanLock(client, { clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, expectedRevision: 4, isLocked: true })).resolves.toEqual(plan);
+    await expect(reinheritCwlLineupPlan(client, { clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, expectedRevision: 4 })).resolves.toEqual(plan);
+    expect(rpc).toHaveBeenNthCalledWith(1, "set_cwl_daily_lineup_plan_lock", expect.objectContaining({ expected_revision: 4, requested_is_locked: true }));
+    expect(rpc).toHaveBeenNthCalledWith(2, "reinherit_cwl_daily_lineup_plan", expect.objectContaining({ expected_revision: 4 }));
   });
 });

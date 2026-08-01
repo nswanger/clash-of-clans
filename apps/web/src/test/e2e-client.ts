@@ -2,6 +2,11 @@ const defaultTableData: Record<string, unknown> = {
   profiles: { display_name: "E2E Leader" },
   cwl_seasons: { clan_tag: "#E2E", season_id: "2026-07", war_size: 15 },
   cwl_wars: { war_tag: "#WAR3", war_day: 3, end_time: "2026-07-13T23:59:59.000Z", attacks_per_member: 1 },
+  member_roster_overview: [
+    { player_tag: "#MASON", role: "admin", roster_observed_at: "2026-07-12T17:56:00.000Z", is_current_member: true },
+    { player_tag: "#SAM", role: "member", roster_observed_at: "2026-07-12T17:56:00.000Z", is_current_member: true },
+    { player_tag: "#KIRA", role: "member", roster_observed_at: "2026-07-12T17:56:00.000Z", is_current_member: true },
+  ],
   cwl_members: [
     { player_tag: "#MASON", name: "Mason", town_hall_level: 15 },
     { player_tag: "#SAM", name: "Sam", town_hall_level: 16 },
@@ -21,6 +26,7 @@ const defaultTableData: Record<string, unknown> = {
     changes: [{ outPlayerTag: "#MASON", inPlayerTag: "#SAM", reasons: [{ code: "missed_attack", explanation: "Missed the assigned attack on Day 2" }] }],
     contacts: [{ playerTag: "#KIRA", reason: "Availability is unknown" }], coverageGaps: [], confidenceNotes: [],
   } },
+  cwlLineupPlans: {},
   user_roles: [
     { user_id: "e2e-user", role: "admin", profiles: { display_name: "E2E Leader" } },
     { user_id: "other-leader", role: "leader", profiles: { display_name: "Other Leader" } },
@@ -111,10 +117,43 @@ export function createE2EClient(): any {
         };
       },
     },
-    rpc: async (name: string, args: unknown) => {
+    rpc: async (name: string, args: any) => {
       if (name === "has_app_role") return { data: true, error: null };
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };
       if (name === "get_access_management_snapshot") return { data: accessManagementSnapshot, error: null };
+      if (name === "ensure_cwl_daily_lineup_plan" || name === "save_cwl_daily_lineup_plan" || name === "set_cwl_daily_lineup_plan_lock" || name === "reinherit_cwl_daily_lineup_plan") {
+        const day = Number(args.requested_war_day);
+        const plans = (tableData.cwlLineupPlans ?? {}) as Record<string, any>;
+        if (!plans[String(day)]) {
+          const prior = day > 1 ? plans[String(day - 1)] : undefined;
+          plans[String(day)] = {
+            clanTag: "#E2E", seasonId: "2026-07", warDay: day, revision: 1, isLocked: false,
+            lockedAt: null, lockedBy: null, inheritedFromWarDay: prior ? day - 1 : null,
+            createdAt: "2026-07-12T08:00:00.000Z", createdBy: "e2e-user", updatedAt: "2026-07-12T08:00:00.000Z", updatedBy: "e2e-user",
+            playerTags: prior ? [...prior.playerTags] : ["#MASON"],
+          };
+          tableData.cwlLineupPlans = plans;
+        }
+        const plan = plans[String(day)];
+        if (name === "save_cwl_daily_lineup_plan") {
+          plan.playerTags = [...args.requested_player_tags];
+          plan.revision += 1;
+          plan.updatedAt = "2026-07-12T18:00:00.000Z";
+        } else if (name === "set_cwl_daily_lineup_plan_lock") {
+          plan.isLocked = args.requested_is_locked;
+          plan.revision += 1;
+          plan.lockedAt = plan.isLocked ? "2026-07-12T18:00:00.000Z" : null;
+          plan.lockedBy = plan.isLocked ? "e2e-user" : null;
+        } else if (name === "reinherit_cwl_daily_lineup_plan" && day > 1) {
+          const prior = plans[String(day - 1)];
+          plan.playerTags = prior ? [...prior.playerTags] : [];
+          plan.revision += 1;
+          plan.inheritedFromWarDay = day - 1;
+        }
+        persistFixture?.();
+        recordMutation(`rpc:${name}`, args);
+        return { data: plan, error: null };
+      }
       recordMutation(`rpc:${name}`, args);
       return { data: null, error: null };
     },

@@ -10,6 +10,7 @@ const explanations: Record<ReasonCode, string> = {
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",
   town_hall_fit: "Town Hall level is matched to the open map position.",
+  elder_tiebreaker: "Verified current clan Elder status breaks an otherwise equal recommendation tie.",
   player_tag_fallback: "Player tag provides the final deterministic tie-break.",
   limited_confidence: "This member has no assigned opportunities in the current CWL.",
 };

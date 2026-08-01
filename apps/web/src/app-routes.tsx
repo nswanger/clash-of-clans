@@ -5,16 +5,20 @@ import { DashboardPage } from "./dashboard/dashboard-page.js";
 import { MembersPage, RosterOverviewPage } from "./members/members-page.js";
 import type { DailyDashboardData } from "./dashboard/daily-dashboard.js";
 import { approveRecommendation, overrideRecommendation, regenerateRecommendations } from "./data/operations.js";
+import { CwlLineupWorkspacePage } from "./cwl-lineup/cwl-lineup-workspace.js";
+import "./cwl-lineup/cwl-lineup-workspace.css";
 
 type Role = "leader" | "admin";
-type Route = "dashboard" | "overview" | "members" | "availability" | "season" | "access" | "access_denied";
+type Route = "dashboard" | "overview" | "members" | "availability" | "season" | "access" | "cwl_lineup" | "access_denied";
 
 export function routeForPath(hash: string, role: Role): Route {
-  if (hash === "#/overview") return "overview";
-  if (hash === "#/members") return "members";
-  if (hash === "#/availability") return "availability";
-  if (hash === "#/season") return "season";
-  if (hash === "#/access") return role === "admin" ? "access" : "access_denied";
+  const path = hash.split("?")[0];
+  if (path === "#/overview") return "overview";
+  if (path === "#/members") return "members";
+  if (path === "#/availability") return "availability";
+  if (path === "#/season") return "season";
+  if (path === "#/cwl-lineup") return "cwl_lineup";
+  if (path === "#/access") return role === "admin" ? "access" : "access_denied";
   return "dashboard";
 }
 
@@ -32,6 +36,7 @@ export function AppRoutes({ client, clanTag, role, origin, basePath, loadDashboa
   if (route === "members") return <MembersPage client={client} clanTag={clanTag} />;
   if (route === "availability") return <AvailabilityPage client={client} clanTag={clanTag} />;
   if (route === "access") return <AccessPage client={client} origin={`${origin}${basePath}`} />;
+  if (route === "cwl_lineup") return <CwlLineupWorkspacePage client={client} clanTag={clanTag} />;
   if (route === "access_denied") return <main className="access-shell"><h1>Access unavailable</h1><p>Admin access is required.</p></main>;
   if (route === "season") return <main className="dashboard-shell"><h1>Season details</h1><p>Verified group standings are not available in the normalized data yet.</p></main>;
   return <DashboardPage

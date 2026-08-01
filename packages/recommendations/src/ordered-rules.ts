@@ -3,7 +3,7 @@ import { PortableOrderedRulesStrategy } from "./portable-production.js";
 import type { RecommendationStrategy } from "./strategy.js";
 
 export class OrderedRulesStrategy implements RecommendationStrategy {
-  readonly version = "ordered-rules-v1";
+  readonly version = "ordered-rules-v2";
   private readonly portableStrategy = new PortableOrderedRulesStrategy();
 
   recommend(context: RecommendationContext): RecommendationResult {

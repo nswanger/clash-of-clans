@@ -1,6 +1,6 @@
 # Year-Round Clan Management Roadmap
 
-Last updated: 2026-07-20
+Last updated: 2026-07-21
 
 ## Product direction
 
@@ -69,7 +69,7 @@ Implementation now includes the approved two-table daily grain, protected collec
 
 ### Priority 2 — Access-management hardening
 
-**Status:** Implemented locally on 2026-07-20; production migration and deployed UI acceptance remain.
+**Status:** Complete and deployed on 2026-07-21.
 
 The existing admin route already creates one-day invitations, lists leaders/admins, promotes leaders to admin, and revokes access. Refine it into a complete self-service workflow:
 
@@ -82,7 +82,7 @@ The existing admin route already creates one-day invitations, lists leaders/admi
 
 This is mostly a focused UI and authorization slice because the core role, invitation, and audit tables already exist.
 
-Implementation now includes protected invitation and role RPCs, read-only authenticated access tables, pending/redeemed/expired/revoked invitation history, one-time copy and reissue links, admin demotion, self-lockout and final-admin protection, row-scoped progress/errors, confirmations, and access-specific audit visibility. Migration `202607200013_access_management_hardening.sql` and the web flow pass database, unit, build, and desktop/mobile browser verification.
+Implementation includes protected invitation and role RPCs, read-only authenticated access tables, pending/redeemed/expired/revoked invitation history, one-time copy and reissue links, admin demotion, self-lockout and final-admin protection, row-scoped progress/errors, confirmations, and access-specific audit visibility. Migration `202607200013_access_management_hardening.sql` is applied in production, and the deployed web flow has passed non-destructive acceptance for access history and guards.
 
 ### Priority 3 — CWL readiness and decision history
 
@@ -138,4 +138,4 @@ Keep these in the later backlog until a concrete leader decision justifies them:
 
 ## Next-session starting point
 
-Deploy and verify **Priority 2 — Access-management hardening**: apply migration `202607200013`, publish the Pages build, and perform non-destructive production acceptance for access history and guards. Then begin Priority 3 design.
+Design **Priority 3 — CWL readiness and decision history** for an idle-CWL state first. Build a deterministic readiness checklist, leader-facing outstanding actions, recommendation/decision history, and an operational audit timeline using fixture coverage now; reserve live-CWL acceptance for Gate 0.

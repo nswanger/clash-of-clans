@@ -8,3 +8,8 @@ playwright-report/
 test-results/
 .superpowers/
 .DS_Store
+
+# Local planning and generated Supabase CLI state
+.scratch/
+supabase/.branches/
+supabase/.temp/
