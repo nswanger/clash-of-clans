@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FilterMenu } from "../filter-menu.js";
 import {
   activityWindow,
   loadMemberRoster,
@@ -43,10 +44,14 @@ export function MembersPage(props: MemberPageProps) {
   const [search, setSearch] = useState("");
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>("current");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [townHallFilter, setTownHallFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [sort, setSort] = useState<Sort>("rank");
   const roles = useMemo(() => state.status === "ready"
     ? [...new Set(state.members.map((member) => member.role).filter((role): role is string => Boolean(role)))].sort()
+    : [], [state]);
+  const townHalls = useMemo(() => state.status === "ready"
+    ? [...new Set(state.members.map((member) => member.townHallLevel).filter((townHall): townHall is number => townHall !== null))].sort((left, right) => right - left)
     : [], [state]);
   const visible = useMemo(() => {
     if (state.status !== "ready") return [];
@@ -56,10 +61,11 @@ export function MembersPage(props: MemberPageProps) {
         || member.playerTag.toLocaleLowerCase().includes(query))
       .filter((member) => rosterFilter === "all" || (rosterFilter === "current") === member.isCurrentMember)
       .filter((member) => roleFilter === "all" || member.role === roleFilter)
+      .filter((member) => townHallFilter === "all" || member.townHallLevel === Number(townHallFilter))
       .filter((member) => activityFilter === "all"
         || activityWindow(member, member.baseline7d).status === activityFilter)
       .sort(memberSorter(sort));
-  }, [activityFilter, roleFilter, rosterFilter, search, sort, state]);
+  }, [activityFilter, roleFilter, rosterFilter, search, sort, state, townHallFilter]);
 
   if (state.status !== "ready") return <MemberState state={state} title="Members" />;
   return (
@@ -71,10 +77,11 @@ export function MembersPage(props: MemberPageProps) {
       </header>
       <section className="member-filters" aria-label="Member filters">
         <label>Find a member<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or player tag" /></label>
-        <label>Roster<select value={rosterFilter} onChange={(event) => setRosterFilter(event.target.value as RosterFilter)}><option value="current">Current</option><option value="former">Former</option><option value="all">All observed</option></select></label>
-        <label>Role<select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option value="all">All roles</option>{roles.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}</select></label>
-        <label>7-day evidence<select value={activityFilter} onChange={(event) => setActivityFilter(event.target.value as ActivityFilter)}><option value="all">All</option><option value="observed">Activity observed</option><option value="no_change">No change observed</option><option value="unknown">Building history</option></select></label>
-        <label>Sort<select value={sort} onChange={(event) => setSort(event.target.value as Sort)}><option value="rank">Clan rank</option><option value="name">Name</option><option value="town_hall">Town Hall</option><option value="activity">Recent evidence</option><option value="observed">First observed</option></select></label>
+        <FilterMenu label="Roster" ariaLabel="Filter members by roster" value={rosterFilter} onChange={(value) => setRosterFilter(value as RosterFilter)} options={[{ value: "current", label: "Current" }, { value: "former", label: "Former" }, { value: "all", label: "All observed" }]} />
+        <FilterMenu label="Role" ariaLabel="Filter members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} />
+        <FilterMenu label="Town Hall" ariaLabel="Filter members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} />
+        <FilterMenu label="7-day evidence" ariaLabel="Filter members by activity evidence" value={activityFilter} onChange={(value) => setActivityFilter(value as ActivityFilter)} options={[{ value: "all", label: "All" }, { value: "observed", label: "Activity observed" }, { value: "no_change", label: "No change observed" }, { value: "unknown", label: "Building history" }]} />
+        <FilterMenu label="Sort" ariaLabel="Sort members" value={sort} onChange={(value) => setSort(value as Sort)} options={[{ value: "rank", label: "Clan rank" }, { value: "name", label: "Name" }, { value: "town_hall", label: "Town Hall" }, { value: "activity", label: "Recent evidence" }, { value: "observed", label: "First observed" }]} />
       </section>
       <p className="member-result-count">Showing {visible.length} of {state.members.length} observed members</p>
       <div className="member-list">
@@ -95,7 +102,7 @@ function MemberCard({ member }: { member: MemberRosterMember }) {
       </div>
       <dl className="member-facts">
         <div><dt>Role</dt><dd>{roleLabel(member.role)}</dd></div>
-        <div><dt>Town Hall</dt><dd>{member.townHallLevel}</dd></div>
+        <div><dt>Town Hall</dt><dd>{member.townHallLevel ?? "Unknown"}</dd></div>
         <div><dt>League</dt><dd>{member.leagueName ?? "Unknown"}</dd></div>
         <div><dt>Donations</dt><dd>{formatNumber(member.donations)} / {formatNumber(member.donationsReceived)} received</dd></div>
         <div><dt>War preference</dt><dd>{member.warPreference ?? "Unavailable"}</dd></div>
@@ -141,7 +148,7 @@ function SummaryMetric({ label, value }: { label: string; value: number }) {
 function memberSorter(sort: Sort) {
   return (left: MemberRosterMember, right: MemberRosterMember): number => {
     if (sort === "name") return left.name.localeCompare(right.name);
-    if (sort === "town_hall") return right.townHallLevel - left.townHallLevel || left.name.localeCompare(right.name);
+    if (sort === "town_hall") return (right.townHallLevel ?? -1) - (left.townHallLevel ?? -1) || left.name.localeCompare(right.name);
     if (sort === "activity") return activityRank(left) - activityRank(right) || left.name.localeCompare(right.name);
     if (sort === "observed") return left.firstObservedPresentOn.localeCompare(right.firstObservedPresentOn);
     return (left.clanRank ?? Number.MAX_SAFE_INTEGER) - (right.clanRank ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name);

@@ -15,7 +15,7 @@
 .cwl-proto-header p:not(.eyebrow) { max-width: 690px; margin: 0; color: #6f6e6b; line-height: 1.5; }
 .cwl-proto-header-actions { display: flex; align-items: flex-start; gap: 12px; }
 .cwl-proto-lock { display: grid; gap: 3px; min-width: 118px; padding: 9px 11px; border: 1px solid #ded3ae; border-radius: 8px; color: #72500f; background: #fffaf0; font-size: 12px; font-weight: 700; }
-.cwl-proto-lock small { color: #8c7a54; font-size: 10px; font-weight: 500; }
+.cwl-proto-lock small { color: #6f5c38; font-size: 10px; font-weight: 500; }
 .cwl-proto-lock.is-locked { border-color: #efb5a9; color: #8b301f; background: #fff3ef; }
 .cwl-proto-secondary-button, .cwl-proto-status-actions button, .cwl-proto-status > button { min-height: 40px; padding: 0 13px; border: 1px solid #c9c8c5; border-radius: 6px; color: #174e78; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
 .cwl-proto-secondary-button:hover, .cwl-proto-status-actions button:hover, .cwl-proto-status > button:hover { border-color: #78aede; background: #f2f8fd; }
@@ -53,21 +53,40 @@
 .cwl-proto-member-badge strong { font-size: 12px; }
 .cwl-proto-member-badge small { color: #6f6e6b; font-size: 9px; }
 .cwl-proto-slot-state { color: #6f6e6b; font-size: 9px; }
-.cwl-proto-availability-control { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 50%; font-size: 10px; font-weight: 800; cursor: pointer; }
+.cwl-proto-availability-menu { position: relative; display: inline-flex; }
+.cwl-proto-availability-control { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; font-size: 10px; font-weight: 800; cursor: pointer; }
 .cwl-proto-availability-control.availability-available { color: #11603b; background: #e5f5ec; }
 .cwl-proto-availability-control.availability-unknown { color: #675115; background: #f8f1d9; }
 .cwl-proto-availability-control.availability-unavailable { color: #793400; background: #fbede4; }
+.cwl-proto-availability-control[aria-expanded="true"] { outline: 3px solid rgb(0 117 222 / 18%); outline-offset: 2px; }
+.cwl-proto-availability-popover { position: absolute; top: calc(100% + 7px); right: 0; z-index: 20; display: grid; min-width: 170px; padding: 6px; border: 1px solid #d3d3d3; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
+.cwl-proto-availability-menu-label { padding: 5px 8px 6px; color: #777571; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.cwl-proto-availability-option { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 38px; padding: 0 8px; border: 0; border-radius: 5px; color: #31302e; background: #fff; font-size: 12px; text-align: left; cursor: pointer; }
+.cwl-proto-availability-option:hover, .cwl-proto-availability-option.selected { background: #f1f6fa; }
+.cwl-proto-availability-option small { color: #6f6e6b; font-size: 10px; }
+.cwl-proto-availability-option-symbol { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 10px; font-weight: 800; }
+.cwl-proto-availability-option.availability-available .cwl-proto-availability-option-symbol { color: #11603b; background: #e5f5ec; }
+.cwl-proto-availability-option.availability-unknown .cwl-proto-availability-option-symbol { color: #675115; background: #f8f1d9; }
+.cwl-proto-availability-option.availability-unavailable .cwl-proto-availability-option-symbol { color: #793400; background: #fbede4; }
 .cwl-proto-pool-panel { padding-bottom: 14px; }
 .cwl-proto-panel-heading-actions { display: flex; align-items: center; gap: 10px; }
 .cwl-proto-panel-heading-actions a { color: #0075de; font-size: 11px; font-weight: 700; text-decoration: none; }
 .cwl-proto-help, .cwl-proto-panel-lede { margin: 12px 18px; color: #6f6e6b; font-size: 12px; line-height: 1.5; }
+.cwl-proto-roster-filters { display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(3, minmax(110px, 1fr)); gap: 10px; margin: 0 14px 12px; padding: 12px; border: 1px solid #e0dfdc; border-radius: 8px; background: #fff; }
+.cwl-proto-roster-filters label, .cwl-proto-roster-filters .filter-menu { display: grid; gap: 7px; color: #54524f; font-size: 11px; font-weight: 650; }
+.cwl-proto-roster-filters .filter-menu-label { color: inherit; font-size: inherit; font-weight: inherit; }
+.cwl-proto-roster-filters input { width: 100%; min-height: 42px; padding: 0 13px; border: 1px solid transparent; border-radius: 999px; color: #4c4945; background: #f4f2ef; font: inherit; font-size: 13px; font-weight: 500; }
+.cwl-proto-roster-filters input::placeholder { color: #8d8984; }
+.cwl-proto-roster-filters input:hover { background: #eeece8; }
+.cwl-proto-roster-filters input:focus { outline: 3px solid rgb(0 117 222 / 16%); outline-offset: 1px; border-color: #78aede; background: #fff; }
 .cwl-proto-pool-list { display: grid; gap: 6px; padding: 0 14px; }
+.cwl-proto-pool-empty { margin: 0; padding: 22px 8px; color: #6f6e6b; font-size: 12px; text-align: center; }
 .cwl-proto-pool-member { display: grid; grid-template-columns: 28px minmax(0, 1fr) 22px auto; align-items: center; gap: 9px; padding: 8px; border: 1px solid #e6e6e6; border-radius: 7px; background: #fff; cursor: grab; }
 .cwl-proto-pool-member strong, .cwl-proto-pool-member small { display: block; }
 .cwl-proto-pool-member strong { font-size: 12px; }
 .cwl-proto-pool-member small { margin-top: 2px; color: #6f6e6b; font-size: 10px; }
 .cwl-proto-pool-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #391c57; background: #d6b6f6; font-size: 12px; font-weight: 800; }
-.cwl-proto-pool-action { padding: 0; border: 0; color: #0075de; background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; }
+.cwl-proto-pool-action { padding: 0; border: 0; color: #005fae; background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; }
 .cwl-proto-pool-action:disabled { color: #a39e98; cursor: not-allowed; }
 .availability-unknown .cwl-proto-pool-avatar { color: #675115; background: #f8f1d9; }
 .availability-unavailable .cwl-proto-pool-avatar { color: #793400; background: #fbede4; }
@@ -78,12 +97,6 @@
 .cwl-proto-primary-button { width: calc(100% - 36px); min-height: 42px; margin: 0 18px; border: 1px solid #0075de; border-radius: 6px; color: #fff; background: #0075de; font-size: 12px; font-weight: 700; cursor: pointer; }
 .cwl-proto-primary-button:disabled { color: #8c9cac; border-color: #d5d9dc; background: #eef1f3; cursor: not-allowed; }
 .cwl-proto-context-panel { padding-bottom: 16px; }
-.cwl-proto-comparison { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 14px 18px; overflow: hidden; border: 1px solid #e6e6e6; border-radius: 7px; }
-.cwl-proto-comparison div { padding: 10px; background: #fafafa; }
-.cwl-proto-comparison div + div { border-left: 1px solid #e6e6e6; }
-.cwl-proto-comparison span, .cwl-proto-comparison strong { display: block; }
-.cwl-proto-comparison span { color: #6f6e6b; font-size: 10px; line-height: 1.3; }
-.cwl-proto-comparison strong { margin-top: 5px; font-size: 22px; }
 .cwl-proto-audit-list { display: grid; gap: 12px; margin: 0 18px; padding: 0; list-style: none; }
 .cwl-proto-audit-list li { display: flex; gap: 9px; }
 .audit-dot { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: #a39e98; }
@@ -91,7 +104,7 @@
 .cwl-proto-audit-list strong, .cwl-proto-audit-list small { display: block; }
 .cwl-proto-audit-list strong { font-size: 11px; }.cwl-proto-audit-list small { margin-top: 2px; color: #6f6e6b; font-size: 10px; }
 .cwl-proto-history-button { width: calc(100% - 36px); min-height: 38px; margin: 16px 18px 0; border: 1px solid #d3d3d3; border-radius: 6px; color: #174e78; background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
-.cwl-proto-footnote { margin: 18px 0 0; color: #a39e98; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.cwl-proto-footnote { margin: 18px 0 0; color: #6f6e6b; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
 
 @media (max-width: 1100px) {
   .cwl-proto-command-grid { grid-template-columns: 1fr; }
@@ -108,10 +121,11 @@
   .cwl-proto-inline-notice { align-items: stretch; flex-direction: column; }
   .cwl-proto-slot-grid { grid-template-columns: 1fr; }
   .cwl-proto-right-rail { grid-template-columns: 1fr; }
+  .cwl-proto-panel-heading-actions { align-items: flex-end; flex-direction: column; gap: 6px; }
+  .cwl-proto-roster-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {
   .cwl-proto-header-actions { flex-direction: column; }
-  .cwl-proto-comparison { grid-template-columns: 1fr; }
-  .cwl-proto-comparison div + div { border-top: 1px solid #e6e6e6; border-left: 0; }
+  .cwl-proto-roster-filters { grid-template-columns: 1fr; }
 }

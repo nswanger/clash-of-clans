@@ -1,11 +1,24 @@
+function fixtureMember(playerTag: string, name: string, role: string, clanRank: number, townHallLevel: number) {
+  return {
+    clan_tag: "#E2E", player_tag: playerTag, name, role, clan_rank: clanRank, previous_clan_rank: clanRank,
+    town_hall_level: townHallLevel, trophies: 4_500 - clanRank * 50, league_id: 29000022, league_name: "Legend League",
+    donations: 250, donations_received: 100, war_preference: "in", war_stars: 100 - clanRank,
+    attack_wins: 20, defense_wins: 5, clan_capital_contributions: 2_000, clan_games_points: 500,
+    roster_observed_at: "2026-07-12T17:56:00.000Z", profile_observed_at: "2026-07-12T17:56:30.000Z",
+    first_observed_present_on: "2026-07-01", last_observed_present_on: "2026-07-12", is_current_member: true,
+    current_presence_started_on: "2026-07-01", departure_observed_on: null,
+    baseline_1d: null, baseline_7d: null, baseline_30d: null,
+  };
+}
+
 const defaultTableData: Record<string, unknown> = {
   profiles: { display_name: "E2E Leader" },
   cwl_seasons: { clan_tag: "#E2E", season_id: "2026-07", war_size: 15 },
   cwl_wars: { war_tag: "#WAR3", war_day: 3, end_time: "2026-07-13T23:59:59.000Z", attacks_per_member: 1 },
   member_roster_overview: [
-    { player_tag: "#MASON", role: "admin", roster_observed_at: "2026-07-12T17:56:00.000Z", is_current_member: true },
-    { player_tag: "#SAM", role: "member", roster_observed_at: "2026-07-12T17:56:00.000Z", is_current_member: true },
-    { player_tag: "#KIRA", role: "member", roster_observed_at: "2026-07-12T17:56:00.000Z", is_current_member: true },
+    fixtureMember("#MASON", "Mason", "admin", 1, 15),
+    fixtureMember("#SAM", "Sam", "member", 2, 16),
+    fixtureMember("#KIRA", "Kira", "coLeader", 3, 14),
   ],
   cwl_members: [
     { player_tag: "#MASON", name: "Mason", town_hall_level: 15 },

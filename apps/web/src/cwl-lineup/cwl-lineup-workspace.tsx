@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { FilterMenu } from "../filter-menu.js";
 import {
   loadCurrentCwlLineupWorkspace,
   reinheritCwlLineupPlan,
@@ -9,17 +10,38 @@ import {
   type CwlLineupHistoryEvent,
   type CwlLineupMember,
   type CwlLineupWorkspaceSnapshot,
+  type CwlWarState,
 } from "../data/operations.js";
 
 const days = [1, 2, 3, 4, 5, 6, 7];
-const availabilityCycle: Record<CwlAvailability, CwlAvailability> = {
-  available: "unknown",
-  unknown: "unavailable",
-  unavailable: "available",
+type CwlRosterSort = "availability" | "name" | "townHall" | "role";
+
+const availabilityOptions: Array<{ value: CwlAvailability; label: string; symbol: string }> = [
+  { value: "available", label: "Available", symbol: "A" },
+  { value: "unknown", label: "Unknown", symbol: "?" },
+  { value: "unavailable", label: "Unavailable", symbol: "—" },
+];
+
+const availabilityOrder: Record<CwlAvailability, number> = {
+  available: 0,
+  unknown: 1,
+  unavailable: 2,
+};
+
+const roleOrder: Record<CwlLineupMember["role"], number> = {
+  leader: 0,
+  coLeader: 1,
+  elder: 2,
+  member: 3,
+  unknown: 4,
 };
 
 function availabilityLabel(value: CwlAvailability): string {
   return value === "available" ? "Available" : value === "unavailable" ? "Unavailable" : "Unknown";
+}
+
+function roleLabel(value: CwlLineupMember["role"]): string {
+  return value === "coLeader" ? "Co-leader" : value === "elder" ? "Elder" : value === "leader" ? "Leader" : value === "member" ? "Member" : "Unknown";
 }
 
 function refreshedLabel(value: string | null): string {
@@ -31,8 +53,17 @@ function isStaleError(reason: unknown): boolean {
 }
 
 function memberEvidence(member: CwlLineupMember): string {
-  const role = member.role === "elder" ? "Elder · " : member.role === "leader" ? "Leader · " : "";
-  return `${role}TH${member.townHallLevel} · ${member.completedAttacks} / ${member.assignedAttacks} attacks · ${member.stars}★`;
+  const attacks = member.currentWarAssignedAttacks > 0
+    ? `${member.attackEvidenceWarDay ? `Day ${member.attackEvidenceWarDay}: ` : ""}${member.currentWarAttacksMade} / ${member.currentWarAssignedAttacks} attacks observed`
+    : "No attacks observed";
+  return `${roleLabel(member.role)} · TH${member.townHallLevel} · ${attacks} · ${member.stars}★`;
+}
+
+function sortCwlMembers(left: CwlLineupMember, right: CwlLineupMember, sort: CwlRosterSort): number {
+  if (sort === "name") return left.name.localeCompare(right.name);
+  if (sort === "townHall") return right.townHallLevel - left.townHallLevel || left.name.localeCompare(right.name);
+  if (sort === "role") return roleOrder[left.role] - roleOrder[right.role] || left.name.localeCompare(right.name);
+  return availabilityOrder[left.availability] - availabilityOrder[right.availability] || left.name.localeCompare(right.name);
 }
 
 function applyRecommendation(plan: string[], changes: Array<{ outPlayerTag: string; inPlayerTag: string }>): string[] {
@@ -65,16 +96,41 @@ function lineupAdjustmentSummary(event: CwlLineupHistoryEvent): string | null {
   return details.length ? details.join(" · ") : "No lineup membership or order change";
 }
 
-function AvailabilityControl({ member, onChange }: { member: CwlLineupMember; onChange: () => void }) {
-  return <button
-    className={`cwl-proto-availability-control availability-${member.availability}`}
-    type="button"
-    title={`${availabilityLabel(member.availability)}. Click to change availability.`}
-    aria-label={`Change ${member.name} availability from ${availabilityLabel(member.availability)}`}
-    onClick={onChange}
-  >
-    {member.availability === "available" ? "A" : member.availability === "unknown" ? "?" : "—"}
-  </button>;
+function AvailabilityControl({ member, onChange }: { member: CwlLineupMember; onChange: (status: CwlAvailability) => void }) {
+  const [open, setOpen] = useState(false);
+  const currentOption = availabilityOptions.find((option) => option.value === member.availability) ?? { value: "unknown" as const, label: "Unknown", symbol: "?" };
+  return <span className="cwl-proto-availability-menu">
+    <button
+      className={`cwl-proto-availability-control availability-${member.availability}`}
+      type="button"
+      title={`${availabilityLabel(member.availability)}. Click to choose availability.`}
+      aria-label={`Change ${member.name} availability from ${availabilityLabel(member.availability)}`}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      onClick={() => setOpen((value) => !value)}
+    >
+      {currentOption.symbol}
+    </button>
+    {open ? <div className="cwl-proto-availability-popover" role="menu" aria-label={`${member.name} availability`}>
+      <span className="cwl-proto-availability-menu-label">Set availability</span>
+      {availabilityOptions.map((option) => <button
+        key={option.value}
+        className={`cwl-proto-availability-option availability-${option.value} ${option.value === member.availability ? "selected" : ""}`}
+        type="button"
+        role="menuitemradio"
+        aria-label={option.label}
+        aria-checked={option.value === member.availability}
+        onClick={() => {
+          setOpen(false);
+          if (option.value !== member.availability) onChange(option.value);
+        }}
+      >
+        <span className="cwl-proto-availability-option-symbol">{option.symbol}</span>
+        <span>{option.label}</span>
+        {option.value === member.availability ? <small>Current</small> : null}
+      </button>)}
+    </div> : null}
+  </span>;
 }
 
 function MemberBadge({ member }: { member: CwlLineupMember }) {
@@ -84,10 +140,15 @@ function MemberBadge({ member }: { member: CwlLineupMember }) {
   </span>;
 }
 
-function DayStrip({ day, onChange }: { day: number; onChange: (day: number) => void }) {
+function warDayStatus(state: CwlWarState | undefined): string {
+  return state === "warEnded" ? "Complete" : state === "inWar" ? "In war" : state === "preparation" ? "Planning" : "Upcoming";
+}
+
+function DayStrip({ day, warDays, onChange }: { day: number; warDays: CwlLineupWorkspaceSnapshot["warDays"]; onChange: (day: number) => void }) {
+  const states = new Map(warDays.map((war) => [war.warDay, war.state]));
   return <div className="cwl-proto-day-strip" aria-label="CWL war days">
     {days.map((item) => <button key={item} className={item === day ? "selected" : ""} type="button" onClick={() => onChange(item)}>
-      <span>Day {item}</span><small>{item < day ? "Complete" : item === day ? "Today" : "Upcoming"}</small>
+      <span>Day {item}</span><small>{warDayStatus(states.get(item))}</small>
     </button>)}
   </div>;
 }
@@ -120,7 +181,7 @@ function LineupSlot({ member, index, observed, locked, onDrop, onDragStart, onRe
   onDrop: (event: DragEvent<HTMLDivElement>, index: number) => void;
   onDragStart: (event: DragEvent<HTMLDivElement>, playerTag: string) => void;
   onRemove: () => void;
-  onAvailabilityChange: () => void;
+  onAvailabilityChange: (status: CwlAvailability) => void;
 }) {
   return <div
     className={`cwl-proto-slot ${observed ? "observed" : ""}`}
@@ -142,7 +203,7 @@ function PoolMember({ member, locked, onDragStart, onAdd, onAvailabilityChange }
   locked: boolean;
   onDragStart: (event: DragEvent<HTMLDivElement>, playerTag: string) => void;
   onAdd: () => void;
-  onAvailabilityChange: () => void;
+  onAvailabilityChange: (status: CwlAvailability) => void;
 }) {
   return <div
     className={`cwl-proto-pool-member availability-${member.availability}`}
@@ -192,6 +253,10 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
   const [message, setMessage] = useState("Loading the daily plan…");
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [rosterSort, setRosterSort] = useState<CwlRosterSort>("availability");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [townHallFilter, setTownHallFilter] = useState("all");
 
   const load = async () => {
     setLoading(true);
@@ -202,7 +267,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
       setSnapshot(next);
       setDraft(next.plan.playerTags);
       setStale(false);
-      setMessage(`Day ${day} is ready. Availability changes apply to the season and do not change this plan automatically.`);
+      setMessage(`Day ${next.plan.warDay} is ready. Availability changes apply to the season and do not change this plan automatically.`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to load the CWL lineup workspace.");
     } finally {
@@ -217,18 +282,24 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
     const member = memberByTag.get(tag);
     return member ? [member] : [];
   }), [draft, memberByTag]);
-  const pool = useMemo(() => (snapshot?.members ?? []).filter((member) => !draft.includes(member.playerTag)).sort((left, right) => {
-    const availabilityOrder = { available: 0, unknown: 1, unavailable: 2 };
-    return availabilityOrder[left.availability] - availabilityOrder[right.availability] || left.name.localeCompare(right.name);
-  }), [draft, snapshot]);
+  const pool = useMemo(() => (snapshot?.members ?? []).filter((member) => !draft.includes(member.playerTag)), [draft, snapshot]);
+  const roles = useMemo(() => [...new Set(pool.map((member) => member.role))].sort((left, right) => roleOrder[left] - roleOrder[right]), [pool]);
+  const townHalls = useMemo(() => [...new Set(pool.map((member) => member.townHallLevel))].sort((left, right) => right - left), [pool]);
+  const filteredPool = useMemo(() => {
+    const query = memberSearch.trim().toLocaleLowerCase();
+    return pool
+      .filter((member) => !query || member.name.toLocaleLowerCase().includes(query))
+      .filter((member) => roleFilter === "all" || member.role === roleFilter)
+      .filter((member) => townHallFilter === "all" || member.townHallLevel === Number(townHallFilter))
+      .sort((left, right) => sortCwlMembers(left, right, rosterSort));
+  }, [memberSearch, pool, roleFilter, rosterSort, townHallFilter]);
   const dirty = Boolean(snapshot && JSON.stringify(draft) !== JSON.stringify(snapshot.plan.playerTags));
 
   if (loading && !snapshot) return <main className="dashboard-shell"><p role="status">Loading CWL lineup workspace…</p></main>;
   if (error && !snapshot) return <main className="dashboard-shell"><div role="alert">{error}</div></main>;
   if (!snapshot || day === undefined) return null;
 
-  const updateAvailability = async (member: CwlLineupMember) => {
-    const nextAvailability = availabilityCycle[member.availability];
+  const updateAvailability = async (member: CwlLineupMember, nextAvailability: CwlAvailability) => {
     try {
       await saveAvailability(client, { clanTag, seasonId: snapshot.season.seasonId, playerTag: member.playerTag, status: nextAvailability, note: "" });
       setSnapshot((current) => current ? { ...current, members: current.members.map((item) => item.playerTag === member.playerTag ? { ...item, availability: nextAvailability } : item) } : current);
@@ -298,19 +369,19 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
 
   return <main className="cwl-proto-shell cwl-proto-variant-a">
     <header className="cwl-proto-header">
-      <div><p className="eyebrow">CWL operations · {snapshot.season.seasonId}</p><h1>Lineup workspace</h1><p>Review member intent, make the daily plan, and compare it with what the Clash API observed in-game.</p><p className="cwl-proto-freshness">{refreshedLabel(snapshot.freshness.lastRefreshedAt)}{snapshot.freshness.collectionStatus ? ` · Collection ${snapshot.freshness.collectionStatus}` : ""}</p></div>
+      <div><p className="eyebrow">CWL season · {snapshot.season.seasonId}</p><h1>Lineup workspace</h1><p className="cwl-proto-freshness">{refreshedLabel(snapshot.freshness.lastRefreshedAt)}{snapshot.freshness.collectionStatus ? ` · Collection ${snapshot.freshness.collectionStatus}` : ""}</p></div>
       <div className="cwl-proto-header-actions"><span className={`cwl-proto-lock ${snapshot.plan.isLocked ? "is-locked" : ""}`}>{snapshot.plan.isLocked ? "🔒 Locked" : "Unlocked"}<small>Day {day} · rev {snapshot.plan.revision}</small></span><button className="cwl-proto-secondary-button" type="button" onClick={() => void toggleLock()}>{snapshot.plan.isLocked ? "Unlock day" : "Lock day"}</button></div>
     </header>
-    <DayStrip day={day} onChange={setDay} />
+    <DayStrip day={day} warDays={snapshot.warDays} onChange={setDay} />
     <div className="cwl-proto-inline-notice"><span><strong>Planned lineup</strong> is the editable leader plan. <strong>Observed lineup</strong> comes from the Clash API after the war starts. Each new day inherits once, then stays independent.</span><button type="button" disabled={snapshot.plan.isLocked || day === 1} onClick={() => void reinherit()}>Re-inherit prior day</button></div>
     <StatusBar snapshot={snapshot} dirty={dirty} stale={stale} message={message} onReload={() => void load()} onSave={() => void save()} />
     {error ? <div className="cwl-proto-status is-stale" role="alert"><strong>{error}</strong></div> : null}
     <div className="cwl-proto-command-grid">
       <div className="cwl-proto-plan-board">
-        <section className="cwl-proto-panel cwl-proto-plan-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Day {day} plan</p><h2>{draft.length} planned · drag to reorder</h2></div><span className="cwl-proto-count">{draft.length} / {snapshot.season.warSize}</span></div><div className="cwl-proto-slot-grid">{planned.map((member, index) => <LineupSlot key={member.playerTag} member={member} index={index} observed={member.observed} locked={snapshot.plan.isLocked} onDrop={drop} onDragStart={dragStart} onRemove={() => removeMember(member.playerTag)} onAvailabilityChange={() => void updateAvailability(member)} />)}</div></section>
-        <section className="cwl-proto-panel cwl-proto-pool-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Season roster</p><h2>Substitute pool</h2></div><div className="cwl-proto-panel-heading-actions"><a href="#/availability">Update availability</a><span className="cwl-proto-count">{pool.length}</span></div></div><p className="cwl-proto-help">Availability is season-scoped and remains editable while this daily plan is locked. Changing it never changes lineup membership automatically.</p><div className="cwl-proto-pool-list">{pool.map((member) => <PoolMember key={member.playerTag} member={member} locked={snapshot.plan.isLocked} onDragStart={dragStart} onAdd={() => addMember(member.playerTag)} onAvailabilityChange={() => void updateAvailability(member)} />)}</div></section>
+        <section className="cwl-proto-panel cwl-proto-plan-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Day {day} plan</p><h2>{draft.length} planned · drag to reorder</h2></div><span className="cwl-proto-count">{draft.length} / {snapshot.season.warSize}</span></div><div className="cwl-proto-slot-grid">{planned.map((member, index) => <LineupSlot key={member.playerTag} member={member} index={index} observed={member.observed} locked={snapshot.plan.isLocked} onDrop={drop} onDragStart={dragStart} onRemove={() => removeMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}</div></section>
+        <section className="cwl-proto-panel cwl-proto-pool-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Season roster</p><h2>Substitute pool</h2></div><span className="cwl-proto-count">{filteredPool.length}{filteredPool.length !== pool.length ? ` / ${pool.length}` : ""}</span></div><p className="cwl-proto-help">Availability is season-scoped and remains editable while this daily plan is locked. Changing it never changes lineup membership automatically.</p><div className="cwl-proto-roster-filters" aria-label="Filter substitute pool"><label>Find member<input aria-label="Filter lineup members by name" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Name" /></label><FilterMenu label="Role" ariaLabel="Filter lineup members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} /><FilterMenu label="Town Hall" ariaLabel="Filter lineup members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} /><FilterMenu label="Sort" ariaLabel="Sort season roster" value={rosterSort} onChange={(value) => setRosterSort(value as CwlRosterSort)} options={[{ value: "availability", label: "Availability" }, { value: "name", label: "Name" }, { value: "townHall", label: "Town Hall" }, { value: "role", label: "Role" }]} /></div><div className="cwl-proto-pool-list">{filteredPool.map((member) => <PoolMember key={member.playerTag} member={member} locked={snapshot.plan.isLocked} onDragStart={dragStart} onAdd={() => addMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}{filteredPool.length === 0 ? <p className="cwl-proto-pool-empty">No roster members match these filters.</p> : null}</div></section>
       </div>
-      <aside className="cwl-proto-right-rail"><RecommendationPanel snapshot={snapshot} locked={snapshot.plan.isLocked} onPreview={previewRecommendation} /><section className="cwl-proto-panel cwl-proto-context-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Observed vs planned</p><h2>API context</h2></div></div><p className="cwl-proto-panel-lede">Observed assignments never overwrite the plan. They are facts to compare after leaders make the in-game change.</p><div className="cwl-proto-comparison"><div><span>Planned in app</span><strong>{draft.length}</strong></div><div><span>Observed in game</span><strong>{snapshot.observed.length}</strong></div><div><span>Differences to review</span><strong>{snapshot.observed.filter((row) => !draft.includes(row.playerTag)).length + draft.filter((tag) => !snapshot.observed.some((row) => row.playerTag === tag)).length}</strong></div></div></section><HistoryPanel snapshot={snapshot} /></aside>
+      <aside className="cwl-proto-right-rail"><RecommendationPanel snapshot={snapshot} locked={snapshot.plan.isLocked} onPreview={previewRecommendation} /><HistoryPanel snapshot={snapshot} /></aside>
     </div>
     <p className="cwl-proto-footnote">Planned state is saved here for leader coordination. No in-game lineup changes are sent automatically.</p>
   </main>;

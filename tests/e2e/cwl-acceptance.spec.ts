@@ -275,13 +275,10 @@ test("runs the fixture through collection, normalization, recommendation, explan
     if (!window.localStorage.getItem(key)) window.localStorage.setItem(key, JSON.stringify(value));
   }, [fixtureStorageKey, fixture] as const);
 
-  await page.goto("/#/availability");
-  await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();
-  const unavailableForm = page.getByRole("group", { name: "Unavailable Member" }).locator("..");
-  await unavailableForm.getByRole("radio", { name: "Unavailable" }).check();
-  await unavailableForm.getByRole("textbox", { name: "Leader note" }).fill("Confirmed unavailable for war day 3");
-  await unavailableForm.getByRole("button", { name: "Save availability" }).click();
-  await expect(page.getByRole("status")).toContainText("Saved availability for Unavailable Member");
+  await page.goto("/#/cwl-lineup");
+  await expect(page.getByRole("heading", { name: "Lineup workspace" })).toBeVisible();
+  await page.getByRole("button", { name: /Change Unavailable Member availability/ }).click();
+  await page.getByRole("menuitemradio", { name: "Unavailable", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("e2e:last-mutation"))).toContain("availability");
   await expectNoAccessibilityViolations(page);
 
@@ -308,7 +305,8 @@ test("runs the fixture through collection, normalization, recommendation, explan
   savedFixture.recommendations = { id: recommendationId, output: recommendation };
   await page.evaluate(([key, value]) => window.localStorage.setItem(key, JSON.stringify(value)), [fixtureStorageKey, savedFixture] as const);
 
-  await page.goto("/");
+  await page.goto("/#/dashboard");
+  await page.reload();
   await expect(page.getByRole("heading", { name: "Daily command" })).toBeVisible();
   await expect(page.getByText("Missed Attacker", { exact: true })).toBeVisible();
   await expect(page.getByText("Unavailable Member", { exact: true })).toBeVisible();

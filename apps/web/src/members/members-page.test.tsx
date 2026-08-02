@@ -34,6 +34,21 @@ describe("MembersPage", () => {
     expect(screen.getByRole("heading", { name: "Two" })).toBeVisible();
   });
 
+  it("filters the roster by role and Town Hall", async () => {
+    const other = { ...databaseRow(), player_tag: "#TWO", name: "Two", role: "member", town_hall_level: 16, clan_rank: 2 };
+    render(<MembersPage client={clientWith([databaseRow(), other])} clanTag="#CLAN" />);
+    await screen.findByRole("heading", { name: "One" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter members by role" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /^Elder$/ }));
+    expect(screen.getByRole("heading", { name: "One" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Two" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter members by Town Hall" }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /^TH17$/ }));
+    expect(screen.getByRole("heading", { name: "One" })).toBeVisible();
+  });
+
   it("summarizes the year-round roster separately from CWL operations", async () => {
     render(<RosterOverviewPage client={clientWith([databaseRow()])} clanTag="#CLAN" />);
 

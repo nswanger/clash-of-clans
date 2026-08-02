@@ -48,6 +48,7 @@ export type AccessManagementClient = InvitationClient;
 
 export type CwlAvailability = "available" | "unavailable" | "unknown";
 export type CwlMemberRole = "leader" | "coLeader" | "elder" | "member" | "unknown";
+export type CwlWarState = "preparation" | "inWar" | "warEnded" | "unknown";
 
 export interface CwlDailyLineupPlan {
   clanTag: string;
@@ -75,6 +76,18 @@ export interface CwlLineupMember {
   completedAttacks: number;
   stars: number;
   observed: boolean;
+  currentWarAssignedAttacks: number;
+  currentWarAttacksMade: number;
+  attackEvidenceWarDay: number | null;
+}
+
+export interface CwlLineupWarDay {
+  warDay: number;
+  state: CwlWarState;
+  preparationStartTime: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  updatedAt: string | null;
 }
 
 export interface CwlLineupObservedMember {
@@ -109,6 +122,7 @@ export interface CwlLineupWorkspaceSnapshot {
   recommendation: CwlLineupRecommendation | null;
   history: CwlLineupHistoryEvent[];
   observedUpdatedAt: string | null;
+  warDays: CwlLineupWarDay[];
   freshness: {
     lastRefreshedAt: string | null;
     collectionStatus: string | null;
@@ -200,9 +214,10 @@ export async function loadCurrentCwlLineupWorkspace(client: any, clanTag: string
   let selectedWarDay = warDay ?? 1;
   if (warDay === undefined) {
     const warResult = await client.from("cwl_wars")
-      .select("war_day")
+      .select("war_day,state")
       .eq("clan_tag", clanTag)
       .eq("season_id", seasonResult.data.season_id)
+      .in("state", ["preparation", "inWar"])
       .order("war_day", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -226,14 +241,15 @@ export async function loadCwlLineupWorkspace(
   ensureSuccess(planResult, "Unable to initialize the lineup day");
   const plan = planFromRpc(planResult.data);
 
-  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, warResult, recommendationResult, auditResult, collectionResult] = await Promise.all([
+  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, warResult, warDaysResult, recommendationResult, auditResult, collectionResult] = await Promise.all([
     client.from("cwl_seasons").select("clan_tag,season_id,war_size").eq("clan_tag", clanTag).eq("season_id", seasonId).single(),
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
     client.from("member_availability").select("player_tag,status,recorded_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("member_roster_overview").select("player_tag,role,roster_observed_at").eq("clan_tag", clanTag).eq("is_current_member", true),
     client.from("cwl_current_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_stars").select("player_tag,stars").eq("clan_tag", clanTag).eq("season_id", seasonId),
-    client.from("cwl_wars").select("war_tag,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
     client.from("recommendations").select("id,output,proposed_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("status", "proposed").order("proposed_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("audit_events").select("id,event_type,event_data,actor_id,occurred_at").eq("entity_type", "cwl_daily_lineup_plan").eq("entity_id", `${clanTag}:${seasonId}:${warDay}`).order("occurred_at", { ascending: false }).limit(25),
     client.from("collection_runs").select("status,last_fresh_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
@@ -246,6 +262,7 @@ export async function loadCwlLineupWorkspace(
     [reliabilityResult, "Unable to load attack completion"],
     [starsResult, "Unable to load CWL stars"],
     [warResult, "Unable to load observed war data"],
+    [warDaysResult, "Unable to load CWL war states"],
     [recommendationResult, "Unable to load recommendations"],
     [auditResult, "Unable to load lineup history"],
   ] as Array<[Result, string]>) ensureSuccess(result, context);
@@ -260,6 +277,22 @@ export async function loadCwlLineupWorkspace(
   ensureSuccess(observedResult[0], "Unable to load the observed lineup");
   ensureSuccess(observedResult[1], "Unable to load observed attacks");
 
+  const warRows = rows<{ war_tag: string; war_day: number; state: string }>(warDaysResult.data);
+  const selectedWarHasStarted = war.state === "inWar" || war.state === "warEnded";
+  const latestStartedWar = [...warRows]
+    .filter((row) => (selectedWarHasStarted && row.war_day === warDay) || (!selectedWarHasStarted && row.war_day < warDay))
+    .filter((row) => row.state === "inWar" || row.state === "warEnded")
+    .sort((left, right) => right.war_day - left.war_day)[0];
+  const attackEvidenceWar = latestStartedWar ?? (typeof war.war_tag === "string" ? { war_tag: war.war_tag, war_day: warDay, state: "unknown" } : undefined);
+  const attackEvidenceResult = attackEvidenceWar && attackEvidenceWar.war_tag !== war.war_tag
+    ? await Promise.all([
+        client.from("cwl_war_members").select("player_tag,assigned_attacks").eq("war_tag", attackEvidenceWar.war_tag),
+        client.from("cwl_attacks").select("attacker_tag,stars").eq("war_tag", attackEvidenceWar.war_tag),
+      ])
+    : observedResult;
+  ensureSuccess(attackEvidenceResult[0], "Unable to load attack assignments");
+  ensureSuccess(attackEvidenceResult[1], "Unable to load attack evidence");
+
   const availabilityRows = rows<{ player_tag: string; status: CwlAvailability; recorded_at: string | null }>(availabilityResult.data);
   const availability = new Map(availabilityRows.map((row) => [row.player_tag, row.status]));
   const roleRows = rows<{ player_tag: string; role: string; roster_observed_at: string | null }>(rosterResult.data);
@@ -273,6 +306,11 @@ export async function loadCwlLineupWorkspace(
     mapPosition: row.map_position,
     assignedAttacks: row.assigned_attacks,
   }));
+  const attackEvidenceMembers = rows<{ player_tag: string; assigned_attacks: number }>(attackEvidenceResult[0].data);
+  const observedAttackRows = rows<{ attacker_tag: string; stars: number }>(attackEvidenceResult[1].data);
+  const currentWarAssignedAttacks = new Map(attackEvidenceMembers.map((row) => [row.player_tag, row.assigned_attacks]));
+  const currentWarAttacksMade = new Map<string, number>();
+  for (const attack of observedAttackRows) currentWarAttacksMade.set(attack.attacker_tag, (currentWarAttacksMade.get(attack.attacker_tag) ?? 0) + 1);
   const observedTags = new Set(observed.map((row) => row.playerTag));
   const members = rows<{ player_tag: string; name: string; town_hall_level: number }>(membersResult.data).map((member) => {
     const evidence = reliability.get(member.player_tag);
@@ -286,8 +324,28 @@ export async function loadCwlLineupWorkspace(
       completedAttacks: evidence?.completed_assigned_attacks ?? 0,
       stars: stars.get(member.player_tag) ?? 0,
       observed: observedTags.has(member.player_tag),
+      currentWarAssignedAttacks: currentWarAssignedAttacks.get(member.player_tag) ?? 0,
+      currentWarAttacksMade: currentWarAttacksMade.get(member.player_tag) ?? 0,
+      attackEvidenceWarDay: attackEvidenceWar?.war_day ?? null,
     } satisfies CwlLineupMember;
   });
+
+  const warDays = rows<{
+    war_tag: string;
+    war_day: number;
+    state: string;
+    preparation_start_time: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    updated_at: string | null;
+  }>(warDaysResult.data).flatMap((row) => typeof row.war_day === "number" ? [{
+    warDay: row.war_day,
+    state: row.state === "preparation" || row.state === "inWar" || row.state === "warEnded" ? row.state : "unknown",
+    preparationStartTime: row.preparation_start_time,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    updatedAt: row.updated_at,
+  } satisfies CwlLineupWarDay] : []);
 
   const auditRows = rows<{ id: string; event_type: string; event_data: unknown; actor_id: string | null; occurred_at: string }>(auditResult.data);
   const actorIds = [...new Set(auditRows.map((event) => event.actor_id).filter((id): id is string => Boolean(id)))];
@@ -333,6 +391,7 @@ export async function loadCwlLineupWorkspace(
     recommendation: recommendationFromRow(recommendationResult.data),
     history: history.slice(0, 25),
     observedUpdatedAt: typeof war.updated_at === "string" ? war.updated_at : null,
+    warDays,
     freshness: {
       lastRefreshedAt,
       collectionStatus: typeof collection.status === "string" ? collection.status : null,

@@ -4,6 +4,7 @@ import {
   createInvitation,
   demoteAdmin,
   loadAccessManagement,
+  loadCurrentCwlLineupWorkspace,
   promoteLeader,
   regenerateRecommendations,
   normalizeClanRole,
@@ -119,5 +120,72 @@ describe("Supabase operations", () => {
     await expect(reinheritCwlLineupPlan(client, { clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, expectedRevision: 4 })).resolves.toEqual(plan);
     expect(rpc).toHaveBeenNthCalledWith(1, "set_cwl_daily_lineup_plan_lock", expect.objectContaining({ expected_revision: 4, requested_is_locked: true }));
     expect(rpc).toHaveBeenNthCalledWith(2, "reinherit_cwl_daily_lineup_plan", expect.objectContaining({ expected_revision: 4 }));
+  });
+
+  it("selects the latest active CWL day instead of a later completed day", async () => {
+    const plan = {
+      clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, revision: 1, isLocked: false,
+      lockedAt: null, lockedBy: null, inheritedFromWarDay: 1,
+      createdAt: "2026-08-02T00:00:00Z", createdBy: "leader-1", updatedAt: "2026-08-02T00:00:00Z", updatedBy: "leader-1",
+      playerTags: [],
+    };
+    const wars = [
+      { clan_tag: "#CLAN", season_id: "2026-08", war_tag: "#WAR1", war_day: 1, state: "inWar", updated_at: "2026-08-01T12:00:00Z" },
+      { clan_tag: "#CLAN", season_id: "2026-08", war_tag: "#WAR2", war_day: 2, state: "preparation", updated_at: "2026-08-02T00:00:00Z" },
+      { clan_tag: "#CLAN", season_id: "2026-08", war_tag: "#WAR3", war_day: 3, state: "warEnded", updated_at: "2026-08-03T00:00:00Z" },
+    ];
+    const tableRows: Record<string, unknown[]> = {
+      cwl_seasons: [{ clan_tag: "#CLAN", season_id: "2026-08", war_size: 15 }],
+      cwl_wars: wars,
+      cwl_members: [{ clan_tag: "#CLAN", season_id: "2026-08", player_tag: "#MASON", name: "Mason", town_hall_level: 15 }],
+      member_availability: [],
+      member_roster_overview: [],
+      cwl_current_reliability: [],
+      cwl_member_stars: [],
+      cwl_war_members: [{ war_tag: "#WAR1", player_tag: "#MASON", map_position: 1, assigned_attacks: 1 }],
+      cwl_attacks: [{ war_tag: "#WAR1", attacker_tag: "#MASON", stars: 3 }],
+      recommendations: [],
+      audit_events: [],
+      collection_runs: [],
+    };
+
+    const client = {
+      from(table: string) {
+        let resultRows = [...(tableRows[table] ?? [])] as Array<Record<string, unknown>>;
+        const query = {
+          select: () => query,
+          eq: (column: string, value: unknown) => {
+            resultRows = resultRows.filter((row) => row[column] === value);
+            return query;
+          },
+          in: (column: string, values: unknown[]) => {
+            resultRows = resultRows.filter((row) => values.includes(row[column]));
+            return query;
+          },
+          order: (column: string, options?: { ascending?: boolean }) => {
+            resultRows.sort((left, right) => {
+              const comparison = String(left[column] ?? "").localeCompare(String(right[column] ?? ""), undefined, { numeric: true });
+              return options?.ascending === false ? -comparison : comparison;
+            });
+            return query;
+          },
+          limit: (count: number) => {
+            resultRows = resultRows.slice(0, count);
+            return query;
+          },
+          maybeSingle: async () => ({ data: resultRows[0] ?? null, error: null }),
+          single: async () => ({ data: resultRows[0] ?? null, error: null }),
+          then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => resolve({ data: resultRows, error: null }),
+        };
+        return query;
+      },
+      rpc: vi.fn().mockResolvedValue({ data: plan, error: null }),
+    };
+
+    const snapshot = await loadCurrentCwlLineupWorkspace(client, "#CLAN");
+
+    expect(snapshot.plan.warDay).toBe(2);
+    expect(snapshot.members[0]).toMatchObject({ currentWarAssignedAttacks: 1, currentWarAttacksMade: 1, attackEvidenceWarDay: 1 });
+    expect(client.rpc).toHaveBeenCalledWith("ensure_cwl_daily_lineup_plan", expect.objectContaining({ requested_war_day: 2 }));
   });
 });

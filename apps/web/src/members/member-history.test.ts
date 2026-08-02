@@ -17,6 +17,16 @@ describe("member history", () => {
     }));
   });
 
+  it("keeps partial roster rows usable for member pages", async () => {
+    const eq = vi.fn().mockResolvedValue({
+      data: [{ clan_tag: "#CLAN", player_tag: "#PARTIAL", role: "member", is_current_member: true }],
+      error: null,
+    });
+    const members = await loadMemberRoster({ from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) }) }, "#CLAN");
+
+    expect(members[0]).toEqual(expect.objectContaining({ playerTag: "#PARTIAL", name: "#PARTIAL" }));
+  });
+
   it("reports evidence and reset boundaries without calling a player inactive", () => {
     const member = mappedMember();
     const result = activityWindow(member, {

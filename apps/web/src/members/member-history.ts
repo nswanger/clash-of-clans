@@ -20,7 +20,7 @@ export interface MemberRosterMember {
   role: string | null;
   clanRank: number | null;
   previousClanRank: number | null;
-  townHallLevel: number;
+  townHallLevel: number | null;
   trophies: number | null;
   leagueId: number | null;
   leagueName: string | null;
@@ -97,36 +97,45 @@ export function roleLabel(role: string | null): string {
 }
 
 function mapMember(row: DatabaseRow): MemberRosterMember {
+  const playerTag = stringValue(row.player_tag) ?? "Unknown member";
   return {
-    clanTag: row.clan_tag,
-    playerTag: row.player_tag,
-    name: row.name,
-    role: row.role,
-    clanRank: row.clan_rank,
-    previousClanRank: row.previous_clan_rank,
-    townHallLevel: row.town_hall_level,
-    trophies: row.trophies,
-    leagueId: row.league_id,
-    leagueName: row.league_name,
-    donations: row.donations,
-    donationsReceived: row.donations_received,
-    warPreference: row.war_preference,
-    warStars: row.war_stars,
-    attackWins: row.attack_wins,
-    defenseWins: row.defense_wins,
-    clanCapitalContributions: row.clan_capital_contributions,
-    clanGamesPoints: row.clan_games_points,
-    rosterObservedAt: row.roster_observed_at,
-    profileObservedAt: row.profile_observed_at,
-    firstObservedPresentOn: row.first_observed_present_on,
-    lastObservedPresentOn: row.last_observed_present_on,
-    isCurrentMember: row.is_current_member,
-    currentPresenceStartedOn: row.current_presence_started_on,
-    departureObservedOn: row.departure_observed_on,
+    clanTag: stringValue(row.clan_tag) ?? "Unknown clan",
+    playerTag,
+    name: stringValue(row.name) ?? playerTag,
+    role: stringValue(row.role),
+    clanRank: numberValue(row.clan_rank),
+    previousClanRank: numberValue(row.previous_clan_rank),
+    townHallLevel: numberValue(row.town_hall_level),
+    trophies: numberValue(row.trophies),
+    leagueId: numberValue(row.league_id),
+    leagueName: stringValue(row.league_name),
+    donations: numberValue(row.donations),
+    donationsReceived: numberValue(row.donations_received),
+    warPreference: stringValue(row.war_preference),
+    warStars: numberValue(row.war_stars),
+    attackWins: numberValue(row.attack_wins),
+    defenseWins: numberValue(row.defense_wins),
+    clanCapitalContributions: numberValue(row.clan_capital_contributions),
+    clanGamesPoints: numberValue(row.clan_games_points),
+    rosterObservedAt: stringValue(row.roster_observed_at) ?? "",
+    profileObservedAt: stringValue(row.profile_observed_at),
+    firstObservedPresentOn: stringValue(row.first_observed_present_on) ?? "",
+    lastObservedPresentOn: stringValue(row.last_observed_present_on) ?? "",
+    isCurrentMember: row.is_current_member === true,
+    currentPresenceStartedOn: stringValue(row.current_presence_started_on),
+    departureObservedOn: stringValue(row.departure_observed_on),
     baseline1d: mapBaseline(row.baseline_1d),
     baseline7d: mapBaseline(row.baseline_7d),
     baseline30d: mapBaseline(row.baseline_30d),
   };
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function mapBaseline(value: DatabaseRow | null): MemberBaseline | null {

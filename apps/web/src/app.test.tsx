@@ -29,6 +29,9 @@ describe("App access boundaries", () => {
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "#/overview");
     expect(screen.getByRole("link", { name: "Members" })).toHaveAttribute("href", "#/members");
+    expect(screen.getByRole("link", { name: "CWL Lineup" })).toHaveAttribute("href", "#/cwl-lineup");
+    expect(screen.queryByRole("link", { name: "CWL Today" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Availability" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Access" })).not.toBeInTheDocument();
   });
 

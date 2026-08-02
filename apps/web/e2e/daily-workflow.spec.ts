@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("reviews the daily recommendation with progressive disclosure", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   await expect(page.getByRole("heading", { name: "Daily command" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Remove these members" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Add these members" })).toBeVisible();
@@ -13,7 +13,7 @@ test("reviews the daily recommendation with progressive disclosure", async ({ pa
 });
 
 test("supports accessible primary actions", async ({ page }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   const approveButton = page.getByRole("button", { name: "Approve changes" });
   await expect(approveButton).toBeVisible();
   if (testInfo.project.name === "desktop") {
@@ -25,7 +25,7 @@ test("supports accessible primary actions", async ({ page }, testInfo) => {
 });
 
 test("regenerates recommendations without recording a leader decision", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   await page.evaluate(() => localStorage.removeItem("e2e:last-mutation"));
 
   await page.getByRole("button", { name: "Regenerate recommendations" }).click();
@@ -38,7 +38,7 @@ test("regenerates recommendations without recording a leader decision", async ({
 
 test("uses the compact operational layout and touch targets at tablet width", async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1_180 });
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   await expect(page.getByRole("heading", { name: "Remove these members" })).toBeVisible();
 
   const metrics = page.locator(".metric");
@@ -55,8 +55,8 @@ test("uses the compact operational layout and touch targets at tablet width", as
   const addGroup = await page.getByRole("heading", { name: "Add these members" }).locator("..").boundingBox();
   expect(addGroup?.y).toBeGreaterThan(removeGroup?.y ?? 0);
 
-  const availabilityLink = page.getByRole("link", { name: "Availability" });
-  expect((await availabilityLink.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const membersLink = page.getByRole("link", { name: "Members" });
+  expect((await membersLink.boundingBox())?.height).toBeGreaterThanOrEqual(44);
 
   await page.getByRole("link", { name: "Access" }).click();
   for (const buttonName of ["Create invitation", "Promote to admin", "Revoke access"]) {
@@ -65,19 +65,13 @@ test("uses the compact operational layout and touch targets at tablet width", as
 });
 
 test("persists a recommendation decision through the live integration seam", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   await page.getByRole("button", { name: "Approve changes" }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("record_leader_decision");
 });
 
-test("routes to availability and access workflows", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "Availability" }).click();
-  await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();
-  await page.getByRole("radio", { name: "Unavailable" }).first().check();
-  await page.getByRole("button", { name: "Save availability" }).first().click();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("availability");
-
+test("routes to the access workflow", async ({ page }) => {
+  await page.goto("/#/dashboard");
   await page.getByRole("link", { name: "Access" }).click();
   await expect(page.getByRole("heading", { name: "Access management" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Invitation history" })).toBeVisible();
@@ -105,11 +99,48 @@ test("operates the production CWL lineup workspace through the planning seam", a
   expect(await page.getByRole("button", { name: "Save plan" }).isDisabled()).toBe(true);
 
   await page.getByRole("button", { name: /Change Kira availability/ }).click();
+  await page.getByRole("menuitemradio", { name: "Available", exact: true }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("availability");
 });
 
+test("shows clan roles and lets leaders choose a stable roster sort", async ({ page }) => {
+  await page.goto("/#/cwl-lineup");
+  await expect(page.getByText(/Co-leader · TH14/)).toBeVisible();
+
+  const sort = page.getByRole("button", { name: "Sort season roster" });
+  await sort.click();
+  await page.getByRole("menuitemradio", { name: "Role", exact: true }).click();
+  await expect(sort).toContainText("Role");
+
+  const lineupNameFilter = page.getByRole("textbox", { name: "Filter lineup members by name" });
+  await lineupNameFilter.fill("Kira");
+  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
+  expect(page.getByText("Sam", { exact: true })).not.toBeVisible();
+  await lineupNameFilter.fill("");
+  await page.getByRole("button", { name: "Filter lineup members by role" }).click();
+  await page.getByRole("menuitemradio", { name: "Co-leader", exact: true }).click();
+  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
+  expect(page.getByText("Sam", { exact: true })).not.toBeVisible();
+  await page.getByRole("button", { name: "Filter lineup members by Town Hall" }).click();
+  await page.getByRole("menuitemradio", { name: "TH14", exact: true }).click();
+  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /Change Kira availability/ }).click();
+  await expect(page.getByRole("menu", { name: "Kira availability" })).toBeVisible();
+  await expect(page.getByRole("menuitemradio", { name: "Unknown", exact: true })).toHaveAttribute("aria-checked", "true");
+});
+
+test("renders the year-round member pages with the local fixture", async ({ page }) => {
+  await page.goto("/#/members");
+  await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mason" })).toBeVisible();
+  await page.getByRole("link", { name: "Overview" }).click();
+  await expect(page.getByRole("heading", { name: "Clan overview" })).toBeVisible();
+  await expect(page.getByText("Current members")).toBeVisible();
+});
+
 test("exposes and operates the primary CWL lineup route", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   await page.getByRole("link", { name: "CWL Lineup" }).click();
   await expect(page.getByRole("heading", { name: "Lineup workspace" })).toBeVisible();
 
@@ -119,14 +150,14 @@ test("exposes and operates the primary CWL lineup route", async ({ page }) => {
 });
 
 test("redeems an invitation and restores a hash route without leaking the token", async ({ page }) => {
-  await page.goto("/?authCallback=1&invitation=e2e-invite&returnTo=%23%2Favailability");
-  await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();
+  await page.goto("/?authCallback=1&invitation=e2e-invite&returnTo=%23%2Fmembers");
+  await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
   await expect.poll(() => page.url()).not.toContain("invitation");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("redeem_invitation");
 });
 
 test("records an override with an auditable note", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#/dashboard");
   await page.getByRole("button", { name: "Edit lineup" }).click();
   await page.getByRole("textbox", { name: "Override note" }).fill("Adjusted after clan chat");
   await page.getByRole("button", { name: "Save override" }).click();
