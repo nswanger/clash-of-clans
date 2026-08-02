@@ -93,4 +93,17 @@ describe("ClashClient", () => {
       code: "incomplete_response",
     });
   });
+
+  it("accepts live CWL war responses where the endpoint supplies the war tag", async () => {
+    const client = new ClashClient({
+      token: "secret-token",
+      fetch: vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({
+        state: "inWar",
+        clan: { tag: "#CLAN", members: [] },
+        opponent: { tag: "#OPPONENT", members: [] },
+      })),
+    });
+
+    await expect(client.getLeagueWar("#WAR")).resolves.toMatchObject({ state: "inWar" });
+  });
 });

@@ -52,7 +52,7 @@ export interface ClashLeagueGroup {
 }
 
 export interface ClashLeagueWar {
-  tag: string;
+  tag?: string;
   state: string;
   clan: Record<string, unknown>;
   opponent: Record<string, unknown>;
@@ -212,7 +212,7 @@ function isLeagueGroup(value: unknown): value is ClashLeagueGroup {
 
 function isLeagueWar(value: unknown): value is ClashLeagueWar {
   return isRecord(value)
-    && typeof value.tag === "string"
+    && (value.tag === undefined || typeof value.tag === "string")
     && typeof value.state === "string"
     && isRecord(value.clan)
     && isRecord(value.opponent);
