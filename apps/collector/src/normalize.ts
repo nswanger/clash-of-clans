@@ -95,6 +95,8 @@ export interface DailyMemberProfile {
 export interface NormalizationContext {
   clanTag: string;
   collectionRunId: string;
+  seasonId?: string;
+  warDay?: number;
 }
 
 export interface CanonicalRepository {
@@ -133,7 +135,7 @@ export async function normalizeSnapshot(
     warMembers: 0, attacks: 0, rosterMembers: 0, profiles: 0,
   };
   if (snapshot.endpoint === "league_group") await normalizeGroup(repository, snapshot, summary);
-  else if (snapshot.endpoint === "league_war") await normalizeWar(repository, snapshot, summary);
+  else if (snapshot.endpoint === "league_war") await normalizeWar(repository, snapshot, requiredContext(context), summary);
   else if (snapshot.endpoint === "members") await normalizeRoster(repository, snapshot, requiredContext(context), summary);
   else if (snapshot.endpoint === "player") await normalizeProfile(repository, snapshot, requiredContext(context), summary);
   else return summary;
@@ -221,30 +223,21 @@ async function normalizeGroup(repository: CanonicalRepository, snapshot: RawSnap
     await repository.upsertMember({ clanTag: season.clanTag, seasonId, playerTag: text(member.tag, "member tag"), name: text(member.name, "member name"), townHallLevel: integer(member.townHallLevel, "town hall") });
     summary.members++;
   }
-  const rounds = array(group.rounds);
-  for (let index = 0; index < rounds.length; index++) {
-    for (const warTagValue of array(object(rounds[index], "round").warTags)) {
-      const warTag = text(warTagValue, "war tag");
-      if (warTag === "#0") continue;
-      await repository.upsertWar({ warTag, clanTag: season.clanTag, seasonId, warDay: index + 1, state: "unknown", attacksPerMember: 1 });
-      summary.wars++;
-    }
-  }
 }
 
-async function normalizeWar(repository: CanonicalRepository, snapshot: RawSnapshot, summary: NormalizationSummary) {
+async function normalizeWar(repository: CanonicalRepository, snapshot: RawSnapshot, context: NormalizationContext, summary: NormalizationSummary) {
   const payload = object(snapshot.responseBody, "league war");
   const warTag = text(payload.tag ?? snapshot.requestIdentity, "war tag");
-  const context = await repository.findWarContext(warTag);
-  if (!context) throw new Error(`No CWL season context exists for war ${warTag}`);
+  if (!context.seasonId || !context.warDay) throw new Error(`No CWL season context exists for war ${warTag}`);
   const first = object(payload.clan, "war clan");
   const second = object(payload.opponent, "war opponent");
   const clan = first.tag === context.clanTag ? first : second.tag === context.clanTag ? second : undefined;
+  if (!clan) return;
   const opponent = clan === first ? second : first;
-  if (!clan) throw new Error(`War ${warTag} does not contain clan ${context.clanTag}`);
   const attacksPerMember = optionalInteger(payload.attacksPerMember) ?? 1;
   const war: WarRecord = {
-    warTag, ...context, state: text(payload.state, "war state"), attacksPerMember,
+    warTag, clanTag: context.clanTag, seasonId: context.seasonId, warDay: context.warDay,
+    state: text(payload.state, "war state"), attacksPerMember,
     ...optional("preparationStartTime", clashTime(payload.preparationStartTime)),
     ...optional("startTime", clashTime(payload.startTime)),
     ...optional("endTime", clashTime(payload.endTime)),

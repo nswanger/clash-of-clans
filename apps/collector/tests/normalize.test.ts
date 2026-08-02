@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { normalizeSnapshot } from "../src/normalize.js";
+import type { RawSnapshot } from "../src/raw-snapshots.js";
 import { fixtures, MemoryRepository } from "./normalization-fixture.js";
 
 describe("normalizeSnapshot", () => {
+  const warContext = { clanTag: "#CLAN", collectionRunId: "run-1", seasonId: "2099-01", warDay: 1 };
+
   it("normalizes league group and war snapshots into canonical facts", async () => {
     const repository = new MemoryRepository();
     const { group, war } = fixtures();
 
     expect(await normalizeSnapshot(repository, group)).toMatchObject({ snapshotId: group.id, seasons: 1, members: 30 });
-    expect(await normalizeSnapshot(repository, war)).toMatchObject({ snapshotId: war.id, wars: 1, warMembers: 30, attacks: 27 });
+    expect(await normalizeSnapshot(repository, war, warContext)).toMatchObject({ snapshotId: war.id, wars: 1, warMembers: 30, attacks: 27 });
     expect(await repository.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 30, attacks: 27 });
     expect(repository.normalized).toEqual(new Set([group.id, war.id]));
   });
@@ -18,11 +21,46 @@ describe("normalizeSnapshot", () => {
     const initial = fixtures("inWar");
     const changed = fixtures("warEnded");
     await normalizeSnapshot(repository, initial.group);
-    await normalizeSnapshot(repository, initial.war);
-    await normalizeSnapshot(repository, changed.war);
+    await normalizeSnapshot(repository, initial.war, warContext);
+    await normalizeSnapshot(repository, changed.war, warContext);
 
     expect(await repository.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 30, attacks: 27 });
     expect(repository.wars.get("#WAR")?.state).toBe("warEnded");
+  });
+
+  it("does not assign other clans' round wars to the current clan", async () => {
+    const repository = new MemoryRepository();
+    const group: RawSnapshot = {
+      id: "multi-war-group",
+      endpoint: "league_group",
+      requestIdentity: "#CLAN",
+      collectedAt: "2099-01-01T00:00:00.000Z",
+      responseBody: {
+        season: "2099-01",
+        clans: [{ tag: "#CLAN", members: [] }, { tag: "#OTHER", members: [] }],
+        rounds: [{ warTags: ["#WAR", "#OTHER-WAR"] }],
+      },
+    };
+    const currentWar: RawSnapshot = {
+      id: "current-war",
+      endpoint: "league_war",
+      requestIdentity: "#WAR",
+      collectedAt: "2099-01-02T00:00:00.000Z",
+      responseBody: { tag: "#WAR", state: "inWar", clan: { tag: "#CLAN", members: [] }, opponent: { tag: "#OTHER", members: [] } },
+    };
+    const otherWar: RawSnapshot = {
+      id: "other-war",
+      endpoint: "league_war",
+      requestIdentity: "#OTHER-WAR",
+      collectedAt: "2099-01-02T00:00:00.000Z",
+      responseBody: { tag: "#OTHER-WAR", state: "inWar", clan: { tag: "#OTHER", members: [] }, opponent: { tag: "#ANOTHER", members: [] } },
+    };
+
+    await normalizeSnapshot(repository, group);
+    await normalizeSnapshot(repository, currentWar, warContext);
+    await normalizeSnapshot(repository, otherWar, warContext);
+
+    expect([...repository.wars.keys()]).toEqual(["#WAR"]);
   });
 
   it("normalizes daily roster and player activity facts from the current collection context", async () => {

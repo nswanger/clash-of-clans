@@ -58,11 +58,15 @@ function fixtureClient() {
 describe("collection normalization composition", () => {
   it("persists successful snapshots before creating canonical CWL facts", async () => {
     const repository = new CollectionRepository();
+    const normalizedContexts: Array<{ endpoint: string; seasonId: string | undefined; warDay: number | undefined }> = [];
     const dependencies = {
       client: fixtureClient(),
       store: repository,
       clanTag: "#CLAN",
-      normalize: (snapshot: RawSnapshot, context: { clanTag: string; collectionRunId: string }) => normalizeSnapshot(repository, snapshot, context),
+      normalize: (snapshot: RawSnapshot, context: { clanTag: string; collectionRunId: string; seasonId?: string; warDay?: number }) => {
+        normalizedContexts.push({ endpoint: snapshot.endpoint, seasonId: context.seasonId, warDay: context.warDay });
+        return normalizeSnapshot(repository, snapshot, context);
+      },
     };
 
     const summary = await collectOnce(dependencies);
@@ -71,6 +75,7 @@ describe("collection normalization composition", () => {
       .toBeLessThan(repository.events.indexOf("normalized:league_group"));
     expect(await repository.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 30, attacks: 27 });
     expect(summary.failedEndpoints).toEqual([]);
+    expect(normalizedContexts).toContainEqual({ endpoint: "league_war", seasonId: "2099-01", warDay: 1 });
   });
 
   it("reports normalization failure as non-healthy and skips dependent war collection", async () => {

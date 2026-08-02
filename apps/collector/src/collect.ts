@@ -39,7 +39,7 @@ export interface CollectDependencies {
   clanTag: string;
   normalize?: (
     snapshot: RawSnapshot,
-    context: { clanTag: string; collectionRunId: string },
+    context: { clanTag: string; collectionRunId: string; seasonId?: string; warDay?: number },
   ) => Promise<unknown>;
   now?: () => Date;
   signal?: AbortSignal;
@@ -80,6 +80,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     endpoint: Endpoint,
     requestIdentity: string,
     request: () => Promise<T>,
+    normalizationContext: { seasonId?: string; warDay?: number } = {},
   ): Promise<T | undefined> {
     dependencies.signal?.throwIfAborted();
     let attemptId: string;
@@ -158,8 +159,8 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     if (dependencies.normalize) {
       try {
         await dependencies.normalize(
-          { ...snapshot, collectedAt, responseBody },
-          { clanTag: dependencies.clanTag, collectionRunId: runId },
+        { ...snapshot, collectedAt, responseBody },
+          { clanTag: dependencies.clanTag, collectionRunId: runId, ...normalizationContext },
         );
       } catch (error) {
         failEndpoint(endpoint, "normalization_error");
@@ -208,11 +209,18 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   dependencies.signal?.throwIfAborted();
   if (leagueGroup) {
     activeCwl = leagueGroup.state !== "notInWar";
-    const warTags = leagueGroup.rounds.flatMap((round) => round.warTags)
+    const warDayByTag = new Map<string, number>();
+    leagueGroup.rounds.forEach((round, index) => {
+      for (const warTag of round.warTags) if (warTag !== "#0") warDayByTag.set(warTag, index + 1);
+    });
+    const warTags = [...warDayByTag.keys()]
       .filter((tag, index, tags) => tag !== "#0" && tags.indexOf(tag) === index);
     capturedWarTags.push(...warTags);
     for (const warTag of warTags) {
-      await capture("league_war", warTag, () => dependencies.client.getLeagueWar(warTag, dependencies.signal));
+      await capture("league_war", warTag, () => dependencies.client.getLeagueWar(warTag, dependencies.signal), {
+        seasonId: leagueGroup.season,
+        ...(warDayByTag.has(warTag) ? { warDay: warDayByTag.get(warTag)! } : {}),
+      });
     }
   }
 

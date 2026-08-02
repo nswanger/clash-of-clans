@@ -21,10 +21,10 @@ describe("normalization retry idempotency", () => {
     const { group, war } = fixtures();
     await normalizeSnapshot(memory, group);
     const payload = war.responseBody as any;
-    const context = await memory.findWarContext("#WAR");
+    const context = { clanTag: "#CLAN", seasonId: "2099-01", warDay: 1 };
 
     await repository.applyWarUnit({
-      war: { warTag: "#WAR", ...context!, state: payload.state, attacksPerMember: 1 },
+      war: { warTag: "#WAR", ...context, state: payload.state, attacksPerMember: 1 },
       members: [], attacks: [],
     });
 
@@ -37,10 +37,11 @@ describe("normalization retry idempotency", () => {
   it("does not duplicate canonical facts when identical snapshots replay", async () => {
     const repository = new MemoryRepository();
     const { group, war } = fixtures();
+    const context = { clanTag: "#CLAN", collectionRunId: "run-1", seasonId: "2099-01", warDay: 1 };
     await normalizeSnapshot(repository, group);
-    await normalizeSnapshot(repository, war);
+    await normalizeSnapshot(repository, war, context);
     await normalizeSnapshot(repository, group);
-    await normalizeSnapshot(repository, war);
+    await normalizeSnapshot(repository, war, context);
 
     expect(await repository.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 30, attacks: 27 });
   });
@@ -49,16 +50,17 @@ describe("normalization retry idempotency", () => {
     const clean = new MemoryRepository();
     const retried = new MemoryRepository();
     const { group, war } = fixtures();
+    const context = { clanTag: "#CLAN", collectionRunId: "run-1", seasonId: "2099-01", warDay: 1 };
     await normalizeSnapshot(clean, group);
-    await normalizeSnapshot(clean, war);
+    await normalizeSnapshot(clean, war, context);
     await normalizeSnapshot(retried, group);
     retried.failAfterWarMembers = true;
 
-    await expect(normalizeSnapshot(retried, war)).rejects.toThrow("injected failure");
+    await expect(normalizeSnapshot(retried, war, context)).rejects.toThrow("injected failure");
     expect(retried.normalized).not.toContain(war.id);
-    expect(await retried.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 0, attacks: 0 });
-    expect(retried.wars.get("#WAR")?.state).toBe("unknown");
-    await normalizeSnapshot(retried, war);
+    expect(await retried.counts()).toEqual({ seasons: 1, wars: 0, warMembers: 0, attacks: 0 });
+    expect(retried.wars.has("#WAR")).toBe(false);
+    await normalizeSnapshot(retried, war, context);
 
     expect(await retried.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 30, attacks: 27 });
     expect(await recommendationInputHash(retried)).toBe(await recommendationInputHash(clean));
@@ -67,15 +69,16 @@ describe("normalization retry idempotency", () => {
   it("removes absent facts and corrects attacks from a newer authoritative state", async () => {
     const repository = new MemoryRepository();
     const initial = fixtures("inWar");
+    const context = { clanTag: "#CLAN", collectionRunId: "run-1", seasonId: "2099-01", warDay: 1 };
     await normalizeSnapshot(repository, initial.group);
-    await normalizeSnapshot(repository, initial.war);
+    await normalizeSnapshot(repository, initial.war, context);
     const corrected = structuredClone(fixtures("warEnded").war);
     const body = corrected.responseBody as any;
     body.clan.members = body.clan.members.slice(0, 29);
     body.clan.members[0].attacks = [];
     body.clan.members[1].attacks[0].stars = 3;
 
-    await normalizeSnapshot(repository, corrected);
+    await normalizeSnapshot(repository, corrected, context);
 
     expect(await repository.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 29, attacks: 26 });
     expect(repository.attacks.get("#WAR:#P02:2")?.stars).toBe(3);
