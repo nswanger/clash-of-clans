@@ -89,6 +89,23 @@ test("operates the production CWL lineup workspace through the planning seam", a
   await expect(page.getByRole("button", { name: "Day 3" })).toHaveClass(/selected/);
   await expect(page.getByText(/Last refreshed/)).toBeVisible();
 
+  const rotationQueue = page.getByRole("region", { name: "Rotation queue" });
+  await expect(rotationQueue.getByRole("heading", { name: "Review rotation opportunities" })).toBeVisible();
+  await expect(rotationQueue.getByText("Mason", { exact: true })).toBeVisible();
+  await expect(rotationQueue.getByText("Sam", { exact: true })).toBeVisible();
+  await expect(rotationQueue).not.toContainText("#MASON");
+  await expect(page.getByRole("region", { name: "Rotation opportunity" })).toBeVisible();
+  await expect(page.getByText("8★ secured", { exact: true })).toBeVisible();
+  await expect(page.getByText("Needs a turn", { exact: true })).toBeVisible();
+
+  await rotationQueue.getByRole("button", { name: "Apply rotation from Mason to Sam" }).click();
+  await expect(rotationQueue.getByRole("button", { name: "Applied from Mason to Sam" })).toBeDisabled();
+  await rotationQueue.getByRole("button", { name: "Revert preview" }).click();
+  await expect(rotationQueue.getByRole("button", { name: "Revert preview" })).not.toBeVisible();
+  await rotationQueue.getByRole("button", { name: "Preview rotation" }).click();
+  await expect(rotationQueue.getByRole("button", { name: "Rotation preview applied" })).toBeDisabled();
+  await rotationQueue.getByRole("button", { name: "Revert preview" }).click();
+
   await page.getByRole("button", { name: "Add" }).first().click();
   await page.getByRole("button", { name: "Save plan" }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("rpc:save_cwl_daily_lineup_plan");
@@ -112,18 +129,19 @@ test("shows clan roles and lets leaders choose a stable roster sort", async ({ p
   await page.getByRole("menuitemradio", { name: "Role", exact: true }).click();
   await expect(sort).toContainText("Role");
 
-  const lineupNameFilter = page.getByRole("textbox", { name: "Filter lineup members by name" });
+  const substitutePool = page.getByRole("region", { name: "Substitute pool" });
+  const lineupNameFilter = substitutePool.getByRole("textbox", { name: "Filter lineup members by name" });
   await lineupNameFilter.fill("Kira");
-  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
-  expect(page.getByText("Sam", { exact: true })).not.toBeVisible();
+  await expect(substitutePool.getByText("Kira", { exact: true })).toBeVisible();
+  expect(substitutePool.getByText("Sam", { exact: true })).not.toBeVisible();
   await lineupNameFilter.fill("");
-  await page.getByRole("button", { name: "Filter lineup members by role" }).click();
+  await substitutePool.getByRole("button", { name: "Filter lineup members by role" }).click();
   await page.getByRole("menuitemradio", { name: "Co-leader", exact: true }).click();
-  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
-  expect(page.getByText("Sam", { exact: true })).not.toBeVisible();
-  await page.getByRole("button", { name: "Filter lineup members by Town Hall" }).click();
+  await expect(substitutePool.getByText("Kira", { exact: true })).toBeVisible();
+  expect(substitutePool.getByText("Sam", { exact: true })).not.toBeVisible();
+  await substitutePool.getByRole("button", { name: "Filter lineup members by Town Hall" }).click();
   await page.getByRole("menuitemradio", { name: "TH14", exact: true }).click();
-  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
+  await expect(substitutePool.getByText("Kira", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: /Change Kira availability/ }).click();
   await expect(page.getByRole("menu", { name: "Kira availability" })).toBeVisible();

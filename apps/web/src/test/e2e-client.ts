@@ -27,6 +27,9 @@ const defaultTableData: Record<string, unknown> = {
   ],
   cwl_war_members: [{ player_tag: "#MASON", assigned_attacks: 1 }],
   cwl_attacks: [{ attacker_tag: "#MASON" }],
+  cwl_member_stars: [
+    { player_tag: "#MASON", stars: 8 }, { player_tag: "#SAM", stars: 5 }, { player_tag: "#KIRA", stars: 2 },
+  ],
   member_availability: [
     { player_tag: "#MASON", status: "available" }, { player_tag: "#SAM", status: "available" }, { player_tag: "#KIRA", status: "unknown" },
   ],
