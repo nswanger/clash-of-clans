@@ -10,6 +10,9 @@
 - **Lineup revision**: The current version of one daily planned lineup used to detect concurrent edits and prompt a leader to reload stale work.
 - **Elder**: A verified current clan role used only as a final tie-breaker among otherwise comparable eligible CWL candidates; it does not override availability or performance evidence.
 - **Regular-war history**: Observed participation and attack evidence from completed non-CWL clan wars; it is supporting evidence and is limited to wars the collector actually observed.
+- **War summary**: A historical war-log record that establishes war-level facts such as timing, opponent, result, and clan totals without asserting individual participation.
+- **Member war observation**: A war payload observed with member-level assignment and attack facts; only this evidence can support individual participation or missed-attack metrics.
+- **History coverage**: The explicit distinction between known war summaries and member-level observations; missing member detail is unknown, not evidence of non-participation.
 - **Overall player rating**: A 0–100 lineup evidence summary combining current-CWL attack completion with regular-war participation and attack completion when those facts exist. It is a reference signal, not an automatic decision.
 - **Bonus priority**: The season-scoped bonus reference keeps all members visible, ranks members at eight or more CWL stars first by total stars, and shows wars participated plus stars per war as supporting context. The separate rotation recommendation can still use eight stars as a reason to rotate someone out.
 
