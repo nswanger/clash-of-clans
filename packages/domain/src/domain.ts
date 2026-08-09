@@ -41,12 +41,34 @@ export const memberFactsSchema = z.object({
   completedAssignedAttacks: z.number().int().nonnegative(),
   stars: z.number().int().nonnegative(),
   eightStarEligible: z.boolean(),
+  regularWarsObserved: z.number().int().nonnegative().default(0),
+  regularWarsParticipated: z.number().int().nonnegative().default(0),
+  regularAssignedAttacks: z.number().int().nonnegative().default(0),
+  regularAttacksMade: z.number().int().nonnegative().default(0),
+  regularParticipationRate: z.number().min(0).max(1).nullable().default(null),
+  regularAttackCompletionRate: z.number().min(0).max(1).nullable().default(null),
+  overallRating: z.number().min(0).max(100).nullable().default(null),
+  bonusPriorityScore: z.number().min(0).max(100).nullable().default(null),
 }).superRefine((value, context) => {
   if (value.completedAssignedAttacks > value.assignedOpportunities) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["completedAssignedAttacks"],
       message: "Completed assigned attacks cannot exceed assigned opportunities",
+    });
+  }
+  if (value.regularAttacksMade > value.regularAssignedAttacks) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["regularAttacksMade"],
+      message: "Regular-war attacks made cannot exceed assigned attacks",
+    });
+  }
+  if (value.regularWarsParticipated > value.regularWarsObserved) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["regularWarsParticipated"],
+      message: "Regular wars participated cannot exceed observed wars",
     });
   }
 }).transform((value) => ({
@@ -72,6 +94,8 @@ export const reasonCodeSchema = z.enum([
   "forced_core_replacement",
   "eight_star_rotation",
   "current_cwl_reliability",
+  "overall_rating",
+  "regular_war_participation",
   "opportunity_count",
   "town_hall_fit",
   "elder_tiebreaker",
@@ -89,6 +113,8 @@ export type StructuredReason = z.infer<typeof structuredReasonSchema>;
 export const recommendationChangeSchema = z.object({
   outPlayerTag: playerTagSchema,
   inPlayerTag: playerTagSchema,
+  outPlayerName: z.string().min(1).optional(),
+  inPlayerName: z.string().min(1).optional(),
   reasons: z.array(structuredReasonSchema).min(1),
   confidenceNote: z.string().min(1).optional(),
 });
@@ -96,6 +122,7 @@ export type RecommendationChange = z.infer<typeof recommendationChangeSchema>;
 
 export const contactSchema = z.object({
   playerTag: playerTagSchema,
+  name: z.string().min(1).optional(),
   reason: z.string().min(1),
 });
 export type Contact = z.infer<typeof contactSchema>;
@@ -105,6 +132,7 @@ export type ExclusionReasonCode = z.infer<typeof exclusionReasonCodeSchema>;
 
 export const recommendationExclusionSchema = z.object({
   playerTag: playerTagSchema,
+  name: z.string().min(1).optional(),
   reasonCode: exclusionReasonCodeSchema,
 });
 export type RecommendationExclusion = z.infer<typeof recommendationExclusionSchema>;

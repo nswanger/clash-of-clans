@@ -59,6 +59,19 @@ export interface ClashLeagueWar {
   [key: string]: unknown;
 }
 
+export interface ClashCurrentWar {
+  tag?: string;
+  state: string;
+  teamSize?: number;
+  attacksPerMember?: number;
+  preparationStartTime?: string;
+  startTime?: string;
+  endTime?: string;
+  clan?: Record<string, unknown>;
+  opponent?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 interface Logger {
   error(message: string): void;
 }
@@ -105,6 +118,10 @@ export class ClashClient {
 
   getLeagueWar(tag: string, signal?: AbortSignal): Promise<ClashLeagueWar> {
     return this.request(`/clanwarleagues/wars/${encodeURIComponent(tag)}`, isLeagueWar, false, signal);
+  }
+
+  getCurrentWar(tag: string, signal?: AbortSignal): Promise<ClashCurrentWar> {
+    return this.request(`/clans/${encodeURIComponent(tag)}/currentwar`, isCurrentWar, false, signal);
   }
 
   private async request<T>(
@@ -216,4 +233,10 @@ function isLeagueWar(value: unknown): value is ClashLeagueWar {
     && typeof value.state === "string"
     && isRecord(value.clan)
     && isRecord(value.opponent);
+}
+
+function isCurrentWar(value: unknown): value is ClashCurrentWar {
+  return isRecord(value) && typeof value.state === "string"
+    && (value.clan === undefined || isRecord(value.clan))
+    && (value.opponent === undefined || isRecord(value.opponent));
 }

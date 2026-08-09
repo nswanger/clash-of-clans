@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalCounts, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RawSnapshot, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "../../../packages/database/src/repository.js";
+import type { AttackRecord, CanonicalCounts, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RawSnapshot, RegularWarMemberRecord, RegularWarRecord, RegularWarUnit, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "../../../packages/database/src/repository.js";
 
 export class MemoryRepository implements CanonicalRepository {
   readonly seasons = new Map<string, SeasonRecord>();
@@ -9,6 +9,8 @@ export class MemoryRepository implements CanonicalRepository {
   readonly normalized = new Set<string>();
   readonly rosterObservations: DailyRosterObservation[] = [];
   readonly profiles: DailyMemberProfile[] = [];
+  readonly regularWars = new Map<string, RegularWarRecord>();
+  readonly regularWarMembers = new Map<string, RegularWarMemberRecord>();
   failAfterWarMembers = false;
   async upsertSeason(value: SeasonRecord) { this.seasons.set(`${value.clanTag}:${value.seasonId}`, value); }
   async upsertMember(value: MemberRecord) { this.members.set(`${value.clanTag}:${value.seasonId}:${value.playerTag}`, value); }
@@ -35,6 +37,10 @@ export class MemoryRepository implements CanonicalRepository {
       this.attacks.clear(); priorAttacks.forEach((value, key) => this.attacks.set(key, value));
       throw error;
     }
+  }
+  async applyRegularWarUnit(unit: RegularWarUnit) {
+    this.regularWars.set(unit.war.warKey, unit.war);
+    for (const member of unit.members) this.regularWarMembers.set(`${member.warKey}:${member.playerTag}`, member);
   }
   async applyMemberRosterDaily(value: DailyRosterObservation) { this.rosterObservations.push(value); return value.members.length; }
   async applyMemberProfileDaily(value: DailyMemberProfile) { this.profiles.push(value); return true; }

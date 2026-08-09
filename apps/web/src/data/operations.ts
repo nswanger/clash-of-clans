@@ -79,6 +79,15 @@ export interface CwlLineupMember {
   currentWarAssignedAttacks: number;
   currentWarAttacksMade: number;
   attackEvidenceWarDay: number | null;
+  regularWarsObserved: number;
+  regularWarsParticipated: number;
+  regularAssignedAttacks: number;
+  regularAttacksMade: number;
+  regularParticipationRate: number | null;
+  regularAttackCompletionRate: number | null;
+  overallRating: number | null;
+  cwlWarsParticipated: number;
+  bonusPriorityScore: number | null;
 }
 
 export interface CwlLineupWarDay {
@@ -107,7 +116,7 @@ export interface CwlLineupHistoryEvent {
 
 export interface CwlLineupRecommendation {
   id: string;
-  changes: Array<{ outPlayerTag: string; inPlayerTag: string; explanation: string }>;
+  changes: Array<{ outPlayerTag: string; inPlayerTag: string; outPlayerName?: string; inPlayerName?: string; explanation: string }>;
 }
 
 export interface CwlLineupWorkspaceSnapshot {
@@ -186,7 +195,13 @@ function recommendationFromRow(value: unknown): CwlLineupRecommendation | null {
     const reasons = Array.isArray(item.reasons)
       ? item.reasons.map((reason) => record(reason).explanation).filter((explanation): explanation is string => typeof explanation === "string")
       : [];
-    return [{ outPlayerTag: item.outPlayerTag, inPlayerTag: item.inPlayerTag, explanation: reasons.join("; ") }];
+    return [{
+      outPlayerTag: item.outPlayerTag,
+      inPlayerTag: item.inPlayerTag,
+      ...(typeof item.outPlayerName === "string" ? { outPlayerName: item.outPlayerName } : {}),
+      ...(typeof item.inPlayerName === "string" ? { inPlayerName: item.inPlayerName } : {}),
+      explanation: reasons.join("; "),
+    }];
   }) : [];
   return { id: row.id, changes };
 }
@@ -241,13 +256,14 @@ export async function loadCwlLineupWorkspace(
   ensureSuccess(planResult, "Unable to initialize the lineup day");
   const plan = planFromRpc(planResult.data);
 
-  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, warResult, warDaysResult, recommendationResult, auditResult, collectionResult] = await Promise.all([
+  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, ratingResult, warResult, warDaysResult, recommendationResult, auditResult, collectionResult] = await Promise.all([
     client.from("cwl_seasons").select("clan_tag,season_id,war_size").eq("clan_tag", clanTag).eq("season_id", seasonId).single(),
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
     client.from("member_availability").select("player_tag,status,recorded_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("member_roster_overview").select("player_tag,role,roster_observed_at").eq("clan_tag", clanTag).eq("is_current_member", true),
     client.from("cwl_current_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_stars").select("player_tag,stars").eq("clan_tag", clanTag).eq("season_id", seasonId),
+    client.from("cwl_member_overall_rating").select("player_tag,regular_wars_observed,regular_wars_participated,regular_assigned_attacks,regular_attacks_made,regular_participation_rate,regular_attack_completion_rate,overall_rating,cwl_wars_participated,bonus_priority_score").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
     client.from("recommendations").select("id,output,proposed_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("status", "proposed").order("proposed_at", { ascending: false }).limit(1).maybeSingle(),
@@ -261,6 +277,7 @@ export async function loadCwlLineupWorkspace(
     [rosterResult, "Unable to load current clan roles"],
     [reliabilityResult, "Unable to load attack completion"],
     [starsResult, "Unable to load CWL stars"],
+    [ratingResult, "Unable to load player ratings"],
     [warResult, "Unable to load observed war data"],
     [warDaysResult, "Unable to load CWL war states"],
     [recommendationResult, "Unable to load recommendations"],
@@ -301,6 +318,18 @@ export async function loadCwlLineupWorkspace(
   }]));
   const reliability = new Map(rows<{ player_tag: string; assigned_opportunities: number; completed_assigned_attacks: number }>(reliabilityResult.data).map((row) => [row.player_tag, row]));
   const stars = new Map(rows<{ player_tag: string; stars: number }>(starsResult.data).map((row) => [row.player_tag, row.stars]));
+  const ratings = new Map(rows<{
+    player_tag: string;
+    regular_wars_observed: number;
+    regular_wars_participated: number;
+    regular_assigned_attacks: number;
+    regular_attacks_made: number;
+    regular_participation_rate: number | null;
+    regular_attack_completion_rate: number | null;
+    overall_rating: number | null;
+    cwl_wars_participated: number;
+    bonus_priority_score: number | null;
+  }>(ratingResult.data).map((row) => [row.player_tag, row]));
   const observed = rows<{ player_tag: string; map_position: number; assigned_attacks: number }>(observedResult[0].data).map((row) => ({
     playerTag: row.player_tag,
     mapPosition: row.map_position,
@@ -327,6 +356,15 @@ export async function loadCwlLineupWorkspace(
       currentWarAssignedAttacks: currentWarAssignedAttacks.get(member.player_tag) ?? 0,
       currentWarAttacksMade: currentWarAttacksMade.get(member.player_tag) ?? 0,
       attackEvidenceWarDay: attackEvidenceWar?.war_day ?? null,
+      regularWarsObserved: ratings.get(member.player_tag)?.regular_wars_observed ?? 0,
+      regularWarsParticipated: ratings.get(member.player_tag)?.regular_wars_participated ?? 0,
+      regularAssignedAttacks: ratings.get(member.player_tag)?.regular_assigned_attacks ?? 0,
+      regularAttacksMade: ratings.get(member.player_tag)?.regular_attacks_made ?? 0,
+      regularParticipationRate: ratings.get(member.player_tag)?.regular_participation_rate ?? null,
+      regularAttackCompletionRate: ratings.get(member.player_tag)?.regular_attack_completion_rate ?? null,
+      overallRating: ratings.get(member.player_tag)?.overall_rating ?? null,
+      cwlWarsParticipated: ratings.get(member.player_tag)?.cwl_wars_participated ?? 0,
+      bonusPriorityScore: ratings.get(member.player_tag)?.bonus_priority_score ?? null,
     } satisfies CwlLineupMember;
   });
 

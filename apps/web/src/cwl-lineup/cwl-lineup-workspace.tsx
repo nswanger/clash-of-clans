@@ -15,7 +15,7 @@ import {
 
 const days = [1, 2, 3, 4, 5, 6, 7];
 export const CWL_BONUS_STAR_THRESHOLD = 8;
-type CwlRosterSort = "availability" | "name" | "townHall" | "role";
+type CwlRosterSort = "availability" | "name" | "townHall" | "role" | "rating";
 
 const availabilityOptions: Array<{ value: CwlAvailability; label: string; symbol: string }> = [
   { value: "available", label: "Available", symbol: "A" },
@@ -59,11 +59,27 @@ function memberEvidence(member: CwlLineupMember): string {
   const attacks = member.currentWarAssignedAttacks > 0
     ? `${member.attackEvidenceWarDay ? `Day ${member.attackEvidenceWarDay}: ` : ""}${member.currentWarAttacksMade} / ${member.currentWarAssignedAttacks} attacks observed`
     : "No attacks observed";
-  return `${roleLabel(member.role)} · TH${member.townHallLevel} · ${attacks} · ${member.stars}★`;
+  const rating = member.overallRating === null ? "No rating yet" : `${Math.round(member.overallRating)} rating`;
+  const regular = member.regularWarsObserved > 0 ? `${member.regularWarsParticipated}/${member.regularWarsObserved} regular wars` : "No regular-war history";
+  return `${roleLabel(member.role)} · TH${member.townHallLevel} · ${attacks} · ${member.stars}★ · ${rating} · ${regular}`;
 }
 
 export function isBonusSecured(member: CwlLineupMember): boolean {
   return member.stars >= CWL_BONUS_STAR_THRESHOLD;
+}
+
+function starsPerWar(member: CwlLineupMember): number | null {
+  return member.cwlWarsParticipated > 0 ? member.stars / member.cwlWarsParticipated : null;
+}
+
+export function sortBonusPriority(left: CwlLineupMember, right: CwlLineupMember): number {
+  const securedDifference = Number(isBonusSecured(right)) - Number(isBonusSecured(left));
+  if (securedDifference !== 0) return securedDifference;
+  const starsDifference = right.stars - left.stars;
+  if (starsDifference !== 0) return starsDifference;
+  const efficiencyDifference = (starsPerWar(right) ?? -1) - (starsPerWar(left) ?? -1);
+  if (efficiencyDifference !== 0) return efficiencyDifference;
+  return right.cwlWarsParticipated - left.cwlWarsParticipated || left.name.localeCompare(right.name);
 }
 
 export function needsBonusTurn(member: CwlLineupMember): boolean {
@@ -94,6 +110,7 @@ function sortCwlMembers(left: CwlLineupMember, right: CwlLineupMember, sort: Cwl
   if (sort === "name") return left.name.localeCompare(right.name);
   if (sort === "townHall") return right.townHallLevel - left.townHallLevel || left.name.localeCompare(right.name);
   if (sort === "role") return roleOrder[left.role] - roleOrder[right.role] || left.name.localeCompare(right.name);
+  if (sort === "rating") return (right.overallRating ?? -1) - (left.overallRating ?? -1) || left.name.localeCompare(right.name);
   return availabilityOrder[left.availability] - availabilityOrder[right.availability] || left.name.localeCompare(right.name);
 }
 
@@ -126,6 +143,31 @@ function lineupAdjustmentSummary(event: CwlLineupHistoryEvent): string | null {
   const details = [
     added.length ? `Added ${added.join(", ")}` : "",
     removed.length ? `Removed ${removed.join(", ")}` : "",
+    orderChanged ? "Order changed" : "",
+  ].filter(Boolean);
+  return details.length ? details.join(" · ") : "No lineup membership or order change";
+}
+
+function displayMemberName(playerTag: string, members: CwlLineupMember[]): string {
+  return members.find((member) => member.playerTag === playerTag)?.name ?? "Unknown member";
+}
+
+function lineupAdjustmentSummaryWithNames(event: CwlLineupHistoryEvent, members: CwlLineupMember[]): string | null {
+  const summary = lineupAdjustmentSummary(event);
+  if (!summary || event.eventType !== "lineup_plan_saved") return summary;
+  const previous = Array.isArray(event.eventData.previousPlayerTags)
+    ? event.eventData.previousPlayerTags.filter((tag): tag is string => typeof tag === "string")
+    : [];
+  const current = Array.isArray(event.eventData.playerTags)
+    ? event.eventData.playerTags.filter((tag): tag is string => typeof tag === "string")
+    : [];
+  const added = current.filter((tag) => !previous.includes(tag));
+  const removed = previous.filter((tag) => !current.includes(tag));
+  const sameMembers = added.length === 0 && removed.length === 0;
+  const orderChanged = sameMembers && previous.some((tag, index) => current[index] !== tag);
+  const details = [
+    added.length ? `Added ${added.map((tag) => displayMemberName(tag, members)).join(", ")}` : "",
+    removed.length ? `Removed ${removed.map((tag) => displayMemberName(tag, members)).join(", ")}` : "",
     orderChanged ? "Order changed" : "",
   ].filter(Boolean);
   return details.length ? details.join(" · ") : "No lineup membership or order change";
@@ -262,7 +304,8 @@ function recommendationEvidence(member: CwlLineupMember, direction: "out" | "in"
   if (direction === "out" && isBonusSecured(member)) return `${member.stars}★ · Bonus secured`;
   if (direction === "in") {
     const assignments = member.assignedAttacks === 0 ? "No prior assignment" : `${member.assignedAttacks} prior assignment${member.assignedAttacks === 1 ? "" : "s"}`;
-    return `${availabilityLabel(member.availability)} · ${member.stars}★ · ${assignments}`;
+    const rating = member.overallRating === null ? "No rating" : `${Math.round(member.overallRating)} rating`;
+    return `${availabilityLabel(member.availability)} · ${member.stars}★ · ${assignments} · ${rating}`;
   }
   return `${member.stars}★ · Review rotation fit`;
 }
@@ -277,16 +320,37 @@ function RecommendationPanel({ snapshot, draft, locked, changes, previewActive, 
       const incoming = memberByTag.get(change.inPlayerTag);
       const applied = isRotationChangeApplied(draft, change);
       return <div className="cwl-proto-recommendation-row" key={`${change.outPlayerTag}:${change.inPlayerTag}`}>
-      <span className="cwl-proto-member-badge" title={change.outPlayerTag}><strong>{outgoing?.name ?? change.outPlayerTag}</strong><small>{outgoing ? recommendationEvidence(outgoing, "out") : "Review"}</small></span>
+      <span className="cwl-proto-member-badge"><strong>{change.outPlayerName ?? outgoing?.name ?? "Outgoing member"}</strong><small>{outgoing ? recommendationEvidence(outgoing, "out") : "Review"}</small></span>
       <span className="cwl-proto-arrow">→</span>
-      <span className="cwl-proto-member-badge" title={change.inPlayerTag}><strong>{incoming?.name ?? change.inPlayerTag}</strong><small>{incoming ? recommendationEvidence(incoming, "in") : change.explanation || "Available candidate"}</small></span>
-      <button className="cwl-proto-row-action" type="button" disabled={locked || applied} aria-label={`${applied ? "Applied" : "Apply rotation"} from ${outgoing?.name ?? change.outPlayerTag} to ${incoming?.name ?? change.inPlayerTag}`} onClick={() => onApplyChange(change)}>{applied ? "Applied" : "Apply"}</button>
+      <span className="cwl-proto-member-badge"><strong>{change.inPlayerName ?? incoming?.name ?? "Incoming member"}</strong><small>{incoming ? recommendationEvidence(incoming, "in") : change.explanation || "Available candidate"}</small></span>
+      <button className="cwl-proto-row-action" type="button" disabled={locked || applied} aria-label={`${applied ? "Applied" : "Apply rotation"} from ${change.outPlayerName ?? outgoing?.name ?? "outgoing member"} to ${change.inPlayerName ?? incoming?.name ?? "incoming member"}`} onClick={() => onApplyChange(change)}>{applied ? "Applied" : "Apply"}</button>
     </div>;
     })}
     {changes.length ? <>
       <button className="cwl-proto-primary-button" type="button" disabled={locked || previewActive} onClick={() => onPreview(changes)}>{previewActive ? "Rotation preview applied" : "Preview rotation"}</button>
       {previewActive ? <button className="cwl-proto-revert-button" type="button" onClick={onRevert}>Revert preview</button> : null}
     </> : null}
+  </section>;
+}
+
+function BonusPriorityPanel({ members }: { members: CwlLineupMember[] }) {
+  const candidates = members
+    .slice()
+    .sort(sortBonusPriority)
+    .slice(0, 8);
+  return <section className="cwl-proto-panel cwl-proto-context-panel" aria-label="CWL bonus priority">
+    <div className="cwl-proto-panel-heading"><div><p className="eyebrow">Reward fairness</p><h2>Bonus priority</h2></div><span className="cwl-proto-count">8★ target</span></div>
+    <p className="cwl-proto-panel-lede">Qualified and below-target members are both included. Qualified members are ranked first by total CWL stars, with wars participated and stars per war as supporting context. This is a reference for bonus decisions, not an automatic award.</p>
+    <ol className="cwl-proto-bonus-list">{candidates.map((member, index) => {
+      const qualified = isBonusSecured(member);
+      const efficiency = starsPerWar(member);
+      return <li className={qualified ? "is-qualified" : undefined} key={member.playerTag}>
+        <span className="cwl-proto-bonus-rank">{index + 1}</span>
+        <span><strong>{member.name}</strong><small>{member.stars}★ · {member.cwlWarsParticipated} war{member.cwlWarsParticipated === 1 ? "" : "s"}{efficiency === null ? " · No war evidence" : ` · ${efficiency.toFixed(1)}★ / war`}</small></span>
+        <strong className="cwl-proto-bonus-status">{qualified ? "Qualified" : "Below 8★"}</strong>
+      </li>;
+    })}</ol>
+    {candidates.length === 0 ? <p className="cwl-proto-pool-empty">No CWL members are available for bonus review yet.</p> : null}
   </section>;
 }
 
@@ -310,7 +374,7 @@ function HistoryPanel({ snapshot }: { snapshot: CwlLineupWorkspaceSnapshot }) {
     <p className="cwl-proto-panel-lede">Saves, inheritance, lock changes, and observed API refreshes are summarized here. Member drag movements are not archived.</p>
     <ul className="cwl-proto-audit-list">{visible.map((event) => <li key={event.id}>
       <span className={`audit-dot ${event.eventType.includes("locked") || event.eventType.includes("unlocked") ? "lock" : event.eventType.includes("observed") ? "observe" : "save"}`} />
-      <div><strong>{event.label}</strong><small>{event.actorName} · {new Date(event.occurredAt).toLocaleString()}</small>{lineupAdjustmentSummary(event) ? <small>{lineupAdjustmentSummary(event)}</small> : null}</div>
+      <div><strong>{event.label}</strong><small>{event.actorName} · {new Date(event.occurredAt).toLocaleString()}</small>{lineupAdjustmentSummaryWithNames(event, snapshot.members) ? <small>{lineupAdjustmentSummaryWithNames(event, snapshot.members)}</small> : null}</div>
     </li>)}</ul>
     <button className="cwl-proto-history-button" type="button" aria-expanded={showAll} onClick={() => setShowAll((value) => !value)}>{showAll ? "Show summary" : "View all lineup updates"}</button>
   </section>;
@@ -479,9 +543,9 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
     <div className="cwl-proto-command-grid">
       <div className="cwl-proto-plan-board">
         <section className="cwl-proto-panel cwl-proto-plan-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Day {day} plan</p><h2>{draft.length} planned · drag to reorder</h2></div><span className="cwl-proto-count">{draft.length} / {snapshot.season.warSize}</span></div><div className="cwl-proto-slot-grid">{planned.map((member, index) => <LineupSlot key={member.playerTag} member={member} index={index} observed={member.observed} locked={snapshot.plan.isLocked} onDrop={drop} onDragStart={dragStart} onRemove={() => removeMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}</div></section>
-        <section className="cwl-proto-panel cwl-proto-pool-panel" aria-label="Substitute pool"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Season roster</p><h2>Substitute pool</h2></div><span className="cwl-proto-count">{filteredPool.length}{filteredPool.length !== pool.length ? ` / ${pool.length}` : ""}</span></div><p className="cwl-proto-help">Availability is season-scoped and remains editable while this daily plan is locked. Changing it never changes lineup membership automatically.</p><div className="cwl-proto-roster-filters" aria-label="Filter substitute pool"><label>Find member<input aria-label="Filter lineup members by name" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Name" /></label><FilterMenu label="Role" ariaLabel="Filter lineup members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} /><FilterMenu label="Town Hall" ariaLabel="Filter lineup members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} /><FilterMenu label="Sort" ariaLabel="Sort season roster" value={rosterSort} onChange={(value) => setRosterSort(value as CwlRosterSort)} options={[{ value: "availability", label: "Availability" }, { value: "name", label: "Name" }, { value: "townHall", label: "Town Hall" }, { value: "role", label: "Role" }]} /></div><div className="cwl-proto-pool-list">{filteredPool.map((member) => <PoolMember key={member.playerTag} member={member} locked={snapshot.plan.isLocked} onDragStart={dragStart} onAdd={() => addMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}{filteredPool.length === 0 ? <p className="cwl-proto-pool-empty">No roster members match these filters.</p> : null}</div></section>
+        <section className="cwl-proto-panel cwl-proto-pool-panel" aria-label="Substitute pool"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Season roster</p><h2>Substitute pool</h2></div><span className="cwl-proto-count">{filteredPool.length}{filteredPool.length !== pool.length ? ` / ${pool.length}` : ""}</span></div><p className="cwl-proto-help">Availability is season-scoped and remains editable while this daily plan is locked. Changing it never changes lineup membership automatically.</p><div className="cwl-proto-roster-filters" aria-label="Filter substitute pool"><label>Find member<input aria-label="Filter lineup members by name" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Name" /></label><FilterMenu label="Role" ariaLabel="Filter lineup members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} /><FilterMenu label="Town Hall" ariaLabel="Filter lineup members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} /><FilterMenu label="Sort" ariaLabel="Sort season roster" value={rosterSort} onChange={(value) => setRosterSort(value as CwlRosterSort)} options={[{ value: "availability", label: "Availability" }, { value: "name", label: "Name" }, { value: "townHall", label: "Town Hall" }, { value: "role", label: "Role" }, { value: "rating", label: "Overall rating" }]} /></div><div className="cwl-proto-pool-list">{filteredPool.map((member) => <PoolMember key={member.playerTag} member={member} locked={snapshot.plan.isLocked} onDragStart={dragStart} onAdd={() => addMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}{filteredPool.length === 0 ? <p className="cwl-proto-pool-empty">No roster members match these filters.</p> : null}</div></section>
       </div>
-      <aside className="cwl-proto-right-rail"><RecommendationPanel snapshot={snapshot} draft={draft} locked={snapshot.plan.isLocked} changes={rotationChanges} previewActive={rotationPreviewBaseline !== null} onPreview={previewRotation} onRevert={revertRotationPreview} onApplyChange={applyRotationChange} /><HistoryPanel snapshot={snapshot} /></aside>
+      <aside className="cwl-proto-right-rail"><RecommendationPanel snapshot={snapshot} draft={draft} locked={snapshot.plan.isLocked} changes={rotationChanges} previewActive={rotationPreviewBaseline !== null} onPreview={previewRotation} onRevert={revertRotationPreview} onApplyChange={applyRotationChange} /><BonusPriorityPanel members={snapshot.members} /><HistoryPanel snapshot={snapshot} /></aside>
     </div>
     <p className="cwl-proto-footnote">Planned state is saved here for leader coordination. No in-game lineup changes are sent automatically.</p>
   </main>;

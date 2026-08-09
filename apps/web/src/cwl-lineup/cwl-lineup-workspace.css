@@ -121,6 +121,14 @@
 .cwl-proto-audit-list strong { font-size: 11px; }.cwl-proto-audit-list small { margin-top: 2px; color: #6f6e6b; font-size: 10px; }
 .cwl-proto-history-button { width: calc(100% - 36px); min-height: 38px; margin: 16px 18px 0; border: 1px solid #d3d3d3; border-radius: 6px; color: #174e78; background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
 .cwl-proto-footnote { margin: 18px 0 0; color: #6f6e6b; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.cwl-proto-bonus-list { display: grid; gap: 8px; margin: 0 18px; padding: 0; list-style: none; }
+.cwl-proto-bonus-list li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #ece9e2; }
+.cwl-proto-bonus-list li:last-child { border-bottom: 0; }
+.cwl-proto-bonus-rank { color: #9a968f; font-size: 10px; font-variant-numeric: tabular-nums; }
+.cwl-proto-bonus-list strong { color: #20201e; font-size: 12px; }
+.cwl-proto-bonus-list small { display: block; margin-top: 2px; color: #77746e; font-size: 10px; }
+.cwl-proto-bonus-status { white-space: nowrap; }
+.cwl-proto-bonus-list li.is-qualified .cwl-proto-bonus-status { color: #11603b; }
 
 @media (max-width: 1100px) {
   .cwl-proto-command-grid { grid-template-columns: 1fr; }

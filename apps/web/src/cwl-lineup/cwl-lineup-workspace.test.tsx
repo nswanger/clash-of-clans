@@ -5,6 +5,7 @@ import {
   isBonusSecured,
   isRotationChangeApplied,
   needsBonusTurn,
+  sortBonusPriority,
 } from "./cwl-lineup-workspace.js";
 import type { CwlLineupMember } from "../data/operations.js";
 
@@ -22,6 +23,15 @@ function member(overrides: Partial<CwlLineupMember> = {}): CwlLineupMember {
     currentWarAssignedAttacks: 0,
     currentWarAttacksMade: 0,
     attackEvidenceWarDay: null,
+    regularWarsObserved: 0,
+    regularWarsParticipated: 0,
+    regularAssignedAttacks: 0,
+    regularAttacksMade: 0,
+    regularParticipationRate: null,
+    regularAttackCompletionRate: null,
+    overallRating: null,
+    cwlWarsParticipated: 0,
+    bonusPriorityScore: null,
     ...overrides,
   };
 }
@@ -30,6 +40,18 @@ describe("CWL rotation signals", () => {
   it("treats eight stars as secured bonus eligibility", () => {
     expect(isBonusSecured(member({ stars: 7 }))).toBe(false);
     expect(isBonusSecured(member({ stars: 8 }))).toBe(true);
+  });
+
+  it("ranks qualified contributors before below-target members", () => {
+    const qualified = member({ name: "Qualified", stars: 8, cwlWarsParticipated: 3 });
+    const belowTarget = member({ name: "Below target", stars: 7, cwlWarsParticipated: 1 });
+    expect(sortBonusPriority(qualified, belowTarget)).toBeLessThan(0);
+  });
+
+  it("uses total stars before stars per war within the same qualification group", () => {
+    const broaderContributor = member({ name: "Broader contributor", stars: 16, cwlWarsParticipated: 4 });
+    const efficientContributor = member({ name: "Efficient contributor", stars: 8, cwlWarsParticipated: 1 });
+    expect(sortBonusPriority(broaderContributor, efficientContributor)).toBeLessThan(0);
   });
 
   it("marks only available, unassigned, non-observed members as needing a turn", () => {

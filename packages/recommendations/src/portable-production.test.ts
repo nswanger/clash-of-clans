@@ -81,7 +81,7 @@ describe("production recommendation derivation", () => {
       requested_clan_tag: "#CLAN",
       requested_season_id: "2026-07",
       requested_war_tag: "#WAR1",
-      requested_strategy_version: "ordered-rules-v2",
+      requested_strategy_version: "ordered-rules-v3",
       requested_input: contextEnvelope.input,
       requested_source: "collection",
       requested_output: expect.objectContaining({

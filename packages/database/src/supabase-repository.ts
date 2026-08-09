@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
+import type { AttackRecord, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RegularWarUnit, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
 
 interface QueryResult { data?: unknown; error?: { message: string } | null }
 interface QueryBuilder extends PromiseLike<QueryResult> {
@@ -31,6 +31,12 @@ export class SupabaseCanonicalRepository implements CanonicalRepository {
       p_war: snake(unit.war),
       p_members: unit.members.map(snake),
       p_attacks: unit.attacks.map(snake),
+    }));
+  }
+  async applyRegularWarUnit(unit: RegularWarUnit) {
+    check(await this.client.rpc("apply_regular_war_unit", {
+      p_war: snake(unit.war),
+      p_members: unit.members.map(snake),
     }));
   }
   async applyMemberRosterDaily(observation: DailyRosterObservation) {

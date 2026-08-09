@@ -132,4 +132,4 @@ Raw snapshots have a 90-day scheduled cleanup window. Canonical history, recomme
 
 ## Regular-war fast-follow
 
-Regular-war support should reuse the same raw-to-derived history pipeline. Keep regular-war records identifiable and auditable, and do not let regular-war observations affect CWL recommendations until leaders approve an explicit policy and the scoring behavior is implemented, tested, and documented.
+Regular-war support reuses the raw-to-derived history pipeline. Regular-war records are identifiable and auditable; observed member participation contributes to the documented overall player rating, while missing collection windows remain limited evidence rather than inferred history. Review the rating and bonus-priority explanations before approving a lineup or bonus decision.

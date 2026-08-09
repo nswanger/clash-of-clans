@@ -101,4 +101,29 @@ describe("normalizeSnapshot", () => {
     }));
     expect(repository.normalized).toEqual(new Set(["members-1", "player-1"]));
   });
+
+  it("normalizes current regular-war member participation without mixing it into CWL tables", async () => {
+    const repository = new MemoryRepository();
+    const currentWar: RawSnapshot = {
+      id: "regular-war-1",
+      endpoint: "current_war",
+      requestIdentity: "#CLAN",
+      collectedAt: "2099-01-04T12:00:00.000Z",
+      responseBody: {
+        state: "inWar",
+        attacksPerMember: 2,
+        teamSize: 15,
+        startTime: "20990104T000000.000Z",
+        endTime: "20990106T000000.000Z",
+        clan: { tag: "#CLAN", members: [{ tag: "#ONE", name: "One", townHallLevel: 17, attacks: [{ stars: 3 }, { stars: 1 }] }] },
+        opponent: { tag: "#OPP", members: [] },
+      },
+    };
+
+    await normalizeSnapshot(repository, currentWar, { clanTag: "#CLAN", collectionRunId: "run-1" });
+
+    expect(repository.regularWars.get("regular:#CLAN:20990104T000000.000Z")).toMatchObject({ clanTag: "#CLAN", attacksPerMember: 2 });
+    expect(repository.regularWarMembers.get("regular:#CLAN:20990104T000000.000Z:#ONE")).toMatchObject({ name: "One", attacksMade: 2, stars: 4 });
+    expect(await repository.counts()).toEqual({ seasons: 0, wars: 0, warMembers: 0, attacks: 0 });
+  });
 });

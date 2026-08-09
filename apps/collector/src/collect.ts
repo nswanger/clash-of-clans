@@ -6,7 +6,7 @@ import {
   type RawSnapshotStore,
 } from "./raw-snapshots.js";
 
-type Endpoint = "clan" | "members" | "player" | "league_group" | "league_war";
+type Endpoint = "clan" | "members" | "player" | "league_group" | "league_war" | "current_war";
 
 export interface FinalizationError {
   scope: "attempt" | "run";
@@ -34,7 +34,7 @@ export interface CollectionSummary {
 }
 
 export interface CollectDependencies {
-  client: Pick<ClashClient, "getClan" | "getMembers" | "getPlayer" | "getLeagueGroup" | "getLeagueWar">;
+  client: Pick<ClashClient, "getClan" | "getMembers" | "getPlayer" | "getLeagueGroup" | "getLeagueWar"> & { getCurrentWar?: ClashClient["getCurrentWar"] };
   store: RawSnapshotStore;
   clanTag: string;
   normalize?: (
@@ -81,6 +81,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     requestIdentity: string,
     request: () => Promise<T>,
     normalizationContext: { seasonId?: string; warDay?: number } = {},
+    options: { ignoreNotFound?: boolean } = {},
   ): Promise<T | undefined> {
     dependencies.signal?.throwIfAborted();
     let attemptId: string;
@@ -103,6 +104,15 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     } catch (error) {
       dependencies.signal?.throwIfAborted();
       const category = error instanceof ClashApiError ? error.code : "internal_error";
+      if (options.ignoreNotFound && category === "not_found") {
+        await finishAttemptSafely(endpoint, {
+          attemptId,
+          status: "healthy",
+          ...(error instanceof ClashApiError && error.httpStatus !== undefined ? { httpStatus: error.httpStatus } : {}),
+          finishedAt: now().toISOString(),
+        });
+        return undefined;
+      }
       const httpStatus = error instanceof ClashApiError ? error.httpStatus : undefined;
       failEndpoint(endpoint, category);
       if (error instanceof ClashApiError && error.responseBody !== undefined && httpStatus !== undefined) {
@@ -200,6 +210,15 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     for (const member of members.items) {
       await capture("player", member.tag, () => dependencies.client.getPlayer(member.tag, dependencies.signal));
     }
+  }
+  if (dependencies.client.getCurrentWar) {
+    await capture(
+      "current_war",
+      dependencies.clanTag,
+      () => dependencies.client.getCurrentWar!(dependencies.clanTag, dependencies.signal),
+      {},
+      { ignoreNotFound: true },
+    );
   }
   const leagueGroup = await capture(
     "league_group",
