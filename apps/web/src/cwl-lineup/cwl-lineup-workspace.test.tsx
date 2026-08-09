@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   filterAvailableRotationChanges,
+  hasRegularWarEvidence,
+  hasRecentRegularWarEvidence,
   isAvailableRotationCandidate,
   isBonusSecured,
   isRotationChangeApplied,
   needsBonusTurn,
+  sortRegularActivity,
   sortBonusPriority,
 } from "./cwl-lineup-workspace.js";
 import type { CwlLineupMember } from "../data/operations.js";
@@ -27,8 +30,10 @@ function member(overrides: Partial<CwlLineupMember> = {}): CwlLineupMember {
     regularWarsParticipated: 0,
     regularAssignedAttacks: 0,
     regularAttacksMade: 0,
-    regularParticipationRate: null,
-    regularAttackCompletionRate: null,
+    regularActivityScore: null,
+    regularPerformanceScore: null,
+    regularStarsPerAttack: null,
+    regularLastObservedAt: null,
     overallRating: null,
     cwlWarsParticipated: 0,
     bonusPriorityScore: null,
@@ -86,5 +91,19 @@ describe("CWL rotation signals", () => {
     const change = { outPlayerTag: "#OUT", inPlayerTag: "#IN", explanation: "" };
     expect(isRotationChangeApplied(["#OUT"], change)).toBe(false);
     expect(isRotationChangeApplied(["#IN"], change)).toBe(true);
+  });
+
+  it("separates regular-war activity from CWL rating and ranks observed evidence", () => {
+    const active = member({ name: "Active", regularWarsParticipated: 3, regularActivityScore: 100, regularPerformanceScore: 80 });
+    const inactive = member({ name: "Inactive", overallRating: 100 });
+    expect(hasRegularWarEvidence(active)).toBe(true);
+    expect(hasRegularWarEvidence(inactive)).toBe(false);
+    expect(sortRegularActivity(active, inactive)).toBeLessThan(0);
+  });
+
+  it("can identify evidence observed in the prior 90 days without treating older evidence as current", () => {
+    const now = new Date("2026-08-09T00:00:00.000Z");
+    expect(hasRecentRegularWarEvidence(member({ regularWarsParticipated: 1, regularLastObservedAt: "2026-07-01T00:00:00.000Z" }), now)).toBe(true);
+    expect(hasRecentRegularWarEvidence(member({ regularWarsParticipated: 1, regularLastObservedAt: "2026-04-01T00:00:00.000Z" }), now)).toBe(false);
   });
 });

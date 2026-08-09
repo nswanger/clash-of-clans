@@ -34,7 +34,7 @@ These are the first endpoints to validate and build around because they map dire
 - `GET /v1/clanwarleagues/wars/{warTag}`
   - Individual CWL war details, including attacks and results.
 
-The collector now samples `currentwar` during its normal collection cadence and stores member-level regular-war evidence when the war is observable. The public `warlog` endpoint remains useful for clan-level results, but it does not provide the member-level history needed for lineup ratings; missed collection windows therefore remain visible as limited history rather than being backfilled or guessed.
+The collector now samples `currentwar` during its normal collection cadence and stores member-level regular-war evidence when the war is observable. A 2026-08-09 authorized probe of `warlog` returned war-level summaries without member records, so it is suitable for calendar/outcome context but not player activity backfill; missed collection windows remain visible as limited history rather than being backfilled or guessed.
 
 ### Player
 - `GET /v1/players/{playerTag}`

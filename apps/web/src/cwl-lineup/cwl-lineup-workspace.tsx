@@ -15,7 +15,9 @@ import {
 
 const days = [1, 2, 3, 4, 5, 6, 7];
 export const CWL_BONUS_STAR_THRESHOLD = 8;
-type CwlRosterSort = "availability" | "name" | "townHall" | "role" | "rating";
+type CwlRosterSort = "availability" | "name" | "townHall" | "role" | "rating" | "regularActivity";
+type RegularActivityFilter = "all" | "recent" | "observed" | "no-evidence";
+const REGULAR_ACTIVITY_LOOKBACK_DAYS = 90;
 
 const availabilityOptions: Array<{ value: CwlAvailability; label: string; symbol: string }> = [
   { value: "available", label: "Available", symbol: "A" },
@@ -59,8 +61,10 @@ function memberEvidence(member: CwlLineupMember): string {
   const attacks = member.currentWarAssignedAttacks > 0
     ? `${member.attackEvidenceWarDay ? `Day ${member.attackEvidenceWarDay}: ` : ""}${member.currentWarAttacksMade} / ${member.currentWarAssignedAttacks} attacks observed`
     : "No attacks observed";
-  const rating = member.overallRating === null ? "No rating yet" : `${Math.round(member.overallRating)} rating`;
-  const regular = member.regularWarsObserved > 0 ? `${member.regularWarsParticipated}/${member.regularWarsObserved} regular wars` : "No regular-war history";
+  const rating = member.overallRating === null ? "No CWL rating yet" : `${Math.round(member.overallRating)} CWL rating`;
+  const regular = member.regularWarsParticipated > 0
+    ? `${member.regularWarsParticipated} regular wars observed · ${member.regularActivityScore ?? 0}% attacks used · ${member.regularStarsPerAttack === null ? "—" : `${member.regularStarsPerAttack.toFixed(1)}★ / attack`}`
+    : "No regular-war evidence";
   return `${roleLabel(member.role)} · TH${member.townHallLevel} · ${attacks} · ${member.stars}★ · ${rating} · ${regular}`;
 }
 
@@ -95,6 +99,24 @@ export function isAvailableRotationCandidate(member: CwlLineupMember): boolean {
     && !member.observed;
 }
 
+export function hasRegularWarEvidence(member: CwlLineupMember): boolean {
+  return member.regularWarsParticipated > 0;
+}
+
+export function hasRecentRegularWarEvidence(member: CwlLineupMember, now = new Date()): boolean {
+  if (!member.regularLastObservedAt) return false;
+  const observedAt = new Date(member.regularLastObservedAt).getTime();
+  return Number.isFinite(observedAt)
+    && observedAt >= now.getTime() - REGULAR_ACTIVITY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+}
+
+export function sortRegularActivity(left: CwlLineupMember, right: CwlLineupMember): number {
+  return (right.regularActivityScore ?? -1) - (left.regularActivityScore ?? -1)
+    || (right.regularPerformanceScore ?? -1) - (left.regularPerformanceScore ?? -1)
+    || (right.regularWarsParticipated - left.regularWarsParticipated)
+    || left.name.localeCompare(right.name);
+}
+
 export function filterAvailableRotationChanges(
   changes: CwlRecommendationChanges,
   members: CwlLineupMember[],
@@ -111,6 +133,7 @@ function sortCwlMembers(left: CwlLineupMember, right: CwlLineupMember, sort: Cwl
   if (sort === "townHall") return right.townHallLevel - left.townHallLevel || left.name.localeCompare(right.name);
   if (sort === "role") return roleOrder[left.role] - roleOrder[right.role] || left.name.localeCompare(right.name);
   if (sort === "rating") return (right.overallRating ?? -1) - (left.overallRating ?? -1) || left.name.localeCompare(right.name);
+  if (sort === "regularActivity") return sortRegularActivity(left, right);
   return availabilityOrder[left.availability] - availabilityOrder[right.availability] || left.name.localeCompare(right.name);
 }
 
@@ -304,8 +327,9 @@ function recommendationEvidence(member: CwlLineupMember, direction: "out" | "in"
   if (direction === "out" && isBonusSecured(member)) return `${member.stars}★ · Bonus secured`;
   if (direction === "in") {
     const assignments = member.assignedAttacks === 0 ? "No prior assignment" : `${member.assignedAttacks} prior assignment${member.assignedAttacks === 1 ? "" : "s"}`;
-    const rating = member.overallRating === null ? "No rating" : `${Math.round(member.overallRating)} rating`;
-    return `${availabilityLabel(member.availability)} · ${member.stars}★ · ${assignments} · ${rating}`;
+    const rating = member.overallRating === null ? "No CWL rating" : `${Math.round(member.overallRating)} CWL rating`;
+    const activity = member.regularActivityScore === null ? "No regular-war evidence" : `${member.regularActivityScore}% regular activity`;
+    return `${availabilityLabel(member.availability)} · ${member.stars}★ · ${assignments} · ${rating} · ${activity}`;
   }
   return `${member.stars}★ · Review rotation fit`;
 }
@@ -393,6 +417,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
   const [memberSearch, setMemberSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [townHallFilter, setTownHallFilter] = useState("all");
+  const [regularActivityFilter, setRegularActivityFilter] = useState<RegularActivityFilter>("all");
 
   const load = async () => {
     setLoading(true);
@@ -428,8 +453,12 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
       .filter((member) => !query || member.name.toLocaleLowerCase().includes(query))
       .filter((member) => roleFilter === "all" || member.role === roleFilter)
       .filter((member) => townHallFilter === "all" || member.townHallLevel === Number(townHallFilter))
+      .filter((member) => regularActivityFilter === "all"
+        || (regularActivityFilter === "recent" && hasRecentRegularWarEvidence(member))
+        || (regularActivityFilter === "observed" && hasRegularWarEvidence(member))
+        || (regularActivityFilter === "no-evidence" && !hasRegularWarEvidence(member)))
       .sort((left, right) => sortCwlMembers(left, right, rosterSort));
-  }, [memberSearch, pool, roleFilter, rosterSort, townHallFilter]);
+  }, [memberSearch, pool, regularActivityFilter, roleFilter, rosterSort, townHallFilter]);
   const rotationChanges = useMemo(
     () => filterAvailableRotationChanges(snapshot?.recommendation?.changes ?? [], snapshot?.members ?? []),
     [snapshot],
@@ -543,7 +572,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
     <div className="cwl-proto-command-grid">
       <div className="cwl-proto-plan-board">
         <section className="cwl-proto-panel cwl-proto-plan-panel"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Day {day} plan</p><h2>{draft.length} planned · drag to reorder</h2></div><span className="cwl-proto-count">{draft.length} / {snapshot.season.warSize}</span></div><div className="cwl-proto-slot-grid">{planned.map((member, index) => <LineupSlot key={member.playerTag} member={member} index={index} observed={member.observed} locked={snapshot.plan.isLocked} onDrop={drop} onDragStart={dragStart} onRemove={() => removeMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}</div></section>
-        <section className="cwl-proto-panel cwl-proto-pool-panel" aria-label="Substitute pool"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Season roster</p><h2>Substitute pool</h2></div><span className="cwl-proto-count">{filteredPool.length}{filteredPool.length !== pool.length ? ` / ${pool.length}` : ""}</span></div><p className="cwl-proto-help">Availability is season-scoped and remains editable while this daily plan is locked. Changing it never changes lineup membership automatically.</p><div className="cwl-proto-roster-filters" aria-label="Filter substitute pool"><label>Find member<input aria-label="Filter lineup members by name" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Name" /></label><FilterMenu label="Role" ariaLabel="Filter lineup members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} /><FilterMenu label="Town Hall" ariaLabel="Filter lineup members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} /><FilterMenu label="Sort" ariaLabel="Sort season roster" value={rosterSort} onChange={(value) => setRosterSort(value as CwlRosterSort)} options={[{ value: "availability", label: "Availability" }, { value: "name", label: "Name" }, { value: "townHall", label: "Town Hall" }, { value: "role", label: "Role" }, { value: "rating", label: "Overall rating" }]} /></div><div className="cwl-proto-pool-list">{filteredPool.map((member) => <PoolMember key={member.playerTag} member={member} locked={snapshot.plan.isLocked} onDragStart={dragStart} onAdd={() => addMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}{filteredPool.length === 0 ? <p className="cwl-proto-pool-empty">No roster members match these filters.</p> : null}</div></section>
+        <section className="cwl-proto-panel cwl-proto-pool-panel" aria-label="Substitute pool"><div className="cwl-proto-panel-heading"><div><p className="eyebrow">Season roster</p><h2>Substitute pool</h2></div><span className="cwl-proto-count">{filteredPool.length}{filteredPool.length !== pool.length ? ` / ${pool.length}` : ""}</span></div><p className="cwl-proto-help">Availability is season-scoped and remains editable while this daily plan is locked. Regular-war scores use observed evidence; missing signup opportunity is not treated as poor activity.</p><div className="cwl-proto-roster-filters" aria-label="Filter substitute pool"><label>Find member<input aria-label="Filter lineup members by name" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Name" /></label><FilterMenu label="Role" ariaLabel="Filter lineup members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} /><FilterMenu label="Town Hall" ariaLabel="Filter lineup members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} /><FilterMenu label="Regular-war evidence" ariaLabel="Filter lineup members by regular-war evidence" value={regularActivityFilter} onChange={(value) => setRegularActivityFilter(value as RegularActivityFilter)} options={[{ value: "all", label: "All members" }, { value: "recent", label: "Evidence in last 90 days" }, { value: "observed", label: "Any observed activity" }, { value: "no-evidence", label: "No evidence yet" }]} /><FilterMenu label="Sort" ariaLabel="Sort season roster" value={rosterSort} onChange={(value) => setRosterSort(value as CwlRosterSort)} options={[{ value: "availability", label: "Availability" }, { value: "name", label: "Name" }, { value: "townHall", label: "Town Hall" }, { value: "role", label: "Role" }, { value: "rating", label: "CWL rating" }, { value: "regularActivity", label: "Regular activity" }]} /></div><div className="cwl-proto-pool-list">{filteredPool.map((member) => <PoolMember key={member.playerTag} member={member} locked={snapshot.plan.isLocked} onDragStart={dragStart} onAdd={() => addMember(member.playerTag)} onAvailabilityChange={(status) => void updateAvailability(member, status)} />)}{filteredPool.length === 0 ? <p className="cwl-proto-pool-empty">No roster members match these filters.</p> : null}</div></section>
       </div>
       <aside className="cwl-proto-right-rail"><RecommendationPanel snapshot={snapshot} draft={draft} locked={snapshot.plan.isLocked} changes={rotationChanges} previewActive={rotationPreviewBaseline !== null} onPreview={previewRotation} onRevert={revertRotationPreview} onApplyChange={applyRotationChange} /><BonusPriorityPanel members={snapshot.members} /><HistoryPanel snapshot={snapshot} /></aside>
     </div>

@@ -13,7 +13,6 @@ export type PortableReasonCode =
   | "eight_star_rotation"
   | "current_cwl_reliability"
   | "overall_rating"
-  | "regular_war_participation"
   | "opportunity_count"
   | "town_hall_fit"
   | "elder_tiebreaker"
@@ -35,8 +34,10 @@ export interface PortableMemberFacts {
   regularWarsParticipated?: number;
   regularAssignedAttacks?: number;
   regularAttacksMade?: number;
-  regularParticipationRate?: number | null;
-  regularAttackCompletionRate?: number | null;
+  regularActivityScore?: number | null;
+  regularPerformanceScore?: number | null;
+  regularStarsPerAttack?: number | null;
+  regularLastObservedAt?: string | null;
   overallRating?: number | null;
   bonusPriorityScore?: number | null;
 }
@@ -121,8 +122,7 @@ const explanations: Record<PortableReasonCode, string> = {
   forced_core_replacement: "A core position requires replacement because a higher-priority rule applies.",
   eight_star_rotation: "The assigned member has reached eight stars and is eligible to rotate.",
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
-  overall_rating: "Overall player rating includes current-CWL and observed regular-war evidence.",
-  regular_war_participation: "Observed regular-war participation and attack completion are part of the rating.",
+  overall_rating: "CWL rating is based on observed current-CWL attack completion.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",
   town_hall_fit: "Town Hall level is matched to the open map position.",
   elder_tiebreaker: "Verified current clan Elder status breaks an otherwise equal recommendation tie.",
@@ -139,10 +139,6 @@ const limitedConfidenceNote = (name: string) =>
 
 function rating(member: PortableMemberFacts): number {
   return member.overallRating ?? -1;
-}
-
-function hasRegularHistory(member: PortableMemberFacts): boolean {
-  return (member.regularWarsObserved ?? 0) > 0;
 }
 
 function selectCandidate(candidates: PortableMemberFacts[], outgoing: PortableMemberFacts | undefined) {
@@ -167,7 +163,6 @@ function selectCandidate(candidates: PortableMemberFacts[], outgoing: PortableMe
     const fewestOpportunities = Math.min(...tied.map(({ assignedOpportunities }) => assignedOpportunities));
     tied = tied.filter(({ assignedOpportunities }) => assignedOpportunities === fewestOpportunities);
   }
-  if (tied.length > 1 && tied.some(hasRegularHistory)) reachedRules.push("regular_war_participation");
   if (tied.length > 1 && outgoing) {
     reachedRules.push("town_hall_fit");
     const closestTownHall = Math.min(...tied.map(({ townHallLevel }) =>
@@ -220,7 +215,7 @@ function reasonsForChange(
     ...(need.lineup.isCore ? ["forced_core_replacement" as const] : []),
     ...reachedRules,
   ];
-  if (substitute.assignedOpportunities === 0 && !hasRegularHistory(substitute)) reasonCodes.push("limited_confidence");
+  if (substitute.assignedOpportunities === 0) reasonCodes.push("limited_confidence");
   return reasonCodes.map(reason);
 }
 
@@ -264,7 +259,7 @@ export class PortableOrderedRulesStrategy {
         continue;
       }
       usedCandidates.add(substitute.playerTag);
-      const confidenceNote = substitute.assignedOpportunities === 0 && !hasRegularHistory(substitute)
+      const confidenceNote = substitute.assignedOpportunities === 0
         ? limitedConfidenceNote(substitute.name)
         : undefined;
       if (confidenceNote) confidenceNotes.push(confidenceNote);

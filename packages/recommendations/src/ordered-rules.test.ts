@@ -169,4 +169,17 @@ describe("OrderedRulesStrategy", () => {
     });
     expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("overall_rating");
   });
+
+  it("does not use regular-war history as an automatic lineup tie-breaker", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { name: "Outgoing", availability: "unavailable" }),
+        member("#A", { name: "No regular evidence" }),
+        member("#Z", { name: "Observed regular evidence", regularWarsObserved: 6, regularWarsParticipated: 6, regularActivityScore: 100, regularPerformanceScore: 100 }),
+      ],
+    }));
+
+    expect(result.changes[0]?.inPlayerTag).toBe("#A");
+    expect(result.changes[0]?.reasons.some(({ code }) => code.includes("regular"))).toBe(false);
+  });
 });
