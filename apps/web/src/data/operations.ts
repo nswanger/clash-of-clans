@@ -81,6 +81,7 @@ export interface CwlLineupMember {
   attackEvidenceWarDay: number | null;
   regularWarsObserved: number;
   regularWarsParticipated: number;
+  regularWarsIncomplete: number;
   regularAssignedAttacks: number;
   regularAttacksMade: number;
   regularActivityScore: number | null;
@@ -266,7 +267,7 @@ export async function loadCwlLineupWorkspace(
     client.from("cwl_current_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_stars").select("player_tag,stars").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_overall_rating").select("player_tag,regular_wars_observed,regular_wars_participated,regular_assigned_attacks,regular_attacks_made,regular_activity_score,regular_performance_score,regular_stars_per_attack,regular_last_observed_at,overall_rating,cwl_wars_participated,bonus_priority_score").eq("clan_tag", clanTag).eq("season_id", seasonId),
-    client.from("regular_war_member_activity").select("player_tag,wars_participated,assigned_attacks,attacks_made,stars,last_observed_at,activity_score,performance_score,stars_per_attack").eq("clan_tag", clanTag),
+    client.from("regular_war_member_activity").select("player_tag,wars_participated,assigned_attacks,attacks_made,stars,last_observed_at,activity_score,performance_score,stars_per_attack,incomplete_wars").eq("clan_tag", clanTag),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
     client.from("recommendations").select("id,output,proposed_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("status", "proposed").order("proposed_at", { ascending: false }).limit(1).maybeSingle(),
@@ -346,6 +347,7 @@ export async function loadCwlLineupWorkspace(
     activity_score: number | null;
     performance_score: number | null;
     stars_per_attack: number | null;
+    incomplete_wars: number;
   }>(activityResult.data).map((row) => [row.player_tag, row]));
   const observed = rows<{ player_tag: string; map_position: number; assigned_attacks: number }>(observedResult[0].data).map((row) => ({
     playerTag: row.player_tag,
@@ -375,6 +377,7 @@ export async function loadCwlLineupWorkspace(
       attackEvidenceWarDay: attackEvidenceWar?.war_day ?? null,
       regularWarsObserved: ratings.get(member.player_tag)?.regular_wars_observed ?? 0,
       regularWarsParticipated: ratings.get(member.player_tag)?.regular_wars_participated ?? 0,
+      regularWarsIncomplete: activity.get(member.player_tag)?.incomplete_wars ?? 0,
       regularAssignedAttacks: ratings.get(member.player_tag)?.regular_assigned_attacks ?? 0,
       regularAttacksMade: ratings.get(member.player_tag)?.regular_attacks_made ?? 0,
       regularActivityScore: activity.get(member.player_tag)?.activity_score ?? ratings.get(member.player_tag)?.regular_activity_score ?? null,

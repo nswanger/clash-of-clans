@@ -65,7 +65,10 @@ function memberEvidence(member: CwlLineupMember): string {
   const regular = member.regularWarsParticipated > 0
     ? `${member.regularWarsParticipated} regular wars observed · ${member.regularActivityScore ?? 0}% attacks used · ${member.regularStarsPerAttack === null ? "—" : `${member.regularStarsPerAttack.toFixed(1)}★ / attack`}`
     : "No regular-war evidence";
-  return `${roleLabel(member.role)} · TH${member.townHallLevel} · ${attacks} · ${member.stars}★ · ${rating} · ${regular}`;
+  const captureQuality = member.regularWarsIncomplete > 0
+    ? ` · ${member.regularWarsIncomplete} incomplete capture${member.regularWarsIncomplete === 1 ? "" : "s"}`
+    : "";
+  return `${roleLabel(member.role)} · TH${member.townHallLevel} · ${attacks} · ${member.stars}★ · ${rating} · ${regular}${captureQuality}`;
 }
 
 export function isBonusSecured(member: CwlLineupMember): boolean {

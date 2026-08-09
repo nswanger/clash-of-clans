@@ -32,8 +32,14 @@ This leaves two cases that must be handled as uncertain API behavior:
 2. The next poll observes `notInWar` or a different war before the collector
    saw `warEnded`.
 
-The second case must be recorded as a coverage gap. It must not be interpreted
-as zero attacks or poor performance.
+The second case must be recorded using the evidence we actually have. A
+`notInWar` response is not automatically incomplete: if the last member-level
+snapshot was collected at or after the known `endTime`, the prior war is
+recorded as `complete_at_transition`. It is recorded as `incomplete` only when
+that last member snapshot predates `endTime` or no usable `endTime`/member
+observation exists. This prevents a correct end-of-war poll from being marked
+as a data-quality failure merely because the API had already moved to
+`notInWar`.
 
 ### `warlog` detail level
 
@@ -81,16 +87,18 @@ Do not rely on the existing once-per-day refresh as the only finalization
 opportunity. Add a narrow end-of-war collection window to the normal polling
 schedule:
 
-1. Continue the regular cadence during preparation and battle day.
-2. When the observed `endTime` is approaching, poll on a shorter cadence that
-   remains within the API's rate limits.
+1. Continue regular-war polling every six hours during preparation and battle
+   day, independent of the CWL hourly cadence.
+2. When the observed `endTime` is approaching, schedule a final read at the
+   boundary and retry five minutes later if the API still reports the war as
+   active.
 3. Persist every response idempotently, including the first `warEnded`
    response.
 4. Continue a small number of post-end retries if the first end-time request
    is stale or rate-limited.
-5. If a new war or `notInWar` appears before a completed snapshot was observed,
-   mark the prior war's member evidence as incomplete and preserve the
-   uncertainty.
+5. If a new war or `notInWar` appears before a complete member snapshot was
+   observed, mark the prior war's member evidence as incomplete and preserve
+   the uncertainty. A finalized war is never reclassified by a later retry.
 
 This is a product/collector recommendation, not a Supercell guarantee. The
 next empirical validation should observe several real transitions and record
@@ -103,4 +111,3 @@ unofficial retention assumption into the data model.
 - [Clash of Clans API developer portal](https://developer.clashofclans.com/)
 - [Official API documentation / Swagger UI](https://developer.clashofclans.com/api-docs/index.html)
 - [Supercell's official 2021 API update](https://supercell.com/en/games/clashofclans/blog/news/superbowler-qols/)
-

@@ -46,6 +46,7 @@ async function main(): Promise<void> {
     }),
     activeCwlIntervalMs: config.activeCwlIntervalMs,
     idleIntervalMs: config.idleIntervalMs,
+    regularWarIntervalMs: config.regularWarIntervalMs,
     ...(config.logLevel === "silent" ? {} : {
       onError: (error: unknown) => console.error(error instanceof Error ? error.message : "Collector failed"),
     }),

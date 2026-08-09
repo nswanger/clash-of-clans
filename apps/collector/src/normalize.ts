@@ -56,6 +56,12 @@ export interface WarUnit {
   attacks: AttackRecord[];
 }
 
+export type RegularWarFinalizationStatus =
+  | "pending"
+  | "complete_war_ended"
+  | "complete_at_transition"
+  | "incomplete";
+
 export interface RegularWarRecord {
   warKey: string;
   clanTag: string;
@@ -65,6 +71,9 @@ export interface RegularWarRecord {
   endTime?: string;
   teamSize?: number;
   attacksPerMember: number;
+  lastObservedAt?: string;
+  finalizationStatus?: RegularWarFinalizationStatus;
+  finalizationObservedAt?: string;
 }
 
 export interface RegularWarMemberRecord {
@@ -130,6 +139,11 @@ export interface CanonicalRepository {
   upsertAttack(record: AttackRecord): Promise<void>;
   applyWarUnit(unit: WarUnit): Promise<void>;
   applyRegularWarUnit(unit: RegularWarUnit): Promise<void>;
+  finalizeRegularWarAtTransition(input: {
+    clanTag: string;
+    observedAt: string;
+    currentWarKey?: string;
+  }): Promise<RegularWarFinalizationStatus | null>;
   applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number>;
   applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;
@@ -176,10 +190,22 @@ async function normalizeCurrentWar(
   const payload = object(snapshot.responseBody, "current war");
   const state = text(payload.state, "current war state");
   const clan = payload.clan === undefined ? undefined : object(payload.clan, "current war clan");
-  if (!clan || !Array.isArray(clan.members)) return;
+  const currentWarKey = optionalText(payload.tag);
+  if (!clan || !Array.isArray(clan.members)) {
+    await repository.finalizeRegularWarAtTransition({
+      clanTag: context.clanTag,
+      observedAt: snapshot.collectedAt,
+    });
+    return;
+  }
   const startIdentity = optionalText(payload.startTime) ?? optionalText(payload.preparationStartTime) ?? snapshot.collectedAt.slice(0, 10);
-  const warKey = optionalText(payload.tag) ?? `regular:${context.clanTag}:${startIdentity}`;
+  const warKey = currentWarKey ?? `regular:${context.clanTag}:${startIdentity}`;
   const attacksPerMember = optionalInteger(payload.attacksPerMember) ?? 1;
+  await repository.finalizeRegularWarAtTransition({
+    clanTag: context.clanTag,
+    observedAt: snapshot.collectedAt,
+    currentWarKey: warKey,
+  });
   const members = array(clan.members).map(value => object(value, "regular war member"));
   await repository.applyRegularWarUnit({
     war: {
@@ -191,6 +217,11 @@ async function normalizeCurrentWar(
       ...optional("preparationStartTime", clashTime(payload.preparationStartTime)),
       ...optional("startTime", clashTime(payload.startTime)),
       ...optional("endTime", clashTime(payload.endTime)),
+      lastObservedAt: snapshot.collectedAt,
+      ...(state === "warEnded" ? {
+        finalizationStatus: "complete_war_ended" as const,
+        finalizationObservedAt: snapshot.collectedAt,
+      } : {}),
     },
     members: members.map((member) => {
       const attacks = array(member.attacks).map(value => object(value, "regular war attack"));

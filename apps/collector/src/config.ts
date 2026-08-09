@@ -1,4 +1,4 @@
-import { ACTIVE_CWL_INTERVAL_MS, IDLE_INTERVAL_MS } from "./schedule.js";
+import { ACTIVE_CWL_INTERVAL_MS, IDLE_INTERVAL_MS, REGULAR_WAR_INTERVAL_MS } from "./schedule.js";
 import { isSupportedSupabaseServerKey } from "./supabase-auth.js";
 
 export type CollectorLogLevel = "silent" | "error";
@@ -12,6 +12,7 @@ export interface CollectorConfig {
   logLevel: CollectorLogLevel;
   activeCwlIntervalMs: number;
   idleIntervalMs: number;
+  regularWarIntervalMs: number;
 }
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -83,6 +84,11 @@ export function loadConfig(environment: Environment): CollectorConfig {
       environment,
       "IDLE_INTERVAL_HOURS",
       IDLE_INTERVAL_MS / (60 * 60 * 1_000),
+    ) * 60 * 60 * 1_000,
+    regularWarIntervalMs: positiveInteger(
+      environment,
+      "REGULAR_WAR_INTERVAL_HOURS",
+      REGULAR_WAR_INTERVAL_MS / (60 * 60 * 1_000),
     ) * 60 * 60 * 1_000,
   };
 }

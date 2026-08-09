@@ -67,7 +67,16 @@ export interface RegularWarRecord {
   endTime?: string;
   teamSize?: number;
   attacksPerMember: number;
+  lastObservedAt?: string;
+  finalizationStatus?: RegularWarFinalizationStatus;
+  finalizationObservedAt?: string;
 }
+
+export type RegularWarFinalizationStatus =
+  | "pending"
+  | "complete_war_ended"
+  | "complete_at_transition"
+  | "incomplete";
 export interface RegularWarMemberRecord {
   warKey: string;
   playerTag: string;
@@ -120,6 +129,11 @@ export interface CanonicalRepository {
   upsertAttack(record: AttackRecord): Promise<void>;
   applyWarUnit(unit: WarUnit): Promise<void>;
   applyRegularWarUnit(unit: RegularWarUnit): Promise<void>;
+  finalizeRegularWarAtTransition(input: {
+    clanTag: string;
+    observedAt: string;
+    currentWarKey?: string;
+  }): Promise<RegularWarFinalizationStatus | null>;
   applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number>;
   applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;

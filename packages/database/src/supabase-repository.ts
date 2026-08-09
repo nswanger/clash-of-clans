@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RegularWarUnit, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
+import type { AttackRecord, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RegularWarFinalizationStatus, RegularWarUnit, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "./repository.js";
 
 interface QueryResult { data?: unknown; error?: { message: string } | null }
 interface QueryBuilder extends PromiseLike<QueryResult> {
@@ -38,6 +38,19 @@ export class SupabaseCanonicalRepository implements CanonicalRepository {
       p_war: snake(unit.war),
       p_members: unit.members.map(snake),
     }));
+  }
+  async finalizeRegularWarAtTransition(input: {
+    clanTag: string;
+    observedAt: string;
+    currentWarKey?: string;
+  }): Promise<RegularWarFinalizationStatus | null> {
+    const result = await this.client.rpc("finalize_regular_war_at_transition", {
+      p_clan_tag: input.clanTag,
+      p_observed_at: input.observedAt,
+      p_current_war_key: input.currentWarKey ?? null,
+    });
+    check(result);
+    return result.data as RegularWarFinalizationStatus | null;
   }
   async applyMemberRosterDaily(observation: DailyRosterObservation) {
     const result = await this.client.rpc("apply_member_roster_daily", {

@@ -28,6 +28,7 @@ function member(overrides: Partial<CwlLineupMember> = {}): CwlLineupMember {
     attackEvidenceWarDay: null,
     regularWarsObserved: 0,
     regularWarsParticipated: 0,
+    regularWarsIncomplete: 0,
     regularAssignedAttacks: 0,
     regularAttacksMade: 0,
     regularActivityScore: null,

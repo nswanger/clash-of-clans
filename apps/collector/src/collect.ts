@@ -31,6 +31,11 @@ export interface CollectionSummary {
   finalizationErrors: FinalizationError[];
   internalErrors: InternalCollectionError[];
   activeCwl: boolean | null;
+  regularWar: {
+    state: string;
+    endTime: string | null;
+    warKey: string | null;
+  } | null;
 }
 
 export interface CollectDependencies {
@@ -56,6 +61,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   const internalErrors: InternalCollectionError[] = [];
   let lastFreshAt: string | null = null;
   let activeCwl: boolean | null = null;
+  let regularWar: CollectionSummary["regularWar"] = null;
 
   function failEndpoint(endpoint: Endpoint, category: string): void {
     if (!failedEndpoints.includes(endpoint)) failedEndpoints.push(endpoint);
@@ -212,13 +218,20 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     }
   }
   if (dependencies.client.getCurrentWar) {
-    await capture(
+    const currentWar = await capture(
       "current_war",
       dependencies.clanTag,
       () => dependencies.client.getCurrentWar!(dependencies.clanTag, dependencies.signal),
       {},
       { ignoreNotFound: true },
     );
+    if (currentWar) {
+      regularWar = {
+        state: currentWar.state,
+        endTime: currentWar.endTime ?? null,
+        warKey: currentWar.tag ?? null,
+      };
+    }
   }
   const leagueGroup = await capture(
     "league_group",
@@ -268,6 +281,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     finalizationErrors,
     internalErrors,
     activeCwl,
+    regularWar,
   };
 }
 
