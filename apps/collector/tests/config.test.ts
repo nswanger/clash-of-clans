@@ -26,6 +26,7 @@ describe("loadConfig", () => {
       logLevel: "error",
       activeCwlIntervalMs: 60 * 60 * 1_000,
       idleIntervalMs: 24 * 60 * 60 * 1_000,
+      regularWarIntervalMs: 6 * 60 * 60 * 1_000,
     });
   });
 
@@ -60,10 +61,12 @@ describe("loadConfig", () => {
       LOG_LEVEL: "silent",
       ACTIVE_CWL_INTERVAL_MINUTES: "15",
       IDLE_INTERVAL_HOURS: "6",
+      REGULAR_WAR_INTERVAL_HOURS: "12",
     })).toMatchObject({
       logLevel: "silent",
       activeCwlIntervalMs: 15 * 60 * 1_000,
       idleIntervalMs: 6 * 60 * 60 * 1_000,
+      regularWarIntervalMs: 12 * 60 * 60 * 1_000,
     });
   });
 
@@ -72,6 +75,7 @@ describe("loadConfig", () => {
     ["ACTIVE_CWL_INTERVAL_MINUTES", "0"],
     ["ACTIVE_CWL_INTERVAL_MINUTES", "1.5"],
     ["IDLE_INTERVAL_HOURS", "tomorrow"],
+    ["REGULAR_WAR_INTERVAL_HOURS", "0"],
   ])("rejects invalid optional setting %s=%s", (name, value) => {
     expect(() => loadConfig({
       ...validEnvironment,

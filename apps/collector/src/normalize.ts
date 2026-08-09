@@ -56,6 +56,38 @@ export interface WarUnit {
   attacks: AttackRecord[];
 }
 
+export type RegularWarFinalizationStatus =
+  | "pending"
+  | "complete_war_ended"
+  | "complete_at_transition"
+  | "incomplete";
+
+export interface RegularWarRecord {
+  warKey: string;
+  clanTag: string;
+  state: string;
+  preparationStartTime?: string;
+  startTime?: string;
+  endTime?: string;
+  teamSize?: number;
+  attacksPerMember: number;
+  lastObservedAt?: string;
+  finalizationStatus?: RegularWarFinalizationStatus;
+  finalizationObservedAt?: string;
+}
+
+export interface RegularWarMemberRecord {
+  warKey: string;
+  playerTag: string;
+  name: string;
+  townHallLevel?: number;
+  assignedAttacks: number;
+  attacksMade: number;
+  stars: number;
+}
+
+export interface RegularWarUnit { war: RegularWarRecord; members: RegularWarMemberRecord[] }
+
 export interface DailyRosterMemberRecord {
   playerTag: string;
   name: string;
@@ -106,6 +138,12 @@ export interface CanonicalRepository {
   upsertWarMember(record: WarMemberRecord): Promise<void>;
   upsertAttack(record: AttackRecord): Promise<void>;
   applyWarUnit(unit: WarUnit): Promise<void>;
+  applyRegularWarUnit(unit: RegularWarUnit): Promise<void>;
+  finalizeRegularWarAtTransition(input: {
+    clanTag: string;
+    observedAt: string;
+    currentWarKey?: string;
+  }): Promise<RegularWarFinalizationStatus | null>;
   applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number>;
   applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;
@@ -138,9 +176,66 @@ export async function normalizeSnapshot(
   else if (snapshot.endpoint === "league_war") await normalizeWar(repository, snapshot, requiredContext(context), summary);
   else if (snapshot.endpoint === "members") await normalizeRoster(repository, snapshot, requiredContext(context), summary);
   else if (snapshot.endpoint === "player") await normalizeProfile(repository, snapshot, requiredContext(context), summary);
+  else if (snapshot.endpoint === "current_war") await normalizeCurrentWar(repository, snapshot, requiredContext(context));
   else return summary;
   await repository.markSnapshotNormalized(snapshot.id, new Date().toISOString());
   return summary;
+}
+
+async function normalizeCurrentWar(
+  repository: CanonicalRepository,
+  snapshot: RawSnapshot,
+  context: NormalizationContext,
+) {
+  const payload = object(snapshot.responseBody, "current war");
+  const state = text(payload.state, "current war state");
+  const clan = payload.clan === undefined ? undefined : object(payload.clan, "current war clan");
+  const currentWarKey = optionalText(payload.tag);
+  if (!clan || !Array.isArray(clan.members)) {
+    await repository.finalizeRegularWarAtTransition({
+      clanTag: context.clanTag,
+      observedAt: snapshot.collectedAt,
+    });
+    return;
+  }
+  const startIdentity = optionalText(payload.startTime) ?? optionalText(payload.preparationStartTime) ?? snapshot.collectedAt.slice(0, 10);
+  const warKey = currentWarKey ?? `regular:${context.clanTag}:${startIdentity}`;
+  const attacksPerMember = optionalInteger(payload.attacksPerMember) ?? 1;
+  await repository.finalizeRegularWarAtTransition({
+    clanTag: context.clanTag,
+    observedAt: snapshot.collectedAt,
+    currentWarKey: warKey,
+  });
+  const members = array(clan.members).map(value => object(value, "regular war member"));
+  await repository.applyRegularWarUnit({
+    war: {
+      warKey,
+      clanTag: context.clanTag,
+      state,
+      attacksPerMember,
+      ...optional("teamSize", optionalInteger(payload.teamSize)),
+      ...optional("preparationStartTime", clashTime(payload.preparationStartTime)),
+      ...optional("startTime", clashTime(payload.startTime)),
+      ...optional("endTime", clashTime(payload.endTime)),
+      lastObservedAt: snapshot.collectedAt,
+      ...(state === "warEnded" ? {
+        finalizationStatus: "complete_war_ended" as const,
+        finalizationObservedAt: snapshot.collectedAt,
+      } : {}),
+    },
+    members: members.map((member) => {
+      const attacks = array(member.attacks).map(value => object(value, "regular war attack"));
+      return {
+        warKey,
+        playerTag: text(member.tag, "regular war player tag"),
+        name: text(member.name, "regular war player name"),
+        ...optional("townHallLevel", optionalInteger(member.townHallLevel)),
+        assignedAttacks: attacksPerMember,
+        attacksMade: attacks.length,
+        stars: attacks.reduce((total, attack) => total + (optionalInteger(attack.stars) ?? 0), 0),
+      };
+    }),
+  });
 }
 
 async function normalizeRoster(

@@ -8,6 +8,7 @@ const explanations: Record<ReasonCode, string> = {
   forced_core_replacement: "A core position requires replacement because a higher-priority rule applies.",
   eight_star_rotation: "The assigned member has reached eight stars and is eligible to rotate.",
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
+  overall_rating: "CWL rating is based on observed current-CWL attack completion.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",
   town_hall_fit: "Town Hall level is matched to the open map position.",
   elder_tiebreaker: "Verified current clan Elder status breaks an otherwise equal recommendation tie.",

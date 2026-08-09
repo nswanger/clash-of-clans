@@ -12,6 +12,7 @@ export type PortableReasonCode =
   | "forced_core_replacement"
   | "eight_star_rotation"
   | "current_cwl_reliability"
+  | "overall_rating"
   | "opportunity_count"
   | "town_hall_fit"
   | "elder_tiebreaker"
@@ -29,6 +30,16 @@ export interface PortableMemberFacts {
   stars: number;
   eightStarEligible: boolean;
   reliability: number | null;
+  regularWarsObserved?: number;
+  regularWarsParticipated?: number;
+  regularAssignedAttacks?: number;
+  regularAttacksMade?: number;
+  regularActivityScore?: number | null;
+  regularPerformanceScore?: number | null;
+  regularStarsPerAttack?: number | null;
+  regularLastObservedAt?: string | null;
+  overallRating?: number | null;
+  bonusPriorityScore?: number | null;
 }
 
 export interface PortableLineupMembership {
@@ -60,14 +71,17 @@ export interface PortableRecommendationResult {
   changes: Array<{
     outPlayerTag: string;
     inPlayerTag: string;
+    outPlayerName?: string;
+    inPlayerName?: string;
     reasons: Array<{ code: PortableReasonCode; explanation: string }>;
     confidenceNote?: string;
   }>;
   exclusions: Array<{
     playerTag: string;
+    name?: string;
     reasonCode: "unavailable" | "availability_unknown";
   }>;
-  contacts: Array<{ playerTag: string; reason: string }>;
+  contacts: Array<{ playerTag: string; name?: string; reason: string }>;
   coverageGaps: Array<{ position: number; reason: string }>;
   confidenceNotes: string[];
 }
@@ -77,7 +91,7 @@ export interface RecommendationContextEnvelope {
   seasonId: string;
   warTag: string;
   input: {
-    schemaVersion: 1;
+    schemaVersion: number;
     latestAvailabilityAt: string | null;
     sourceCollectionRunId: string | null;
     context: PortableRecommendationContext;
@@ -108,6 +122,7 @@ const explanations: Record<PortableReasonCode, string> = {
   forced_core_replacement: "A core position requires replacement because a higher-priority rule applies.",
   eight_star_rotation: "The assigned member has reached eight stars and is eligible to rotate.",
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
+  overall_rating: "CWL rating is based on observed current-CWL attack completion.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",
   town_hall_fit: "Town Hall level is matched to the open map position.",
   elder_tiebreaker: "Verified current clan Elder status breaks an otherwise equal recommendation tie.",
@@ -119,12 +134,25 @@ const contactReason = "Confirm availability before considering this member.";
 const coverageGapReason = "No available, unassigned substitute can cover this position.";
 const compareTags = (left: string, right: string) => left.localeCompare(right, "en");
 const reason = (code: PortableReasonCode) => ({ code, explanation: explanations[code] });
-const limitedConfidenceNote = (playerTag: string) =>
-  `Limited confidence for ${playerTag}: no assigned opportunities in the current CWL.`;
+const limitedConfidenceNote = (name: string) =>
+  `Limited confidence for ${name}: no assigned opportunities in the current CWL.`;
+
+function rating(member: PortableMemberFacts): number {
+  return member.overallRating ?? -1;
+}
 
 function selectCandidate(candidates: PortableMemberFacts[], outgoing: PortableMemberFacts | undefined) {
   let tied = [...candidates].sort((left, right) => compareTags(left.playerTag, right.playerTag));
   const reachedRules: PortableReasonCode[] = [];
+  if (tied.length > 1) {
+    const ratings = tied.map(rating);
+    const bestRating = Math.max(...ratings);
+    const lowestRating = Math.min(...ratings);
+    if (bestRating !== lowestRating) {
+      reachedRules.push("overall_rating");
+      tied = tied.filter((candidate) => rating(candidate) === bestRating);
+    }
+  }
   if (tied.length > 1) {
     reachedRules.push("current_cwl_reliability");
     const bestReliability = Math.max(...tied.map(({ reliability }) => reliability ?? -1));
@@ -192,7 +220,7 @@ function reasonsForChange(
 }
 
 export class PortableOrderedRulesStrategy {
-  readonly version = "ordered-rules-v2";
+  readonly version = "ordered-rules-v3";
 
   recommend(context: PortableRecommendationContext): PortableRecommendationResult {
     const membersByTag = new Map(context.members.map((member) => [member.playerTag, member]));
@@ -203,12 +231,13 @@ export class PortableOrderedRulesStrategy {
     const contacts = context.members
       .filter(({ availability }) => availability === "unknown")
       .sort((left, right) => compareTags(left.playerTag, right.playerTag))
-      .map(({ playerTag }) => ({ playerTag, reason: contactReason }));
+      .map(({ playerTag, name }) => ({ playerTag, name, reason: contactReason }));
     const exclusions: PortableRecommendationResult["exclusions"] = context.members
       .filter(({ availability }) => availability !== "available")
       .sort((left, right) => compareTags(left.playerTag, right.playerTag))
-      .map(({ playerTag, availability }) => ({
+      .map(({ playerTag, name, availability }) => ({
         playerTag,
+        name,
         reasonCode: availability === "unavailable" ? "unavailable" : "availability_unknown",
       }));
     const needs = context.currentLineup
@@ -231,12 +260,14 @@ export class PortableOrderedRulesStrategy {
       }
       usedCandidates.add(substitute.playerTag);
       const confidenceNote = substitute.assignedOpportunities === 0
-        ? limitedConfidenceNote(substitute.playerTag)
+        ? limitedConfidenceNote(substitute.name)
         : undefined;
       if (confidenceNote) confidenceNotes.push(confidenceNote);
       changes.push({
         outPlayerTag: need.lineup.playerTag,
         inPlayerTag: substitute.playerTag,
+        ...(need.member ? { outPlayerName: need.member.name } : {}),
+        inPlayerName: substitute.name,
         reasons: reasonsForChange(need, substitute, selection.reachedRules),
         ...(confidenceNote ? { confidenceNote } : {}),
       });

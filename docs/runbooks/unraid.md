@@ -98,6 +98,8 @@ These commands change UnRaid and require explicit authorization. Set `UNRAID_SSH
    - `LOG_LEVEL=error` or `silent`; default `error`.
    - `ACTIVE_CWL_INTERVAL_MINUTES`; positive integer, default `60`.
    - `IDLE_INTERVAL_HOURS`; positive integer, default `24`.
+   - `REGULAR_WAR_INTERVAL_HOURS`; positive integer, default `6`, used while
+     a regular war is active when CWL is not active.
 
 3. Validate the rendered service shape without displaying secret values, then start it:
 

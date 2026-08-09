@@ -6,7 +6,7 @@ import {
   type RawSnapshotStore,
 } from "./raw-snapshots.js";
 
-type Endpoint = "clan" | "members" | "player" | "league_group" | "league_war";
+type Endpoint = "clan" | "members" | "player" | "league_group" | "league_war" | "current_war";
 
 export interface FinalizationError {
   scope: "attempt" | "run";
@@ -31,10 +31,15 @@ export interface CollectionSummary {
   finalizationErrors: FinalizationError[];
   internalErrors: InternalCollectionError[];
   activeCwl: boolean | null;
+  regularWar: {
+    state: string;
+    endTime: string | null;
+    warKey: string | null;
+  } | null;
 }
 
 export interface CollectDependencies {
-  client: Pick<ClashClient, "getClan" | "getMembers" | "getPlayer" | "getLeagueGroup" | "getLeagueWar">;
+  client: Pick<ClashClient, "getClan" | "getMembers" | "getPlayer" | "getLeagueGroup" | "getLeagueWar"> & { getCurrentWar?: ClashClient["getCurrentWar"] };
   store: RawSnapshotStore;
   clanTag: string;
   normalize?: (
@@ -56,6 +61,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   const internalErrors: InternalCollectionError[] = [];
   let lastFreshAt: string | null = null;
   let activeCwl: boolean | null = null;
+  let regularWar: CollectionSummary["regularWar"] = null;
 
   function failEndpoint(endpoint: Endpoint, category: string): void {
     if (!failedEndpoints.includes(endpoint)) failedEndpoints.push(endpoint);
@@ -81,6 +87,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     requestIdentity: string,
     request: () => Promise<T>,
     normalizationContext: { seasonId?: string; warDay?: number } = {},
+    options: { ignoreNotFound?: boolean } = {},
   ): Promise<T | undefined> {
     dependencies.signal?.throwIfAborted();
     let attemptId: string;
@@ -103,6 +110,15 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     } catch (error) {
       dependencies.signal?.throwIfAborted();
       const category = error instanceof ClashApiError ? error.code : "internal_error";
+      if (options.ignoreNotFound && category === "not_found") {
+        await finishAttemptSafely(endpoint, {
+          attemptId,
+          status: "healthy",
+          ...(error instanceof ClashApiError && error.httpStatus !== undefined ? { httpStatus: error.httpStatus } : {}),
+          finishedAt: now().toISOString(),
+        });
+        return undefined;
+      }
       const httpStatus = error instanceof ClashApiError ? error.httpStatus : undefined;
       failEndpoint(endpoint, category);
       if (error instanceof ClashApiError && error.responseBody !== undefined && httpStatus !== undefined) {
@@ -201,6 +217,22 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
       await capture("player", member.tag, () => dependencies.client.getPlayer(member.tag, dependencies.signal));
     }
   }
+  if (dependencies.client.getCurrentWar) {
+    const currentWar = await capture(
+      "current_war",
+      dependencies.clanTag,
+      () => dependencies.client.getCurrentWar!(dependencies.clanTag, dependencies.signal),
+      {},
+      { ignoreNotFound: true },
+    );
+    if (currentWar) {
+      regularWar = {
+        state: currentWar.state,
+        endTime: currentWar.endTime ?? null,
+        warKey: currentWar.tag ?? null,
+      };
+    }
+  }
   const leagueGroup = await capture(
     "league_group",
     dependencies.clanTag,
@@ -249,6 +281,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     finalizationErrors,
     internalErrors,
     activeCwl,
+    regularWar,
   };
 }
 

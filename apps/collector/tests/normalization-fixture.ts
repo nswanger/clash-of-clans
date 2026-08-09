@@ -1,4 +1,4 @@
-import type { AttackRecord, CanonicalCounts, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RawSnapshot, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "../../../packages/database/src/repository.js";
+import type { AttackRecord, CanonicalCounts, CanonicalRepository, DailyMemberProfile, DailyRosterObservation, MemberRecord, RawSnapshot, RegularWarFinalizationStatus, RegularWarMemberRecord, RegularWarRecord, RegularWarUnit, SeasonRecord, WarMemberRecord, WarRecord, WarUnit } from "../../../packages/database/src/repository.js";
 
 export class MemoryRepository implements CanonicalRepository {
   readonly seasons = new Map<string, SeasonRecord>();
@@ -9,6 +9,8 @@ export class MemoryRepository implements CanonicalRepository {
   readonly normalized = new Set<string>();
   readonly rosterObservations: DailyRosterObservation[] = [];
   readonly profiles: DailyMemberProfile[] = [];
+  readonly regularWars = new Map<string, RegularWarRecord>();
+  readonly regularWarMembers = new Map<string, RegularWarMemberRecord>();
   failAfterWarMembers = false;
   async upsertSeason(value: SeasonRecord) { this.seasons.set(`${value.clanTag}:${value.seasonId}`, value); }
   async upsertMember(value: MemberRecord) { this.members.set(`${value.clanTag}:${value.seasonId}:${value.playerTag}`, value); }
@@ -35,6 +37,26 @@ export class MemoryRepository implements CanonicalRepository {
       this.attacks.clear(); priorAttacks.forEach((value, key) => this.attacks.set(key, value));
       throw error;
     }
+  }
+  async applyRegularWarUnit(unit: RegularWarUnit) {
+    this.regularWars.set(unit.war.warKey, unit.war);
+    for (const member of unit.members) this.regularWarMembers.set(`${member.warKey}:${member.playerTag}`, member);
+  }
+  async finalizeRegularWarAtTransition(input: { clanTag: string; observedAt: string; currentWarKey?: string }): Promise<RegularWarFinalizationStatus | null> {
+    const candidate = [...this.regularWars.values()]
+      .filter((war) => war.clanTag === input.clanTag
+        && (war.finalizationStatus === undefined || war.finalizationStatus === "pending"))
+      .filter((war) => war.warKey !== input.currentWarKey)
+      .sort((left, right) => (right.endTime ?? "").localeCompare(left.endTime ?? ""))[0];
+    if (!candidate) return null;
+    const status: RegularWarFinalizationStatus = candidate.lastObservedAt && candidate.endTime
+      && Date.parse(candidate.lastObservedAt) >= Date.parse(candidate.endTime)
+      ? "complete_at_transition"
+      : "incomplete";
+    candidate.finalizationStatus = status;
+    candidate.finalizationObservedAt = input.observedAt;
+    this.regularWars.set(candidate.warKey, candidate);
+    return status;
   }
   async applyMemberRosterDaily(value: DailyRosterObservation) { this.rosterObservations.push(value); return value.members.length; }
   async applyMemberProfileDaily(value: DailyMemberProfile) { this.profiles.push(value); return true; }

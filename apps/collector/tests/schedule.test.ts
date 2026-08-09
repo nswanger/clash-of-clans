@@ -23,6 +23,22 @@ describe("collector scheduling", () => {
     expect(nextCollectionAt(now, false, cadence).toISOString()).toBe("2026-07-11T18:00:00.000Z");
   });
 
+  it("polls regular wars every six hours and schedules the end transition", () => {
+    const now = new Date("2026-07-11T12:00:00.000Z");
+    const regularWar = {
+      state: "inWar",
+      endTime: "2026-07-11T20:00:00.000Z",
+      warKey: "#REGULAR",
+    };
+
+    expect(nextCollectionAt(now, false, undefined, regularWar).toISOString())
+      .toBe("2026-07-11T18:00:00.000Z");
+    expect(nextCollectionAt(new Date("2026-07-11T19:55:00.000Z"), false, undefined, regularWar).toISOString())
+      .toBe("2026-07-11T20:00:00.000Z");
+    expect(nextCollectionAt(new Date("2026-07-11T20:01:00.000Z"), false, undefined, regularWar).toISOString())
+      .toBe("2026-07-11T20:06:00.000Z");
+  });
+
   it("renews ownership throughout a collection longer than the initial lease", async () => {
     let now = new Date("2026-07-11T12:00:00.000Z");
     let heartbeat!: () => void;

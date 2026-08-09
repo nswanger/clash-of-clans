@@ -58,6 +58,35 @@ export interface RawSnapshot {
 
 export interface CanonicalCounts { seasons: number; wars: number; warMembers: number; attacks: number }
 export interface WarUnit { war: WarRecord; members: WarMemberRecord[]; attacks: AttackRecord[] }
+export interface RegularWarRecord {
+  warKey: string;
+  clanTag: string;
+  state: string;
+  preparationStartTime?: string;
+  startTime?: string;
+  endTime?: string;
+  teamSize?: number;
+  attacksPerMember: number;
+  lastObservedAt?: string;
+  finalizationStatus?: RegularWarFinalizationStatus;
+  finalizationObservedAt?: string;
+}
+
+export type RegularWarFinalizationStatus =
+  | "pending"
+  | "complete_war_ended"
+  | "complete_at_transition"
+  | "incomplete";
+export interface RegularWarMemberRecord {
+  warKey: string;
+  playerTag: string;
+  name: string;
+  townHallLevel?: number;
+  assignedAttacks: number;
+  attacksMade: number;
+  stars: number;
+}
+export interface RegularWarUnit { war: RegularWarRecord; members: RegularWarMemberRecord[] }
 export interface DailyRosterMemberRecord {
   playerTag: string;
   name: string;
@@ -99,6 +128,12 @@ export interface CanonicalRepository {
   upsertWarMember(record: WarMemberRecord): Promise<void>;
   upsertAttack(record: AttackRecord): Promise<void>;
   applyWarUnit(unit: WarUnit): Promise<void>;
+  applyRegularWarUnit(unit: RegularWarUnit): Promise<void>;
+  finalizeRegularWarAtTransition(input: {
+    clanTag: string;
+    observedAt: string;
+    currentWarKey?: string;
+  }): Promise<RegularWarFinalizationStatus | null>;
   applyMemberRosterDaily(observation: DailyRosterObservation): Promise<number>;
   applyMemberProfileDaily(profile: DailyMemberProfile): Promise<boolean>;
   findWarContext(warTag: string): Promise<{ clanTag: string; seasonId: string; warDay: number } | undefined>;

@@ -57,6 +57,7 @@ describe("collectOnce", () => {
         expect(events).toContain("saved:league_group");
         return { tag: "#FAKEWAR1", state: "preparation", clan: {}, opponent: {} };
       }),
+      getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
     };
 
     const summary = await collectOnce({
@@ -67,10 +68,10 @@ describe("collectOnce", () => {
     expect(summary.capturedWarTags).toEqual(["#FAKEWAR1"]);
     expect(summary.failedEndpoints).toEqual([]);
     expect(summary.successfulEndpoints).toEqual([
-      "clan", "members", "player", "league_group", "league_war",
+      "clan", "members", "player", "current_war", "league_group", "league_war",
     ]);
-    expect(store.createAttempt).toHaveBeenCalledTimes(5);
-    expect(store.saveSnapshot).toHaveBeenCalledTimes(5);
+    expect(store.createAttempt).toHaveBeenCalledTimes(6);
+    expect(store.saveSnapshot).toHaveBeenCalledTimes(6);
     expect(normalize).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: "members",
@@ -100,13 +101,14 @@ describe("collectOnce", () => {
         rounds: [],
       }),
       getLeagueWar: vi.fn(),
+      getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
     };
 
     const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
 
     expect(client.getMembers).toHaveBeenCalled();
     expect(client.getLeagueGroup).toHaveBeenCalled();
-    expect(summary.successfulEndpoints).toEqual(["members", "league_group"]);
+    expect(summary.successfulEndpoints).toEqual(["members", "current_war", "league_group"]);
     expect(summary.failedEndpoints).toEqual(["clan"]);
     expect(summary.errorCategories).toEqual({ clan: "rate_limited" });
     expect(summary.lastFreshAt).not.toBeNull();
@@ -127,6 +129,7 @@ describe("collectOnce", () => {
       getPlayer: vi.fn(),
       getLeagueGroup: vi.fn().mockRejectedValue(new ClashApiError("network", "Network failed")),
       getLeagueWar: vi.fn(),
+      getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
     };
 
     const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
@@ -146,6 +149,7 @@ describe("collectOnce", () => {
         state: "notInWar", season: "2099-01", clans: [], rounds: [],
       }),
       getLeagueWar: vi.fn(),
+      getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
     };
 
     const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
@@ -154,8 +158,8 @@ describe("collectOnce", () => {
     expect(client.getLeagueGroup).toHaveBeenCalled();
     expect(summary.errorCategories.clan).toBe("storage_error");
     expect(summary.finalizationErrors).toEqual([]);
-    expect(summary.successfulEndpoints).toEqual(["members", "league_group"]);
-    expect(store.saveSnapshot).toHaveBeenCalledTimes(3);
+    expect(summary.successfulEndpoints).toEqual(["members", "current_war", "league_group"]);
+    expect(store.saveSnapshot).toHaveBeenCalledTimes(4);
   });
 
   it("continues siblings and reports attempt finalization failure", async () => {

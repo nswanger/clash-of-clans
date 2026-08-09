@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "result": "win",
+      "endTime": "<redacted timestamp>",
+      "teamSize": 15,
+      "attacksPerMember": 1,
+      "battleModifier": "none",
+      "clan": {
+        "tag": "<redacted clan tag>",
+        "name": "<redacted clan name>",
+        "attacks": 97,
+        "stars": 292,
+        "destructionPercentage": "<redacted>",
+        "expEarned": 0
+      },
+      "opponent": {
+        "tag": "<redacted opponent tag>",
+        "name": "<redacted opponent name>",
+        "stars": 204,
+        "destructionPercentage": "<redacted>"
+      }
+    }
+  ],
+  "paging": {
+    "cursors": {}
+  }
+}

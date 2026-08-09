@@ -56,9 +56,9 @@ describe("OrderedRulesStrategy", () => {
     expect(result.changes).toEqual([]);
     expect(result.contacts.map(({ playerTag }) => playerTag)).toEqual(["#ASK"]);
     expect(result.exclusions).toEqual([
-      { playerTag: "#ASK", reasonCode: "availability_unknown" },
-      { playerTag: "#NO", reasonCode: "unavailable" },
-      { playerTag: "#OUT", reasonCode: "unavailable" },
+      { playerTag: "#ASK", name: "#ASK", reasonCode: "availability_unknown" },
+      { playerTag: "#NO", name: "#NO", reasonCode: "unavailable" },
+      { playerTag: "#OUT", name: "#OUT", reasonCode: "unavailable" },
     ]);
     expect(result.coverageGaps).toEqual([{ position: 11, reason: expect.any(String) }]);
   });
@@ -150,5 +150,36 @@ describe("OrderedRulesStrategy", () => {
     expect(result.changes[0]?.confidenceNote).toMatch(/limited/i);
     expect(result.confidenceNotes).toContainEqual(expect.stringMatching(/#NEW/));
     expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("limited_confidence");
+  });
+
+  it("uses the overall rating before current-CWL tie-breakers and returns display names", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { name: "Outgoing", availability: "unavailable" }),
+        member("#REGULAR", { name: "Regular Reliable", overallRating: 91, regularWarsObserved: 4, regularWarsParticipated: 4 }),
+        member("#CURRENT", { name: "Current Reliable", overallRating: 72 }),
+      ],
+    }));
+
+    expect(result.changes[0]).toMatchObject({
+      outPlayerTag: "#OUT",
+      inPlayerTag: "#REGULAR",
+      outPlayerName: "Outgoing",
+      inPlayerName: "Regular Reliable",
+    });
+    expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("overall_rating");
+  });
+
+  it("does not use regular-war history as an automatic lineup tie-breaker", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { name: "Outgoing", availability: "unavailable" }),
+        member("#A", { name: "No regular evidence" }),
+        member("#Z", { name: "Observed regular evidence", regularWarsObserved: 6, regularWarsParticipated: 6, regularActivityScore: 100, regularPerformanceScore: 100 }),
+      ],
+    }));
+
+    expect(result.changes[0]?.inPlayerTag).toBe("#A");
+    expect(result.changes[0]?.reasons.some(({ code }) => code.includes("regular"))).toBe(false);
   });
 });

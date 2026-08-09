@@ -2,6 +2,9 @@ import type { CollectionStatus } from "./raw-snapshots.js";
 
 export const ACTIVE_CWL_INTERVAL_MS = 60 * 60 * 1_000;
 export const IDLE_INTERVAL_MS = 24 * 60 * 60 * 1_000;
+export const REGULAR_WAR_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+export const REGULAR_WAR_FINALIZATION_LEAD_MS = 5 * 60 * 1_000;
+export const REGULAR_WAR_FINALIZATION_DELAY_MS = 5 * 60 * 1_000;
 export const LEASE_DURATION_MS = 60 * 60 * 1_000;
 export const LEASE_HEARTBEAT_MS = 20 * 60 * 1_000;
 export const LEASE_SAFETY_DEADLINE_MS = LEASE_DURATION_MS - LEASE_HEARTBEAT_MS;
@@ -12,25 +15,59 @@ export interface CollectionLease {
   release(ownerId: string): Promise<void>;
 }
 
-export interface CollectionResult { activeCwl: boolean | null }
+export interface RegularWarCollectionState {
+  state: string;
+  endTime: string | null;
+  warKey: string | null;
+}
+
+export interface CollectionResult {
+  activeCwl: boolean | null;
+  regularWar?: RegularWarCollectionState | null;
+}
 type Timer = ReturnType<typeof setTimeout>;
 
 export interface CollectionCadence {
   activeCwlIntervalMs: number;
   idleIntervalMs: number;
+  regularWarIntervalMs?: number;
+  regularWarFinalizationLeadMs?: number;
+  regularWarFinalizationDelayMs?: number;
 }
 
 const defaultCadence: CollectionCadence = {
   activeCwlIntervalMs: ACTIVE_CWL_INTERVAL_MS,
   idleIntervalMs: IDLE_INTERVAL_MS,
+  regularWarIntervalMs: REGULAR_WAR_INTERVAL_MS,
+  regularWarFinalizationLeadMs: REGULAR_WAR_FINALIZATION_LEAD_MS,
+  regularWarFinalizationDelayMs: REGULAR_WAR_FINALIZATION_DELAY_MS,
 };
 
 export function nextCollectionAt(
   now: Date,
   activeCwl: boolean | null,
   cadence: CollectionCadence = defaultCadence,
+  regularWar?: RegularWarCollectionState | null,
 ): Date {
-  return new Date(now.getTime() + (activeCwl === false ? cadence.idleIntervalMs : cadence.activeCwlIntervalMs));
+  let delay = activeCwl === false ? cadence.idleIntervalMs : cadence.activeCwlIntervalMs;
+  if (activeCwl === false && regularWar && (regularWar.state === "preparation" || regularWar.state === "inWar")) {
+    delay = Math.min(delay, cadence.regularWarIntervalMs ?? REGULAR_WAR_INTERVAL_MS);
+    const endTime = regularWar.endTime === null ? NaN : Date.parse(regularWar.endTime);
+    if (Number.isFinite(endTime)) {
+      const untilEnd = endTime - now.getTime();
+      if (untilEnd > 0) {
+        const lead = cadence.regularWarFinalizationLeadMs ?? REGULAR_WAR_FINALIZATION_LEAD_MS;
+        if (untilEnd <= lead) {
+          delay = Math.min(delay, Math.max(1_000, untilEnd));
+        } else {
+          delay = Math.min(delay, untilEnd - lead);
+        }
+      } else {
+        delay = Math.min(delay, cadence.regularWarFinalizationDelayMs ?? REGULAR_WAR_FINALIZATION_DELAY_MS);
+      }
+    }
+  }
+  return new Date(now.getTime() + delay);
 }
 
 export interface HealthInput {
@@ -40,6 +77,9 @@ export interface HealthInput {
   latestStatus: CollectionStatus | null;
   activeCwlIntervalMs?: number;
   idleIntervalMs?: number;
+  regularWarIntervalMs?: number;
+  regularWarFinalizationLeadMs?: number;
+  regularWarFinalizationDelayMs?: number;
 }
 
 export type HealthStatus = "healthy" | "stale" | "invalid_ip" | "error";
@@ -70,6 +110,9 @@ interface SchedulerDependencies {
   onError?: (error: unknown) => void;
   activeCwlIntervalMs?: number;
   idleIntervalMs?: number;
+  regularWarIntervalMs?: number;
+  regularWarFinalizationLeadMs?: number;
+  regularWarFinalizationDelayMs?: number;
 }
 
 export class CollectionScheduler {
@@ -100,6 +143,9 @@ export class CollectionScheduler {
     this.cadence = {
       activeCwlIntervalMs: dependencies.activeCwlIntervalMs ?? ACTIVE_CWL_INTERVAL_MS,
       idleIntervalMs: dependencies.idleIntervalMs ?? IDLE_INTERVAL_MS,
+      regularWarIntervalMs: dependencies.regularWarIntervalMs ?? REGULAR_WAR_INTERVAL_MS,
+      regularWarFinalizationLeadMs: dependencies.regularWarFinalizationLeadMs ?? REGULAR_WAR_FINALIZATION_LEAD_MS,
+      regularWarFinalizationDelayMs: dependencies.regularWarFinalizationDelayMs ?? REGULAR_WAR_FINALIZATION_DELAY_MS,
     };
   }
 
@@ -134,7 +180,7 @@ export class CollectionScheduler {
       const result = await this.dependencies.collect(controller.signal);
       if (renewalInFlight) await renewalInFlight;
       controller.signal.throwIfAborted();
-      this.schedule(result.activeCwl);
+      this.schedule(result.activeCwl, result.regularWar);
     } catch (error) {
       this.dependencies.onError?.(error);
       this.schedule(true);
@@ -176,10 +222,10 @@ export class CollectionScheduler {
     }, LEASE_SAFETY_DEADLINE_MS);
   }
 
-  private schedule(activeCwl: boolean | null): void {
+  private schedule(activeCwl: boolean | null, regularWar?: RegularWarCollectionState | null): void {
     if (this.stopped) return;
     const now = this.now();
-    const delay = nextCollectionAt(now, activeCwl, this.cadence).getTime() - now.getTime();
+    const delay = nextCollectionAt(now, activeCwl, this.cadence, regularWar).getTime() - now.getTime();
     this.timer = this.setTimer(() => { void this.runNow(); }, delay);
   }
 }

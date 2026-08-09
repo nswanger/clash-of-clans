@@ -14,6 +14,8 @@ import type {
   DailyMemberProfile,
   DailyRosterObservation,
   MemberRecord,
+  RegularWarUnit,
+  RegularWarFinalizationStatus,
   SeasonRecord,
   WarMemberRecord,
   WarRecord,
@@ -127,6 +129,25 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
       p_war: snake(unit.war),
       p_members: unit.members.map(snake),
       p_attacks: unit.attacks.map(snake),
+    });
+  }
+
+  async applyRegularWarUnit(unit: RegularWarUnit): Promise<void> {
+    await this.rpc("apply_regular_war_unit", {
+      p_war: snake(unit.war),
+      p_members: unit.members.map(snake),
+    });
+  }
+
+  async finalizeRegularWarAtTransition(input: {
+    clanTag: string;
+    observedAt: string;
+    currentWarKey?: string;
+  }): Promise<RegularWarFinalizationStatus | null> {
+    return this.rpc<RegularWarFinalizationStatus | null>("finalize_regular_war_at_transition", {
+      p_clan_tag: input.clanTag,
+      p_observed_at: input.observedAt,
+      p_current_war_key: input.currentWarKey ?? null,
     });
   }
 

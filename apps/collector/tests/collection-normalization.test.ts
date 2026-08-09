@@ -52,6 +52,7 @@ function fixtureClient() {
     getPlayer: async () => ({ tag: "#PLAYER", name: "Fixture Player", townHallLevel: 1 }),
     getLeagueGroup: async () => group.responseBody as any,
     getLeagueWar: async () => war.responseBody as any,
+    getCurrentWar: async () => ({ state: "notInWar" }),
   };
 }
 
