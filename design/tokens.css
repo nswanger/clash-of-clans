@@ -1,12 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700&display=swap');
 
-/* Clan Muster tokens.
+/* Clan Muster tokens — the complete foundation.
  *
- * COLOR (#16) and TYPE + DENSITY (#17) ARE LOCKED. Spacing, radii and elevation below are still provisional, extracted in
- * docs/design/ui-inventory-audit.md. They are a baseline to diff against,
- * not decisions. See design/README.md.
+ * ALL LOCKED: color (#16), type and density (#17), spacing, radii, elevation,
+ * layout and breakpoints (#18). Raw material for every decision is in
+ * docs/design/ui-inventory-audit.md. See design/README.md.
  *
- * Decided by: #16 (color), #17 (type), #18 (spacing/radii/elevation).
+ * Nothing in apps/web imports this yet — how the app consumes these tokens is
+ * #23, alongside font delivery and component API conventions.
  *
  * Dark mode is scaffolded here so it is never retrofitted. The light palette is
  * defined on bare :root; only tokens that change are redefined under dark.
@@ -121,7 +122,12 @@
   --cm-row-meta: var(--cm-text-sm);
   --cm-tap-min: 44px;        /* never overridden by density */
 
-  /* ---- spacing: 4px rhythm, replacing 43 padding and 23 gap values ---- */
+  /* ---- spacing ---- (locked in #18)
+   * One 4px rhythm, seven steps, absorbing today's 43 padding and 23 gap
+   * values. No sub-4px step: the 1px, 2px and 3px "gaps" in the current CSS
+   * are hairline separators — a border doing a layout job — and become
+   * borders, not spaces.
+   */
   --cm-space-1: 4px;
   --cm-space-2: 8px;
   --cm-space-3: 12px;
@@ -130,23 +136,90 @@
   --cm-space-6: 32px;
   --cm-space-7: 48px;
 
-  /* ---- radii: 13 values today ---- */
-  --cm-radius-sm: 4px;
-  --cm-radius-md: 8px;
-  --cm-radius-lg: 12px;
-  --cm-radius-pill: 999px;
-  --cm-radius-circle: 50%;
+  /* ---- radii ---- (locked in #18)
+   * Soft, chosen on a phone against tight (3/6/8) and medium (4/8/12).
+   * Assignment is by class of surface, never per component:
+   *   lg  containers — cards, panels, popovers, the day strip, page shells
+   *   md  controls   — buttons, inputs, rows, slots, the availability chip
+   *   sm  inline     — swatches, and controls nested inside a control
+   * Nesting rule: an element inside a container drops exactly one step. That
+   * is what stops the 5px-inside-7px-inside-10px soup in the current CSS.
+   */
+  --cm-radius-sm: 6px;
+  --cm-radius-md: 10px;
+  --cm-radius-lg: 16px;
+  --cm-radius-pill: 999px;   /* status badges, counts */
+  --cm-radius-circle: 50%;   /* avatars only */
 
-  /* ---- elevation: 2 levels, plus a selection indicator that is not depth ---- */
-  --cm-shadow-1: 0 1px 2px rgb(23 22 21 / 4%), 0 2px 8px rgb(23 22 21 / 4%);
-  --cm-shadow-2: 0 2px 6px rgb(23 22 21 / 5%), 0 10px 24px rgb(23 22 21 / 10%);
-  --cm-ring: inset 0 0 0 1px var(--cm-hairline);
+  /* ---- elevation ---- (locked in #18)
+   * Depth is binary, not a scale. A flat surface is separated by its hairline
+   * and by background shift (bg / surface / surface-sunken) — never by shadow.
+   * Shadow is reserved for something that overlaps other content.
+   *
+   * The current CSS already believed this without saying so: its two
+   * non-overlay shadows sit at 3% and 4% black and are invisible, while both
+   * real shadows are on popovers. One token replaces both popovers.
+   *
+   * This is also why the model survives dark mode. Hairlines and background
+   * shifts behave identically in both themes, so only the overlay needs
+   * per-theme tuning — and in dark, an overlay must also sit on a *lighter*
+   * surface than the page, because shadow cannot separate black from black.
+   */
+  --cm-shadow-overlay: 0 8px 24px rgb(23 22 21 / 12%), 0 2px 6px rgb(23 22 21 / 6%);
 
-  /* ---- breakpoints (documentation; CSS custom properties cannot be used in
-   * media queries — these record the declared set replacing today's seven) ---- */
-  --cm-bp-mobile: 480px;
-  --cm-bp-tablet: 768px;
-  --cm-bp-desktop: 1100px;
+  /* Edge marker — replaces an ad-hoc blue tab underline and a teal left rail.
+   * The colour carries the meaning and is set per use; selection is
+   * --cm-accent-edge. Provenance and state colours are #19.
+   *
+   * Two forms, because an inset box-shadow follows the border-radius: on a
+   * soft-radius row a left rail drawn that way is eaten by the corners and
+   * renders as a crescent. Caught by rendering it.
+   *
+   *   underline — full-bleed, for a segment inside a strip whose interior
+   *   corners are square:
+   *     box-shadow: inset 0 calc(-1 * var(--cm-marker-width)) 0 <colour>;
+   *
+   *   rail — for a standalone rounded row; a pseudo-element inset from both
+   *   ends and pill-capped, so it never meets a corner:
+   *     position: relative;
+   *     &::before { content:""; position:absolute; left:0;
+   *       top:var(--cm-marker-inset); bottom:var(--cm-marker-inset);
+   *       width:var(--cm-marker-width);
+   *       border-radius:var(--cm-radius-pill); background:<colour>; }
+   */
+  --cm-marker-width: 3px;
+  --cm-marker-inset: var(--cm-space-2);
+
+  /* Focus geometry. Solid, not a translucent halo: a translucent ring
+   * composites over whatever sits behind it, so its contrast changes silently
+   * on a coloured surface. Colour is --cm-focus-ring, verified in #16. */
+  --cm-focus-width: 2px;
+  --cm-focus-offset: 2px;
+
+  /* ---- layout ---- (locked in #18)
+   * One shell primitive with a width variant, replacing five near-identical
+   * containers. Gutter widens at the md breakpoint below.
+   */
+  --cm-gutter: var(--cm-space-4);
+  --cm-shell-sm: 480px;    /* access */
+  --cm-shell-md: 1080px;   /* dashboard, overview, season */
+  --cm-shell-lg: 1440px;   /* members, CWL workspace */
+
+  /* ---- breakpoints ---- (locked in #18)
+   * Mobile-first min-width, replacing seven ad-hoc max-width values. Today's
+   * 900/840/800 all meant "multi-column stopped working" and 680/560/480 all
+   * meant "phone"; 1100 was the CWL workspace going wide. Two breakpoints
+   * reproduce all three layouts.
+   *
+   * Documentation only — custom properties cannot be used in media queries,
+   * so the literals below must match: 720px and 1120px.
+   */
+  --cm-bp-md: 720px;
+  --cm-bp-lg: 1120px;
+}
+
+@media (min-width: 720px) {
+  :root { --cm-gutter: var(--cm-space-5); }
 }
 
 @media (pointer: fine) {
@@ -184,8 +257,7 @@
     --cm-danger-ink: #F08A5B;
     --cm-danger-subtle: #33190F;
 
-    --cm-shadow-1: 0 1px 2px rgb(0 0 0 / 30%), 0 2px 8px rgb(0 0 0 / 24%);
-    --cm-shadow-2: 0 2px 6px rgb(0 0 0 / 32%), 0 10px 24px rgb(0 0 0 / 40%);
+    --cm-shadow-overlay: 0 10px 28px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 35%);
   }
 }
 
@@ -214,6 +286,5 @@
   --cm-danger-ink: #F08A5B;
   --cm-danger-subtle: #33190F;
 
-  --cm-shadow-1: 0 1px 2px rgb(0 0 0 / 30%), 0 2px 8px rgb(0 0 0 / 24%);
-  --cm-shadow-2: 0 2px 6px rgb(0 0 0 / 32%), 0 10px 24px rgb(0 0 0 / 40%);
+  --cm-shadow-overlay: 0 10px 28px rgb(0 0 0 / 50%), 0 2px 6px rgb(0 0 0 / 35%);
 }
