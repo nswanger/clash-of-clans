@@ -38,10 +38,15 @@ The shape of the color system, in three rules:
 
 Two contrast roles, not one: `--cm-hairline` is decorative and deliberately below 3:1, while `--cm-border-control` clears 3:1 for control boundaries. WCAG 1.4.11 governs the latter, not card edges — forcing every table rule to 3:1 makes a dense roster unreadable. `neutral-500` clears it in both themes, so it is one token rather than a pair.
 
-**Still provisional** — type, spacing, radii, and elevation:
+**Type and density are locked** ([#17](https://github.com/nswanger/clash-of-clans/issues/17)).
 
-- Type — [#17](https://github.com/nswanger/clash-of-clans/issues/17). The scale bottoms out at 9px today, with 35 declarations at 11px or below. The 12px floor scaffolded here is a proposal, not a decision.
-- Spacing, radii, elevation — [#18](https://github.com/nswanger/clash-of-clans/issues/18).
+- **Archivo, one family**, for UI and display alike — chosen on a phone at true 1:1 size. The app never actually loaded a webfont before this: `styles.css` named Inter with no `@font-face` anywhere, so every user fell through to a system face and Android leaders saw Roboto.
+- **7 sizes, floor 12px** (up from 15 sizes and a 9px floor). 11px survives for uppercase labels only.
+- **4 weights**; 650, 750 and 800 dropped as indistinguishable at these sizes.
+- **Tracking bound to size**, never chosen per use.
+- **Density follows the input device**: comfortable is the base, `(pointer: fine)` opts into compact. A failed query lands on the accessible option. `--cm-tap-min: 44px` is never overridden.
+
+**Still provisional** — spacing, radii and elevation, pending [#18](https://github.com/nswanger/clash-of-clans/issues/18).
 
 ## Not yet decided
 

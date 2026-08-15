@@ -1,0 +1,49 @@
+<!-- @dsCard group="Type" -->
+<!doctype html><html><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');</style><link rel="stylesheet" href="_card.css">
+<style>
+body{font-family:Archivo,sans-serif}
+table{border-collapse:collapse;width:100%;font-size:12px}
+td,th{padding:7px 10px 7px 0;text-align:left;border-bottom:1px solid #E7E3DC;vertical-align:baseline}
+th{font-family:var(--cm-font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#6E675C;font-weight:500}
+.k{font-family:var(--cm-font-mono);font-size:11px;color:#262320;font-weight:600}
+.v{font-family:var(--cm-font-mono);font-size:11px;color:#6E675C}
+.f{color:#514B42} .u{color:#6E675C}
+.samples{display:flex;flex-direction:column;gap:6px;padding:16px;background:#FAF9F7;border-radius:8px}
+.bad{padding:12px 14px;border-radius:8px;background:#FBEAE1;color:#A33208;font-size:13px;line-height:1.5}
+.ok{padding:12px 14px;border-radius:8px;background:#EAF2E0;color:#3F6B2A;font-size:13px;line-height:1.5}
+</style></head><body><div class="card">
+<div class="col"><h2 style="font-family:Archivo,sans-serif;font-size:20px;font-weight:700;letter-spacing:-.01em;color:#262320">Type scale</h2>
+<div class="bad"><strong>Today: 15 sizes, floor at 9px.</strong> 35 declarations sit at 11px or below and 18 at
+10px or below &mdash; on the phone where you adjust lineups. Weights run to eight steps including 650 and 750,
+which are indistinguishable at these sizes.</div>
+<div class="ok"><strong>Proposed: 7 steps, floor at 12px, 3 weights.</strong> The floor rises because legibility
+on a 390px screen is the point; 11px survives only for uppercase eyebrows, where letterforms are simpler and
+tracking opens them up.</div></div>
+
+<div class="col"><span class="mono-label">Scale</span>
+<table><tr><th>token</th><th>size</th><th>face / weight</th><th>tracking</th><th>use</th></tr><tr><td class="k">display</td><td class="v">clamp(26px, 4vw, 34px)</td><td class="f">Archivo 700</td>
+  <td class="f">-0.02em</td><td class="u">page title, wordmark</td></tr><tr><td class="k">xl</td><td class="v">20px</td><td class="f">Archivo 600</td>
+  <td class="f">-0.01em</td><td class="u">section heading</td></tr><tr><td class="k">lg</td><td class="v">16px</td><td class="f">Archivo 600</td>
+  <td class="f">0</td><td class="u">member name, subhead</td></tr><tr><td class="k">md</td><td class="v">14px</td><td class="f">Archivo 400</td>
+  <td class="f">0</td><td class="u">body, primary cell</td></tr><tr><td class="k">sm</td><td class="v">13px</td><td class="f">Archivo 400</td>
+  <td class="f">0</td><td class="u">secondary cell</td></tr><tr><td class="k">xs</td><td class="v">12px</td><td class="f">Archivo 500</td>
+  <td class="f">0</td><td class="u">label, metadata — FLOOR</td></tr><tr><td class="k">label</td><td class="v">11px</td><td class="f">Archivo 600</td>
+  <td class="f">+0.04em</td><td class="u">uppercase eyebrow only</td></tr></table></div>
+
+<div class="col"><span class="mono-label">Rendered</span>
+<div class="samples">
+  <span style="font-family:Archivo,sans-serif;font-size:34px;font-weight:700;letter-spacing:-.02em;color:#262320">Clan Muster</span>
+  <span style="font-family:Archivo,sans-serif;font-size:20px;font-weight:600;letter-spacing:-.01em;color:#262320">War day 3 &middot; lineup</span>
+  <span style="font-size:16px;font-weight:600;color:#262320">Halberd</span>
+  <span style="font-size:14px;color:#262320">Planned lineup inherits once, then stays independent.</span>
+  <span style="font-size:13px;color:#6E675C">Observed from the Clash API after the war starts.</span>
+  <span style="font-size:12px;font-weight:500;color:#6E675C">TH16 &middot; 2 attacks &middot; 87%</span>
+  <span style="font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#6E675C">Substitute pool</span>
+</div></div>
+
+<div class="col"><span class="mono-label">Weights &amp; tracking</span>
+<p class="note" style="font-size:12px;color:#6E675C;line-height:1.5">
+Three weights: <strong>400</strong> body, <strong>500</strong> data emphasis, <strong>600</strong> headings and labels.
+Archivo adds <strong>700</strong> for display only. 650, 750 and 800 are dropped.<br>
+Tracking is bound to size, not chosen per use: negative above 20px, zero for body, +0.04em for uppercase labels only.</p></div>
+</div></body></html>

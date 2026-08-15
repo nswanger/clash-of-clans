@@ -26,7 +26,7 @@ html, body {
   font-size: var(--cm-text-xs);
   font-weight: var(--cm-weight-medium);
   text-transform: uppercase;
-  letter-spacing: var(--cm-tracking-wide);
+  letter-spacing: var(--cm-tracking-label);
   color: var(--cm-fg-muted);
 }
 
