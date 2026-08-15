@@ -1,0 +1,52 @@
+<!-- @dsCard group="Color" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.sw{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.chip{width:58px;height:52px;border-radius:6px;box-shadow:inset 0 0 0 1px rgb(0 0 0/8%)}
+.t{font-family:var(--cm-font-mono);font-size:10px;color:var(--cm-fg-muted)}
+.ramp{display:flex;gap:6px;flex-wrap:wrap}
+.pane{padding:20px;border-radius:10px;display:flex;flex-direction:column;gap:14px}
+.pane.l{background:#FFFFFF} .pane.d{background:#1B1917}
+h3{font-size:14px;font-weight:600} .pane.l h3{color:#262320} .pane.d h3{color:#F3F1ED}
+.demo{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:8px;padding:10px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.btn-fill-l{background:#D9A21B;color:#262320}
+.btn-fill-d{background:#E8B93F;color:#141312}
+.btn-ghost-l{background:transparent;color:#8A6410;box-shadow:inset 0 0 0 1px #B37F0C}
+.btn-ghost-d{background:transparent;color:#E8B93F;box-shadow:inset 0 0 0 1px #E8B93F}
+.bad{padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600}
+.lbl{font-size:11px;font-family:var(--cm-font-mono)}
+.pane.l .lbl{color:#6E675C} .pane.d .lbl{color:#B2ABA0}
+.x{color:#A33208;font-weight:700} .ok{color:#11603B;font-weight:700}
+.pane.d .ok{color:#5FBF8E} .pane.d .x{color:#F08A5B}
+code{font-family:var(--cm-font-mono);font-size:11px}
+</style></head><body><div class="card">
+<div class="col"><h2 style="font-size:16px;font-weight:600;color:var(--cm-fg-strong)">Gold — a surface, not an ink</h2>
+<p class="note" style="font-size:13px;color:var(--cm-fg-muted);line-height:1.55">
+Gold is intrinsically light, so it behaves asymmetrically across themes. On a light surface real gold
+reaches only 2.30:1 — nowhere near the 4.5 text needs. Darkening it far enough
+(<code>700</code>, 5.37:1) turns it to bronze, which reads muted rather than clickable.
+<strong>So in light mode gold fills; it does not write.</strong> In dark mode it does both.
+That asymmetry is the system: one hue family, luminance shifting by theme, no second accent hue.</p></div>
+
+<div class="col"><span class="mono-label">Gold ramp</span><div class="ramp">
+<div class="sw"><div class="chip" style="background:#F7E3AC"></div><span class="t">200</span><span class="t">#F7E3AC</span></div><div class="sw"><div class="chip" style="background:#F2D07A"></div><span class="t">300</span><span class="t">#F2D07A</span></div><div class="sw"><div class="chip" style="background:#E8B93F"></div><span class="t">400</span><span class="t">#E8B93F</span></div><div class="sw"><div class="chip" style="background:#D9A21B"></div><span class="t">500</span><span class="t">#D9A21B</span></div><div class="sw"><div class="chip" style="background:#B37F0C"></div><span class="t">600</span><span class="t">#B37F0C</span></div><div class="sw"><div class="chip" style="background:#8A6410"></div><span class="t">700</span><span class="t">#8A6410</span></div><div class="sw"><div class="chip" style="background:#6B4E0E"></div><span class="t">800</span><span class="t">#6B4E0E</span></div>
+</div></div>
+
+<div class="pane l"><h3>Light — gold fills, bronze writes</h3>
+<div class="demo">
+  <button class="btn btn-fill-l">Save plan</button>
+  <button class="btn btn-ghost-l">Preview rotation</button>
+  <span class="lbl">fill <span class="ok">6.80</span> · ghost ink <span class="ok">5.37</span> · ghost edge <span class="ok">3.52</span></span>
+</div>
+<div class="demo">
+  <span class="bad" style="background:#FFFFFF;color:#D9A21B;box-shadow:inset 0 0 0 1px #E7E3DC">Gold as text — 2.30:1 <span class="x">fails</span></span>
+</div></div>
+
+<div class="pane d"><h3>Dark — gold fills and writes</h3>
+<div class="demo">
+  <button class="btn btn-fill-d">Save plan</button>
+  <button class="btn btn-ghost-d">Preview rotation</button>
+  <span class="lbl">fill <span class="ok">10.11</span> · ink <span class="ok">9.55</span></span>
+</div></div>
+</div></body></html>
