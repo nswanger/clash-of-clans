@@ -1,0 +1,37 @@
+@import url('../colors_and_type.css');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--cm-bg);
+  color: var(--cm-fg);
+  font-family: var(--cm-font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "liga";
+}
+
+.card {
+  width: 700px;
+  padding: var(--cm-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cm-space-4);
+}
+
+.row { display: flex; gap: var(--cm-space-3); align-items: center; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: var(--cm-space-2); }
+
+.mono-label {
+  font-family: var(--cm-font-mono);
+  font-size: var(--cm-text-xs);
+  font-weight: var(--cm-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--cm-tracking-wide);
+  color: var(--cm-fg-muted);
+}
+
+.token-meta {
+  font-family: var(--cm-font-mono);
+  font-size: var(--cm-text-xs);
+  color: var(--cm-fg-muted);
+}

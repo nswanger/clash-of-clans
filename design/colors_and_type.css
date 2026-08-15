@@ -1,0 +1,144 @@
+/* Clan Muster tokens.
+ *
+ * PROVISIONAL — these are today's de-facto values, extracted in
+ * docs/design/ui-inventory-audit.md. They are a baseline to diff against,
+ * not decisions. See design/README.md.
+ *
+ * Decided by: #16 (color), #17 (type), #18 (spacing/radii/elevation).
+ *
+ * Dark mode is scaffolded here so it is never retrofitted. The light palette is
+ * defined on bare :root; only tokens that change are redefined under dark.
+ */
+
+:root {
+  /* ---- color: surface ---- */
+  --cm-bg: #f6f5f4;             /* app background */
+  --cm-surface: #fff;           /* panels, cards */
+  --cm-surface-sunken: #fafafa; /* inset areas */
+  --cm-border: #e6e6e6;         /* hairlines, panel edges */
+  --cm-border-strong: #d3d3d3;  /* input borders */
+
+  /* ---- color: text ---- */
+  --cm-fg: #31302e;             /* body */
+  --cm-fg-strong: #171615;      /* headings */
+  --cm-fg-muted: #6f6e6b;       /* secondary, labels */
+
+  /* ---- color: accent ----
+   * Blue today. Moves to warm gold in #16 — an amber family already exists
+   * organically in the live CSS (#c68b0a, #f8f1d9, #fff4cf).
+   */
+  --cm-accent: #0075de;
+  --cm-accent-hover: #005bab;
+  --cm-accent-subtle: #edf6ff;
+  --cm-on-accent: #fff;
+
+  /* ---- color: semantic state ----
+   * Roles, not a settled palette. The unknown/absent role is the one the domain
+   * cares most about: missing detail is unknown, never negative. Sized in #19.
+   */
+  --cm-success: #11603b;
+  --cm-success-subtle: #e5f5ec;
+  --cm-warning: #c68b0a;
+  --cm-warning-subtle: #f8f1d9;
+  --cm-danger: #dd5b00;
+  --cm-danger-subtle: #fbede4;
+  --cm-unknown: #8d8984;        /* absent evidence — muted, never alarming */
+
+  /* ---- type ---- */
+  --cm-font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cm-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Floor is 12px, not the current 9px. 35 declarations sit at 11px or below
+   * today; that is the largest legibility problem on mobile. Confirmed in #17. */
+  --cm-text-xs: 12px;
+  --cm-text-sm: 13px;
+  --cm-text-md: 14px;
+  --cm-text-lg: 16px;
+  --cm-text-xl: 20px;
+  --cm-text-display: clamp(30px, 5vw, 42px);
+
+  --cm-weight-regular: 400;
+  --cm-weight-medium: 500;
+  --cm-weight-semibold: 600;
+  --cm-weight-bold: 700;
+
+  --cm-tracking-tight: -.02em;  /* display sizes */
+  --cm-tracking-wide: .04em;    /* small uppercase labels */
+
+  /* ---- spacing: 4px rhythm, replacing 43 padding and 23 gap values ---- */
+  --cm-space-1: 4px;
+  --cm-space-2: 8px;
+  --cm-space-3: 12px;
+  --cm-space-4: 16px;
+  --cm-space-5: 24px;
+  --cm-space-6: 32px;
+  --cm-space-7: 48px;
+
+  /* ---- radii: 13 values today ---- */
+  --cm-radius-sm: 4px;
+  --cm-radius-md: 8px;
+  --cm-radius-lg: 12px;
+  --cm-radius-pill: 999px;
+  --cm-radius-circle: 50%;
+
+  /* ---- elevation: 2 levels, plus a selection indicator that is not depth ---- */
+  --cm-shadow-1: 0 1px 2px rgb(23 22 21 / 4%), 0 2px 8px rgb(23 22 21 / 4%);
+  --cm-shadow-2: 0 2px 6px rgb(23 22 21 / 5%), 0 10px 24px rgb(23 22 21 / 10%);
+  --cm-ring: inset 0 0 0 1px var(--cm-border);
+
+  /* ---- breakpoints (documentation; CSS custom properties cannot be used in
+   * media queries — these record the declared set replacing today's seven) ---- */
+  --cm-bp-mobile: 480px;
+  --cm-bp-tablet: 768px;
+  --cm-bp-desktop: 1100px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cm-bg: #171615;
+    --cm-surface: #201f1e;
+    --cm-surface-sunken: #1a1918;
+    --cm-border: #34322f;
+    --cm-border-strong: #4c4945;
+
+    --cm-fg: #e1e0dd;
+    --cm-fg-strong: #f4f2ef;
+    --cm-fg-muted: #9a968f;
+
+    --cm-accent: #62aef0;
+    --cm-accent-hover: #8ab8df;
+    --cm-accent-subtle: #1b2c3a;
+
+    --cm-success-subtle: #12271d;
+    --cm-warning-subtle: #2a2213;
+    --cm-danger-subtle: #2e1c11;
+    --cm-unknown: #77746e;
+
+    --cm-shadow-1: 0 1px 2px rgb(0 0 0 / 30%), 0 2px 8px rgb(0 0 0 / 24%);
+    --cm-shadow-2: 0 2px 6px rgb(0 0 0 / 32%), 0 10px 24px rgb(0 0 0 / 40%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --cm-bg: #171615;
+  --cm-surface: #201f1e;
+  --cm-surface-sunken: #1a1918;
+  --cm-border: #34322f;
+  --cm-border-strong: #4c4945;
+
+  --cm-fg: #e1e0dd;
+  --cm-fg-strong: #f4f2ef;
+  --cm-fg-muted: #9a968f;
+
+  --cm-accent: #62aef0;
+  --cm-accent-hover: #8ab8df;
+  --cm-accent-subtle: #1b2c3a;
+
+  --cm-success-subtle: #12271d;
+  --cm-warning-subtle: #2a2213;
+  --cm-danger-subtle: #2e1c11;
+  --cm-unknown: #77746e;
+
+  --cm-shadow-1: 0 1px 2px rgb(0 0 0 / 30%), 0 2px 8px rgb(0 0 0 / 24%);
+  --cm-shadow-2: 0 2px 6px rgb(0 0 0 / 32%), 0 10px 24px rgb(0 0 0 / 40%);
+}
