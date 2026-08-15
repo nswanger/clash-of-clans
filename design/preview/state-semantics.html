@@ -1,0 +1,103 @@
+<!-- @dsCard group="States" -->
+<!doctype html><html data-theme="light"><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');</style><link rel="stylesheet" href="_card.css">
+<style>
+body{font-family:Archivo,sans-serif}
+h2{font-size:20px;font-weight:700;letter-spacing:-.01em;color:#262320;margin:0}
+.lede{padding:12px 14px;border-radius:var(--cm-radius-md);background:#EAF2E0;color:#3F6B2A;font-size:13px;line-height:1.5}
+.note{font-size:12px;color:#6E675C;line-height:1.5}
+
+/* the five marks */
+.marks{display:flex;flex-direction:column;gap:var(--cm-space-2)}
+.mark{display:grid;grid-template-columns:104px 1fr;gap:var(--cm-space-3);align-items:start;
+      padding:10px 12px;border:1px solid #E7E3DC;border-radius:var(--cm-radius-md);background:#FFFFFF}
+.badge{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+       padding:4px 10px;border-radius:var(--cm-radius-pill);text-align:center;white-space:nowrap}
+.b-ok{background:#EAF2E0;color:#3F6B2A}
+.b-ca{background:#EEEAF7;color:#5B4497}
+.b-dg{background:#FBEAE1;color:#A33208}
+.b-in{background:#E6EDF3;color:#3E5D79}
+.b-un{background:#F3F1ED;color:#6E675C}
+.mark p{font-size:13px;color:#262320;line-height:1.45;margin:0}
+.mark p em{font-style:normal;color:#6E675C}
+.chroma{font-family:var(--cm-font-mono);font-size:10px;color:#6E675C;display:block;margin-top:3px}
+
+/* disposition table */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#6E675C;
+   font-family:var(--cm-font-mono);font-weight:400;padding:0 8px 6px 0;border-bottom:1px solid #E7E3DC}
+td{padding:7px 8px 7px 0;border-bottom:1px solid #F3F1ED;vertical-align:top;color:#262320;line-height:1.4}
+td code{font-family:var(--cm-font-mono);font-size:11px;color:#514B42;background:none;padding:0}
+td.to{color:#6E675C}
+tr.del td{color:#A33208}
+.grp td{background:#F3F1ED;font-size:10px;letter-spacing:.04em;text-transform:uppercase;
+        color:#6E675C;font-family:var(--cm-font-mono);padding:5px 8px}
+</style></head><body><div class="card">
+
+<div class="col">
+  <h2>State semantics</h2>
+  <div class="lede"><strong>Five marks, and a rule that keeps them marks.</strong>
+  Colour states an evaluation or a category &mdash; it never raises a notice.
+  If the user cannot act on it, it is not a notice.</div>
+</div>
+
+<div class="col"><span class="mono-label">The five marks</span>
+  <div class="marks">
+    <div class="mark"><span class="badge b-ok">Qualified</span>
+      <p><strong>Success</strong> &mdash; an evaluation that came out well and is earned.
+      <em>8&#9733; bonus secured.</em><span class="chroma">moss 101&deg; · chroma 44%</span></p></div>
+    <div class="mark"><span class="badge b-ca">Not applied</span>
+      <p><strong>Caution</strong> &mdash; in progress, your move. <em>A swap not yet applied in game, unsaved edits, an unlocked plan near a deadline.</em><span class="chroma">violet 257&deg; · chroma 38%</span></p></div>
+    <div class="mark"><span class="badge b-dg">Out of date</span>
+      <p><strong>Danger</strong> &mdash; action required now. <em>A stale plan, a failed refresh, blocked collector access.</em><span class="chroma">rust 16&deg; · chroma 91%</span></p></div>
+    <div class="mark"><span class="badge b-in">Observed</span>
+      <p><strong>Info</strong> &mdash; a category. Neither good nor bad. <em>An access role, an invitation status, lineup provenance.</em><span class="chroma">slate 208&deg; · chroma 32% — the quietest by design</span></p></div>
+    <div class="mark"><span class="badge b-un">&mdash;</span>
+      <p><strong>Unknown</strong> &mdash; absent evidence, carrying no hue. Always an em-dash in muted, badge and cell alike, so it never reads as zero.<span class="chroma">no hue · same as muted, differs by glyph</span></p></div>
+  </div>
+  <p class="note"><strong>Info never raises a notice.</strong> An info-coloured bar is precisely the chrome
+  the notice budget exists to remove, so info is confined to categorical marks. That is also why it is the
+  lowest-chroma state in the set.</p>
+</div>
+
+<div class="col"><span class="mono-label">Where all fourteen treatments land</span>
+  <table>
+    <tr><th>Today</th><th>Becomes</th></tr>
+
+    <tr class="grp"><td colspan="2">Survives as a notice — danger only, and page-scoped</td></tr>
+    <tr><td><code>dashboard-warning</code> <em>stale / invalid_ip</em></td><td class="to">Collection health notice</td></tr>
+    <tr><td><code>cwl-proto-status.is-stale</code></td><td class="to">Save-conflict notice</td></tr>
+    <tr><td><code>dashboard-feedback-error</code></td><td class="to">Folds into the same notice region</td></tr>
+
+    <tr class="grp"><td colspan="2">Returns to the thing it explains</td></tr>
+    <tr><td><code>dashboard-warning</code> <em>coverage_gap</em></td><td class="to">Inline reason on the change</td></tr>
+    <tr><td><code>dashboard-warning</code> <em>limited_confidence</em></td><td class="to">Inline reason on the change</td></tr>
+    <tr><td><code>cwl-proto-rotation-attention</code></td><td class="to">Property of the recommendation panel</td></tr>
+
+    <tr class="grp"><td colspan="2">Becomes a structural mark, not a notice</td></tr>
+    <tr><td><code>cwl-proto-slot-state</code></td><td class="to">Info rail on observed; <strong>nothing</strong> on planned</td></tr>
+    <tr><td><code>cwl-proto-bonus-status</code></td><td class="to">Success when qualified; muted when not yet</td></tr>
+    <tr><td><code>activity-status</code></td><td class="to">Info / muted / em-dash — never negative</td></tr>
+    <tr><td><code>access-status</code></td><td class="to">Info — role and invitation are categories</td></tr>
+    <tr><td><code>operational-state</code></td><td class="to">Neutral text; it is not a notice</td></tr>
+
+    <tr class="grp"><td colspan="2">Not a state at all</td></tr>
+    <tr><td><code>cwl-proto-pool-status</code></td><td class="to">A layout container, renamed</td></tr>
+    <tr><td><code>empty-state</code></td><td class="to">A layout placeholder</td></tr>
+
+    <tr class="grp"><td colspan="2">Deleted</td></tr>
+    <tr class="del"><td><code>cwl-proto-status</code> <em>happy path</em></td><td>A bar announcing nothing is wrong</td></tr>
+    <tr class="del"><td><code>cwl-proto-inline-notice</code></td><td>Onboarding copy mounted forever</td></tr>
+  </table>
+  <p class="note">Both deletions carry a live control &mdash; <strong>Save plan</strong> and
+  <strong>Re-inherit prior day</strong>. Deleting the chrome does not delete the action; where Save lives
+  is #20's call.</p>
+</div>
+
+<div class="col"><span class="mono-label">Why activity is never negative</span>
+  <p class="note">The domain's three activity values are <code>observed</code>, <code>no_change</code> and
+  <code>unknown</code> &mdash; note it is <strong>no_change</strong>, not &ldquo;inactive.&rdquo; The data
+  layer already refuses to read absent evidence as poor performance, so no activity value may take a
+  negative colour. Missing signup opportunity is not weak activity; it is a missing opportunity.</p>
+</div>
+
+</div></body></html>
