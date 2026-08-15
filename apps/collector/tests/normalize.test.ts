@@ -102,6 +102,28 @@ describe("normalizeSnapshot", () => {
     expect(repository.normalized).toEqual(new Set(["members-1", "player-1"]));
   });
 
+  it("treats an unranked clan rank of zero as absent evidence rather than a zero rank", async () => {
+    const repository = new MemoryRepository();
+    const context = { clanTag: "#CLAN", collectionRunId: "run-1" };
+    const members = {
+      id: "members-unranked",
+      endpoint: "members",
+      requestIdentity: "#CLAN",
+      collectedAt: "2099-01-02T12:00:00.000Z",
+      responseBody: { items: [{
+        tag: "#ONE", name: "One", role: "member", clanRank: 10, previousClanRank: 0,
+        townHallLevel: 10,
+      }] },
+    };
+
+    await expect(normalizeSnapshot(repository, members, context)).resolves.toMatchObject({ rosterMembers: 1 });
+
+    expect(repository.rosterObservations[0]).toEqual(expect.objectContaining({
+      members: [expect.objectContaining({ playerTag: "#ONE", clanRank: 10 })],
+    }));
+    expect(repository.rosterObservations[0]?.members[0]).not.toHaveProperty("previousClanRank");
+  });
+
   it("normalizes current regular-war member participation without mixing it into CWL tables", async () => {
     const repository = new MemoryRepository();
     const currentWar: RawSnapshot = {
