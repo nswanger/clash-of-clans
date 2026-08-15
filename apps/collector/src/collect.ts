@@ -59,6 +59,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   const capturedWarTags: string[] = [];
   const finalizationErrors: FinalizationError[] = [];
   const internalErrors: InternalCollectionError[] = [];
+  const notFoundEndpoints = new Set<Endpoint>();
   let lastFreshAt: string | null = null;
   let activeCwl: boolean | null = null;
   let regularWar: CollectionSummary["regularWar"] = null;
@@ -110,6 +111,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     } catch (error) {
       dependencies.signal?.throwIfAborted();
       const category = error instanceof ClashApiError ? error.code : "internal_error";
+      if (category === "not_found") notFoundEndpoints.add(endpoint);
       if (options.ignoreNotFound && category === "not_found") {
         await finishAttemptSafely(endpoint, {
           attemptId,
@@ -254,6 +256,11 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
         ...(warDayByTag.has(warTag) ? { warDay: warDayByTag.get(warTag)! } : {}),
       });
     }
+  } else if (notFoundEndpoints.has("league_group")) {
+    // A 404 is Clash confirming the clan is not in a CWL season, which is what unlocks the
+    // regular-war cadence. Any other failure leaves this null so a transient error cannot
+    // silently change how often we poll.
+    activeCwl = false;
   }
 
   const status = determineStatus(successfulEndpoints, failedEndpoints, errorCategories);
