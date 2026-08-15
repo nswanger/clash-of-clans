@@ -39,6 +39,20 @@ describe("collector scheduling", () => {
       .toBe("2026-07-11T20:06:00.000Z");
   });
 
+  it("leaves regular-war cadence disengaged while CWL activity is unknown", () => {
+    const now = new Date("2026-07-11T12:00:00.000Z");
+    const regularWar = {
+      state: "inWar",
+      endTime: "2026-07-11T20:00:00.000Z",
+      warKey: "#REGULAR",
+    };
+
+    // Unknown activity must not target the war end: an unconfirmed CWL state is not evidence
+    // that a regular war owns the cadence.
+    expect(nextCollectionAt(now, null, undefined, regularWar).toISOString())
+      .toBe("2026-07-11T13:00:00.000Z");
+  });
+
   it("renews ownership throughout a collection longer than the initial lease", async () => {
     let now = new Date("2026-07-11T12:00:00.000Z");
     let heartbeat!: () => void;

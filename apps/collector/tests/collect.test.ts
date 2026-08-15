@@ -138,6 +138,24 @@ describe("collectOnce", () => {
     expect(summary.activeCwl).toBeNull();
   });
 
+  it("confirms CWL is inactive when the league-group endpoint returns not found", async () => {
+    const store = makeStore();
+    const client = {
+      getClan: vi.fn().mockResolvedValue({ tag: "#FAKECLAN", name: "Fixture", memberList: [] }),
+      getMembers: vi.fn().mockResolvedValue({ items: [] }),
+      getPlayer: vi.fn(),
+      getLeagueGroup: vi.fn().mockRejectedValue(new ClashApiError("not_found", "Not found", 404)),
+      getLeagueWar: vi.fn(),
+      getCurrentWar: vi.fn(async () => ({ state: "preparation", endTime: "20260817T090405.000Z" })),
+    };
+
+    const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
+
+    expect(summary.activeCwl).toBe(false);
+    expect(summary.failedEndpoints).toContain("league_group");
+    expect(summary.regularWar).toMatchObject({ state: "preparation" });
+  });
+
   it("continues siblings and reports storage failure when saving a snapshot fails", async () => {
     const store = makeStore();
     vi.mocked(store.saveSnapshot).mockRejectedValueOnce(new Error("database unavailable"));
