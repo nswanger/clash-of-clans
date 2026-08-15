@@ -252,8 +252,8 @@ async function normalizeRoster(
       playerTag: text(member.tag, "member tag"),
       name: text(member.name, "member name"),
       ...optional("role", optionalText(member.role)),
-      ...optional("clanRank", optionalInteger(member.clanRank)),
-      ...optional("previousClanRank", optionalInteger(member.previousClanRank)),
+      ...optional("clanRank", optionalRank(member.clanRank)),
+      ...optional("previousClanRank", optionalRank(member.previousClanRank)),
       townHallLevel: integer(member.townHallLevel, "town hall"),
       ...optional("trophies", optionalInteger(member.trophies)),
       ...optional("leagueId", league ? optionalInteger(league.id) : undefined),
@@ -361,6 +361,9 @@ function optionalText(value: unknown): string | undefined { return typeof value 
 function numberValue(value: unknown, label: string): number { if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`Invalid ${label}`); return value; }
 function integer(value: unknown, label: string): number { const result = numberValue(value, label); if (!Number.isInteger(result)) throw new Error(`Invalid ${label}`); return result; }
 function optionalInteger(value: unknown): number | undefined { return typeof value === "number" && Number.isInteger(value) ? value : undefined; }
+// Clash reports an unranked position as 0. The canonical rank columns accept null or a
+// positive rank, so an unranked member is absent evidence rather than a zero-valued rank.
+function optionalRank(value: unknown): number | undefined { const result = optionalInteger(value); return result !== undefined && result > 0 ? result : undefined; }
 function optional<Key extends string, Value>(key: Key, value: Value | undefined): { [Property in Key]?: Value } { return value === undefined ? {} : { [key]: value } as { [Property in Key]?: Value }; }
 function clashTime(value: unknown): string | undefined { const raw = optionalText(value); if (!raw) return undefined; const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})\.\d{3}Z$/.exec(raw); return match ? `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}.000Z` : raw; }
 function observedOn(collectedAt: string): string { return collectedAt.slice(0, 10); }

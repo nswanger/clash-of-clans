@@ -118,6 +118,105 @@ These commands change UnRaid and require explicit authorization. Set `UNRAID_SSH
 
    Verification must report a healthy container, successful Clash and Supabase connectivity, a recent raw snapshot, latest-season canonical war/member counts, and zero duplicate canonical identities. The latest collection must be `healthy`, except that `partial` is accepted and remains visible when the only failed attempt is the current CWL league-group endpoint returning `404 not_found`, the clan and member attempts are healthy, and complete, unique healthy player attempts match the live clan member count. `docker port` must print nothing.
 
+## Upgrade an existing deployment
+
+Use this section when `/mnt/user/appdata/cwl-collector` already exists. The first-deployment commands above stop on their create-only guard and must not be run over an existing directory. An upgrade replaces the image and the non-secret assets only; the protected `collector.env` is never overwritten by this procedure.
+
+Apply any database migrations the new commit requires **before** starting the new image. A collector that calls a database function the remote schema does not have will fail its normalized writes while still reporting healthy Clash attempts. Confirm with `supabase migration list` that every local migration has a matching remote entry.
+
+1. Record the current image and back up the non-secret selector and the protected environment. Copy the environment file rather than displaying it; its values are secrets.
+
+   ```sh
+   cd /mnt/user/appdata/cwl-collector
+   stamp=$(date +%Y%m%d%H%M%S)
+   docker inspect --format '{{.Config.Image}}' cwl-collector
+   cp .env ".env.rollback-$stamp"
+   cp collector.env "collector.env.backup-$stamp"
+   chmod 600 "collector.env.backup-$stamp"
+   ls -1a | grep -- "$stamp"
+   ./verify-collector.sh | grep -E '^(Collection run|Collection health):' || true
+   ```
+
+   Record the printed image name in the deployment handoff. It is the rollback target. Both backups must appear in the listing. Use `ls -1a`, not `ls -1`: the selector backup is a dotfile and a plain listing silently omits it, which reads as a failed backup.
+
+   Record the baseline collection-run ID too. Step 5 needs it to tell a new run from the pre-upgrade one, and a baseline that is already unhealthy tells you the existing deployment was broken before this upgrade touched it.
+
+2. From the local shell where `commit_sha` was set, copy the new image archive and the reviewed non-secret assets. `collector.env.example` is a template only and does not affect the running configuration.
+
+   ```sh
+   scp deploy/unraid/docker-compose.yml \
+     deploy/unraid/collector.env.example \
+     scripts/verify-collector.sh \
+     "/tmp/cwl-collector-$commit_sha.tar.gz" \
+     "$UNRAID_SSH:/mnt/user/appdata/cwl-collector/"
+   ```
+
+3. Import the image and reconcile new optional configuration keys. Compare key names only so no secret value is printed.
+
+   ```sh
+   ssh "$UNRAID_SSH" "cd /mnt/user/appdata/cwl-collector && \
+     umask 077 && \
+     gunzip -c 'cwl-collector-$commit_sha.tar.gz' | docker load && \
+     chmod 700 verify-collector.sh && \
+     comm -23 \
+       <(grep -oE '^[A-Z_]+=' collector.env.example | tr -d '=' | sort) \
+       <(grep -oE '^[A-Z_]+=' collector.env | tr -d '=' | sort)"
+   ```
+
+   The `comm` output lists keys present in the new template but absent from the live environment. Every key it prints must be either optional with an acceptable default or added by hand with `vi collector.env`. An empty result means no configuration change is required. Required keys are `CLASH_API_TOKEN`, `CLAN_TAG`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `TZ`; the remaining documented keys are optional and defaulted.
+
+4. Point the Compose selector at the new immutable tag and recreate only the collector service. Do not run `docker compose down`, and never `docker compose down -v`.
+
+   ```sh
+   ssh "$UNRAID_SSH" "cd /mnt/user/appdata/cwl-collector && \
+     printf 'COLLECTOR_IMAGE=cwl-collector:%s\\n' '$commit_sha' > .env && \
+     chmod 600 .env && \
+     docker compose config --images && \
+     docker compose up -d --force-recreate collector"
+   ```
+
+   `docker compose config --images` must print the new tag before the service is recreated.
+
+5. Wait for the new image to finish a collection, then verify against the same criteria as a first deployment:
+
+   ```sh
+   ssh "$UNRAID_SSH" 'cd /mnt/user/appdata/cwl-collector && ./verify-collector.sh && docker port cwl-collector'
+   ```
+
+   Container health is not a sufficient signal here. Health turns `healthy` about fifteen seconds after recreation, well before a full collection completes, and `verify-collector.sh` reports the most recent *completed* run. Verifying too early reports the pre-upgrade run and can pass or fail on evidence the new image never produced.
+
+   Compare the reported `Collection run` against the baseline from step 1. While they match, the new image has not finished its first collection; wait and re-run rather than acting on the result. Once the ID differs, apply the acceptance rules from the first-deployment verification step. `docker port` must print nothing.
+
+6. Confirm the upgrade actually changed collector behavior rather than only the tag. Check that the endpoints the new commit introduces appear in `collection_attempts` after the next scheduled run, and that the recorded image matches the intended commit:
+
+   ```sh
+   ssh "$UNRAID_SSH" "docker inspect --format '{{.Config.Image}}' cwl-collector"
+   ```
+
+   A tag that changed while the expected new endpoints never appear means the image was built from the wrong commit. Rebuild from the reviewed commit rather than editing the container.
+
+If verification fails, diagnose it with the section below before rolling back. If the cause is the new image, roll back with the recorded prior image tag using the Rollback section. Restore the protected environment from `collector.env.backup-$stamp` only if step 3 modified it.
+
+### Diagnose a failed upgrade verification
+
+A verification failure after an upgrade does not by itself mean the upgrade caused it. Establish which before rolling back, because rolling back a pre-existing defect restores the same failure under an older tag.
+
+A failed normalized write presents as a *healthy* Clash attempt. The endpoint records HTTP 200 with `normalization_error`, and every attempt that depends on it is skipped, so one broken endpoint empties most of a run while connectivity looks fine. Container logs will not explain it: the collector collects internal normalization errors but does not surface them (issue [#9](https://github.com/nswanger/clash-of-clans/issues/9)).
+
+1. Read the failing run's attempts to find which endpoint broke and how. Query `collection_attempts` filtered to the failing `run_id`, selecting `endpoint`, `status`, `http_status`, and `error_category` — the same fields `verify-collector.sh` reads. An endpoint with `http_status` 200 and a normalization error is the origin; the skipped attempts downstream of it are consequences, not separate faults.
+
+2. Replay that endpoint's RPC directly against the database with the payload the collector sent. The database returns the real error where the collector reports only `normalization_error` — for example a `23514` check-constraint violation naming the constraint and the failing row. This is the only way to see the underlying cause today.
+
+3. Decide whether the new commit introduced it, by diffing the affected code path between the two image commits:
+
+   ```sh
+   git diff <previous-commit>..<new-commit> -- apps/collector/src/<affected-file>.ts
+   ```
+
+   No change in that path means the new image did not introduce the defect. A latent defect that live data only just began to trigger looks exactly like an upgrade regression, and rolling back will not fix it. Roll forward with a targeted fix and a regression test instead.
+
+Do not use the production SQL Editor to patch data or schema while diagnosing. Schema changes belong in a migration.
+
 ## Public WAN IP and Clash key
 
 Clash API keys are managed in the official [Clash of Clans developer portal](https://developer.clashofclans.com/). Immediately before deployment, obtain the current public egress address from UnRaid:
