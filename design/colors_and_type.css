@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700&display=swap');
+
 /* Clan Muster tokens.
  *
- * COLOR IS LOCKED (#16). Type, spacing, radii, and elevation below are still provisional, extracted in
+ * COLOR (#16) and TYPE + DENSITY (#17) ARE LOCKED. Spacing, radii and elevation below are still provisional, extracted in
  * docs/design/ui-inventory-audit.md. They are a baseline to diff against,
  * not decisions. See design/README.md.
  *
@@ -75,26 +77,49 @@
   --cm-danger-ink: #A33208;
   --cm-danger-subtle: #FBEAE1;
 
-  /* ---- type ---- */
-  --cm-font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --cm-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ---- type ---- (locked in #17)
+   * One family. Archivo carries UI and display alike: chosen on a phone at true
+   * size, where its 12px held up. Single load, no pairing risk, and the
+   * broadcast-grotesque character the FotMob reference pointed at.
+   * Verified: Archivo ships `tnum`, so tabular figures are available.
+   * How the face is delivered to apps/web (self-host vs CDN) is #23.
+   */
+  --cm-font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
+  --cm-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace; /* design docs only, not app UI */
 
-  /* Floor is 12px, not the current 9px. 35 declarations sit at 11px or below
-   * today; that is the largest legibility problem on mobile. Confirmed in #17. */
+  /* Floor is 12px, up from 9px. 35 declarations sat at 11px or below — on the
+   * phone where lineups get adjusted. 11px survives for uppercase labels only,
+   * where simpler letterforms and open tracking carry it. */
+  --cm-text-label: 11px;
   --cm-text-xs: 12px;
   --cm-text-sm: 13px;
   --cm-text-md: 14px;
   --cm-text-lg: 16px;
   --cm-text-xl: 20px;
-  --cm-text-display: clamp(30px, 5vw, 42px);
+  --cm-text-display: clamp(26px, 4vw, 34px);
 
+  /* Four weights, down from eight. 650, 750 and 800 are dropped — they were
+   * indistinguishable from their neighbours at these sizes. */
   --cm-weight-regular: 400;
-  --cm-weight-medium: 500;
-  --cm-weight-semibold: 600;
-  --cm-weight-bold: 700;
+  --cm-weight-medium: 500;   /* data emphasis */
+  --cm-weight-semibold: 600; /* headings, labels */
+  --cm-weight-bold: 700;     /* display only */
 
-  --cm-tracking-tight: -.02em;  /* display sizes */
-  --cm-tracking-wide: .04em;    /* small uppercase labels */
+  /* Tracking is bound to size, never chosen per use. */
+  --cm-tracking-display: -.02em;
+  --cm-tracking-xl: -.01em;
+  --cm-tracking-body: 0;
+  --cm-tracking-label: .04em;
+
+  /* ---- density ---- (locked in #17)
+   * Follows the input device, not the page. Comfortable is the base so a failed
+   * pointer query lands on the accessible option; a mouse opts into compact.
+   */
+  --cm-row-pad-y: 13px;
+  --cm-row-pad-x: 12px;
+  --cm-row-name: var(--cm-text-lg);
+  --cm-row-meta: var(--cm-text-sm);
+  --cm-tap-min: 44px;        /* never overridden by density */
 
   /* ---- spacing: 4px rhythm, replacing 43 padding and 23 gap values ---- */
   --cm-space-1: 4px;
@@ -122,6 +147,15 @@
   --cm-bp-mobile: 480px;
   --cm-bp-tablet: 768px;
   --cm-bp-desktop: 1100px;
+}
+
+@media (pointer: fine) {
+  :root {
+    --cm-row-pad-y: 7px;
+    --cm-row-pad-x: 10px;
+    --cm-row-name: var(--cm-text-md);
+    --cm-row-meta: var(--cm-text-xs);
+  }
 }
 
 @media (prefers-color-scheme: dark) {

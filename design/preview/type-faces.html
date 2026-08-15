@@ -1,0 +1,67 @@
+<!-- @dsCard group="Type" -->
+<!doctype html><html><head><meta charset="utf-8">
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Archivo:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap');</style><link rel="stylesheet" href="_card.css">
+<style>
+.spec{padding:14px 0;border-bottom:1px solid #E7E3DC}
+.sname{font-family:var(--cm-font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+  color:#6E675C;margin-bottom:8px;display:flex;gap:10px;align-items:baseline}
+.snote{text-transform:none;letter-spacing:0;font-size:10px;color:#8E877B}
+.rowdemo{display:grid;grid-template-columns:1fr 46px 78px 38px 44px;gap:10px;align-items:baseline;
+  font-size:13px;color:#262320;font-variant-numeric:tabular-nums}
+.mem{font-size:15px;font-weight:600}
+.meta{color:#6E675C;font-size:12px}
+.num{text-align:right;font-weight:500}
+.tiny{font-size:12px;color:#6E675C;margin-top:5px}
+.warn{padding:12px 14px;border-radius:8px;background:#EEEAF7;color:#5B4497;font-size:13px;line-height:1.5}
+</style></head><body><div class="card">
+<div class="col"><h2 style="font-size:16px;font-weight:600;color:#262320">Typeface — starting from zero</h2>
+<div class="warn"><strong>The app has never rendered in Inter.</strong> <code>styles.css</code> names it,
+but there is no <code>@font-face</code>, no font link and no woff file anywhere in the repo. Every user falls
+through to a system face &mdash; SF&nbsp;Pro on your Mac and iPhone, Roboto for clan leaders on Android.
+The current type was never chosen; it was inherited from whatever each device had.</div></div>
+
+<div class="spec">
+      <div class="sname">What renders today<span class="snote">system fallback &mdash; differs per device</span></div>
+      <div class="rowdemo" style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+        <span class="mem">Halberd</span><span class="meta">TH16</span>
+        <span class="meta">Observed</span><span class="num">2/2</span><span class="num">87%</span>
+      </div>
+      <div class="tiny" style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+        Planned lineup inherits once, then stays independent &middot; 12px
+      </div></div>
+<div class="spec">
+      <div class="sname">Inter<span class="snote">engineered for dense UI at small sizes</span></div>
+      <div class="rowdemo" style="font-family:Inter, sans-serif">
+        <span class="mem">Halberd</span><span class="meta">TH16</span>
+        <span class="meta">Observed</span><span class="num">2/2</span><span class="num">87%</span>
+      </div>
+      <div class="tiny" style="font-family:Inter, sans-serif">
+        Planned lineup inherits once, then stays independent &middot; 12px
+      </div></div>
+<div class="spec">
+      <div class="sname">Instrument Sans<span class="snote">slightly condensed &mdash; more room per column</span></div>
+      <div class="rowdemo" style="font-family:'Instrument Sans', sans-serif">
+        <span class="mem">Halberd</span><span class="meta">TH16</span>
+        <span class="meta">Observed</span><span class="num">2/2</span><span class="num">87%</span>
+      </div>
+      <div class="tiny" style="font-family:'Instrument Sans', sans-serif">
+        Planned lineup inherits once, then stays independent &middot; 12px
+      </div></div>
+<div class="spec">
+      <div class="sname">Archivo<span class="snote">broadcast-grotesque, closest to FotMob</span></div>
+      <div class="rowdemo" style="font-family:Archivo, sans-serif">
+        <span class="mem">Halberd</span><span class="meta">TH16</span>
+        <span class="meta">Observed</span><span class="num">2/2</span><span class="num">87%</span>
+      </div>
+      <div class="tiny" style="font-family:Archivo, sans-serif">
+        Planned lineup inherits once, then stays independent &middot; 12px
+      </div></div>
+
+<div class="col"><span class="mono-label">Recommendation</span>
+<p class="note" style="font-size:13px;color:#6E675C;line-height:1.55">
+<strong>Decided: Archivo throughout.</strong> Chosen on a phone at true 1:1 size, which is the only way
+this question can honestly be answered &mdash; the 12px floor held up in Archivo, so the concern that it
+would be weaker than Inter at small sizes did not survive contact with the device.
+<br><br>One family rather than two: a single load, no pairing risk, and the broadcast-grotesque character
+the FotMob reference pointed at. Verified to ship <code>tnum</code>, so tabular figures work.</p></div>
+</div></body></html>
