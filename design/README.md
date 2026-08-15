@@ -4,11 +4,13 @@ Source of truth for the design system described in the [Clan Muster map](https:/
 
 ```
 design/
-  colors_and_type.css   tokens — the single source for color, type, spacing, radii, elevation
+  tokens.css            the single source for color, type, spacing, radii, elevation, layout
   preview/
-    _card.css           shared chrome for preview cards; imports colors_and_type.css
+    _card.css           shared chrome for preview cards; imports tokens.css
     *.html              one card per foundation, rendered as a gallery in Claude Design
 ```
+
+Preview cards pin themselves to light with `<html data-theme="light">`. They are light documents that *depict* dark where the comparison matters — without the pin, `_card.css` resolves `--cm-bg` dark on a dark-mode viewer while the card's own text stays pinned light.
 
 ## Sync direction
 
@@ -26,7 +28,7 @@ Each preview card carries a first-line `<!-- @dsCard group="…" -->` marker; th
 
 `--cm-*` (Clan Muster), grouped by role rather than by value. A token names what something *is for*, never what it looks like: `--cm-fg-muted`, not `--cm-grey-3`.
 
-## Status of the values in `colors_and_type.css`
+## Status of the values in `tokens.css`
 
 **Color is locked** ([#16](https://github.com/nswanger/clash-of-clans/issues/16)). Every pairing was verified numerically against WCAG AA; nothing was judged by eye.
 
@@ -46,7 +48,14 @@ Two contrast roles, not one: `--cm-hairline` is decorative and deliberately belo
 - **Tracking bound to size**, never chosen per use.
 - **Density follows the input device**: comfortable is the base, `(pointer: fine)` opts into compact. A failed query lands on the accessible option. `--cm-tap-min: 44px` is never overridden.
 
-**Still provisional** — spacing, radii and elevation, pending [#18](https://github.com/nswanger/clash-of-clans/issues/18).
+**Structure is locked** ([#18](https://github.com/nswanger/clash-of-clans/issues/18)).
+
+- **One 4px rhythm, 7 steps**, absorbing 43 padding and 23 gap values. No sub-4px step: the 1–3px "gaps" in the current CSS are hairline separators, and become borders.
+- **Radius is soft (6/10/16) and assigned by class of surface** — `lg` containers, `md` controls, `sm` inline — with a nesting rule that drops exactly one step inward. That rule, not the values, is what stops the 5px-inside-7px-inside-10px soup.
+- **Depth is binary, not a scale.** Flat surfaces separate by hairline and background shift; shadow is reserved for something that overlaps other content, and there is one such token. The current CSS already believed this — its two non-overlay shadows sit at 3% and 4% black and are invisible, while both real shadows are on popovers. It is also the only model that survives dark, where shadow cannot separate black from black.
+- **The edge marker has two forms.** A full-bleed underline for a segment inside a strip; an inset, pill-capped rail for a standalone row. An `inset` box-shadow follows the border-radius, so at soft radii a rail drawn that way renders as a crescent — caught by rendering it, not by reading the CSS.
+- **Focus is solid, not a halo.** A translucent ring composites over whatever sits behind it, so its contrast changes silently on a coloured surface.
+- **Two breakpoints, mobile-first** (720px, 1120px), replacing seven ad-hoc `max-width` values. Today's 900/840/800 all meant "multi-column stopped working" and 680/560/480 all meant "phone".
 
 ## Not yet decided
 

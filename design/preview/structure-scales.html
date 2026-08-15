@@ -1,0 +1,80 @@
+<!-- @dsCard group="Structure" -->
+<!doctype html><html data-theme="light"><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');</style><link rel="stylesheet" href="_card.css">
+<style>
+body{font-family:Archivo,sans-serif}
+h2{font-size:20px;font-weight:700;letter-spacing:-.01em;color:#262320;margin:0}
+.lede{padding:12px 14px;border-radius:var(--cm-radius-md);background:#EAF2E0;color:#3F6B2A;font-size:13px;line-height:1.5}
+
+/* spacing ruler */
+.ruler{display:flex;flex-direction:column;gap:6px;padding:14px;background:#F3F1ED;border-radius:var(--cm-radius-lg)}
+.rr{display:grid;grid-template-columns:98px 1fr 40px;align-items:center;gap:12px;font-size:12px}
+.rr code{font-family:var(--cm-font-mono);font-size:11px;color:#6E675C}
+.rr i{height:14px;background:#D9A21B;border-radius:2px;display:block}
+.rr em{font-style:normal;color:#6E675C;text-align:right;font-variant-numeric:tabular-nums}
+
+/* radii */
+.radii{display:flex;gap:16px}
+.rad{flex:1;display:flex;flex-direction:column;gap:8px}
+.swatch{height:74px;border:1px solid #8E877B;background:#FFFFFF}
+.rad b{font-size:13px;font-weight:600;color:#262320}
+.rad span{font-size:12px;color:#6E675C;line-height:1.45}
+
+/* nesting */
+.nest{border:1px solid #E7E3DC;border-radius:var(--cm-radius-lg);background:#FFFFFF;padding:var(--cm-space-3);display:flex;flex-direction:column;gap:8px}
+.nrow{border:1px solid #E7E3DC;border-radius:var(--cm-radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nrow b{font-size:16px;font-weight:500;color:#262320}
+.chip{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:var(--cm-radius-pill);background:#EAF2E0;color:#3F6B2A}
+.inner{font-size:12px;color:#6E675C;border:1px solid #E7E3DC;border-radius:var(--cm-radius-sm);padding:3px 8px}
+.tag{font-family:var(--cm-font-mono);font-size:10px;color:#6E675C}
+.note{font-size:12px;color:#6E675C;line-height:1.5}
+</style></head><body><div class="card">
+
+<div class="col">
+  <h2>Space &amp; radius</h2>
+  <div class="lede"><strong>One 4px rhythm, and radius assigned by class of surface.</strong>
+  Seven steps absorb today's 43 padding and 23 gap values; three radii replace thirteen.
+  Nothing is chosen per component.</div>
+</div>
+
+<div class="col"><span class="mono-label">Spacing — 4px rhythm, 7 steps</span>
+  <div class="ruler">
+    <div class="rr"><code>--cm-space-1</code><i style="width:4px"></i><em>4</em></div>
+    <div class="rr"><code>--cm-space-2</code><i style="width:8px"></i><em>8</em></div>
+    <div class="rr"><code>--cm-space-3</code><i style="width:12px"></i><em>12</em></div>
+    <div class="rr"><code>--cm-space-4</code><i style="width:16px"></i><em>16</em></div>
+    <div class="rr"><code>--cm-space-5</code><i style="width:24px"></i><em>24</em></div>
+    <div class="rr"><code>--cm-space-6</code><i style="width:32px"></i><em>32</em></div>
+    <div class="rr"><code>--cm-space-7</code><i style="width:48px"></i><em>48</em></div>
+  </div>
+  <p class="note">No sub-4px step. The 1px, 2px and 3px &ldquo;gaps&rdquo; in the current CSS are
+  hairline separators &mdash; a border doing a layout job &mdash; and become borders.</p>
+</div>
+
+<div class="col"><span class="mono-label">Radius — soft, chosen at true size on a phone</span>
+  <div class="radii">
+    <div class="rad">
+      <div class="swatch" style="border-radius:var(--cm-radius-sm)"></div>
+      <b>sm &middot; 6px</b><span>Inline marks, and a control nested inside another control.</span>
+    </div>
+    <div class="rad">
+      <div class="swatch" style="border-radius:var(--cm-radius-md)"></div>
+      <b>md &middot; 10px</b><span>Controls: buttons, inputs, rows, lineup slots, chips.</span>
+    </div>
+    <div class="rad">
+      <div class="swatch" style="border-radius:var(--cm-radius-lg)"></div>
+      <b>lg &middot; 16px</b><span>Containers: cards, panels, popovers, page shells.</span>
+    </div>
+  </div>
+  <p class="note">Plus <code>pill</code> 999px for status badges and counts, and <code>circle</code> 50% for avatars only.</p>
+</div>
+
+<div class="col"><span class="mono-label">The nesting rule — drop exactly one step inward</span>
+  <div class="nest">
+    <div class="nrow"><b>Ashfall</b><span class="chip">Observed</span></div>
+    <div class="nrow"><b>Ironvale</b><span class="inner">TH15</span></div>
+  </div>
+  <p class="note">Container <code>lg</code> &rarr; row <code>md</code> &rarr; inline mark <code>sm</code>.
+  A fixed rule is what stops the 5px-inside-7px-inside-10px soup the audit found across 65 border-radius declarations.</p>
+</div>
+
+</div></body></html>
