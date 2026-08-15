@@ -57,6 +57,17 @@ Two contrast roles, not one: `--cm-hairline` is decorative and deliberately belo
 - **Focus is solid, not a halo.** A translucent ring composites over whatever sits behind it, so its contrast changes silently on a coloured surface.
 - **Two breakpoints, mobile-first** (720px, 1120px), replacing seven ad-hoc `max-width` values. Today's 900/840/800 all meant "multi-column stopped working" and 680/560/480 all meant "phone".
 
+**Semantic states and the notice budget are locked** ([#19](https://github.com/nswanger/clash-of-clans/issues/19)).
+
+- **Five marks**: success, caution, danger, info, unknown. Colour states an evaluation or a category and never raises a notice.
+- **Info marks a category, never a notice** — an access role, an invitation status, lineup provenance. An info-coloured bar is precisely the chrome the budget exists to remove, so the rule is explicit rather than a loaded gun. Info is deliberately the lowest-chroma state (32%, against caution 38%, success 44%, danger 91%).
+- **One notice region per screen.** Highest severity wins; additional qualifying notices are counted and expandable, never stacked. Only two things can ever occupy it — collection health, and a save conflict or failed request — and both are danger. Success, caution and info can never appear there.
+- **Provenance is marked by presence, not by a pair.** Observed carries the info edge rail; planned carries no marker. "Observed" is not success — it only means the value came from the Clash API — and colouring it as success would imply the plan is deficient.
+- **No activity value may be negative.** The domain's three values are `observed`, `no_change` and `unknown` — `no_change`, not "inactive". The data layer already refuses to read absent evidence as poor performance.
+- **Two treatments deleted**: the happy-path banner reading "Latest saved lineup", and a permanently mounted documentation paragraph. Both carry a live control, so the action is rehomed rather than lost; where Save lives is #20.
+
+The largest finding was not in the audit, which was CSS-only: `dashboard-model.ts` pushes one `role="alert"` per coverage gap and one per confidence note, unbounded. Those are per-recommendation explanations hoisted out of the panel they explain, and they return to it.
+
 ## Not yet decided
 
 How the web app consumes these tokens — importing this directory directly, promoting it to a workspace package under `packages/`, or copying at build time. That is part of [#23](https://github.com/nswanger/clash-of-clans/issues/23), where component API conventions are settled. Nothing in `apps/web` imports this yet.

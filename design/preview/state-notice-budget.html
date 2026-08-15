@@ -1,0 +1,108 @@
+<!-- @dsCard group="States" -->
+<!doctype html><html data-theme="light"><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');</style><link rel="stylesheet" href="_card.css">
+<style>
+body{font-family:Archivo,sans-serif}
+h2{font-size:20px;font-weight:700;letter-spacing:-.01em;color:#262320;margin:0}
+.lede{padding:12px 14px;border-radius:var(--cm-radius-md);background:#EAF2E0;color:#3F6B2A;font-size:13px;line-height:1.5}
+.note{font-size:12px;color:#6E675C;line-height:1.5}
+.tag{font-family:var(--cm-font-mono);font-size:10px;color:#6E675C}
+
+/* phone frames */
+.pair{display:flex;gap:16px;align-items:flex-start}
+.phone{width:302px;flex:none;border:1px solid #D5D0C7;border-radius:var(--cm-radius-lg);
+       background:#FAF9F7;padding:10px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.pcol{display:flex;flex-direction:column;gap:6px;min-width:0}
+
+/* today's bars */
+.bar{padding:8px 10px;border-radius:var(--cm-radius-sm);font-size:11px;line-height:1.35}
+.bar strong{display:block;font-size:11px;font-weight:600}
+.alert{background:#FBEAE1;color:#A33208;border-left:3px solid #A33208}
+.plain{background:#FFFFFF;border:1px solid #E7E3DC;color:#262320}
+.docs{background:#FFFFFF;border:1px solid #E7E3DC;color:#6E675C;font-size:10px}
+
+/* the one region */
+.region{background:#FBEAE1;border:1px solid #A33208;border-radius:var(--cm-radius-md);
+        padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.region .top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.region strong{font-size:12px;font-weight:600;color:#A33208}
+.region p{font-size:11px;color:#A33208;margin:0;line-height:1.4}
+.act{font-size:11px;font-weight:600;color:#A33208;background:none;border:1px solid #A33208;
+     border-radius:var(--cm-radius-sm);padding:4px 8px;white-space:nowrap;flex:none}
+.more{font-size:10px;color:#A33208;border-top:1px solid rgb(163 50 8 / 25%);padding-top:5px;
+      font-family:var(--cm-font-mono)}
+
+/* content stand-in */
+.slot{background:#FFFFFF;border:1px solid #E7E3DC;border-radius:var(--cm-radius-md);
+      padding:9px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.slot b{font-size:14px;font-weight:500;color:#262320}
+.slot .rail{position:relative;padding-left:9px}
+.slot .rail::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;
+      border-radius:999px;background:#3E5D79}
+.mini{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+      padding:3px 7px;border-radius:999px;background:#E6EDF3;color:#3E5D79}
+.count{font-family:var(--cm-font-mono);font-size:10px;color:#6E675C;text-align:center;padding-top:2px}
+</style></head><body><div class="card">
+
+<div class="col">
+  <h2>The notice budget</h2>
+  <div class="lede"><strong>One notice region per screen. Highest severity wins; the rest are counted, not stacked.</strong>
+  Today there is no cap in either direction &mdash; the dashboard pushes one alert per coverage gap and one per
+  confidence note, unbounded.</div>
+</div>
+
+<div class="col"><span class="mono-label">Same screen, same conditions — 390px</span>
+  <div class="pair">
+
+    <div class="pcol">
+      <div class="phone">
+        <div class="bar docs"><strong>Planned vs Observed</strong>Planned lineup is the editable leader plan. Observed comes from the Clash API after the war starts&hellip;</div>
+        <div class="bar plain"><strong>Latest saved lineup</strong>Revision 12</div>
+        <div class="bar plain"><strong>Rotation opportunity</strong>3 candidates &middot; Preview</div>
+        <div class="bar alert"><strong>Dashboard data may be stale</strong></div>
+        <div class="bar alert">No eligible substitute for position 4</div>
+        <div class="bar alert">No eligible substitute for position 9</div>
+        <div class="bar alert">Limited confidence: 2 wars of evidence</div>
+      </div>
+      <span class="tag">today — 7 bars, 0 content</span>
+    </div>
+
+    <div class="pcol">
+      <div class="phone">
+        <div class="region">
+          <div class="top">
+            <div><strong>Dashboard data may be stale</strong>
+            <p>Last collection 6h ago.</p></div>
+            <span class="act">Retry</span>
+          </div>
+          <div class="more">1 more &middot; tap to expand</div>
+        </div>
+        <div class="slot"><b class="rail">Ashfall</b><span class="mini">Observed</span></div>
+        <div class="slot"><b>Ironvale</b></div>
+        <div class="slot"><b>Quillon</b></div>
+        <div class="slot"><b>Emberwake</b></div>
+      </div>
+      <span class="tag">after — 1 region, content above the fold</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="col"><span class="mono-label">What changed, and why</span>
+  <p class="note">
+  <strong>Four of those seven were never notices.</strong> Two coverage gaps and one confidence note are
+  per-recommendation explanations, hoisted out of the panel they explain and rendered as page alerts by a
+  loop with no bound; they return to the change they describe. The rotation bar is an offer, not a problem,
+  and belongs to the recommendation panel.<br><br>
+  <strong>Two were chrome announcing nothing.</strong> &ldquo;Latest saved lineup&rdquo; is a bar that fires
+  on the happy path. The documentation paragraph is onboarding copy mounted forever.<br><br>
+  <strong>One was real</strong> &mdash; and it is the one still showing.</p>
+</div>
+
+<div class="col"><span class="mono-label">The rule</span>
+  <p class="note">One region, highest severity first. When more than one notice qualifies, the region carries
+  a count that expands the rest &mdash; so nothing is silently swallowed, but nothing stacks either. Only two
+  things can ever occupy it: collection health, and a save conflict or failed request. Both are danger, both
+  are page-scoped. <strong>Success, caution and info can never appear here at all.</strong></p>
+</div>
+
+</div></body></html>
