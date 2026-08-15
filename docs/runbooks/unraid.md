@@ -134,9 +134,12 @@ Apply any database migrations the new commit requires **before** starting the ne
    cp collector.env "collector.env.backup-$stamp"
    chmod 600 "collector.env.backup-$stamp"
    ls -1a | grep -- "$stamp"
+   ./verify-collector.sh | grep -E '^(Collection run|Collection health):' || true
    ```
 
    Record the printed image name in the deployment handoff. It is the rollback target. Both backups must appear in the listing. Use `ls -1a`, not `ls -1`: the selector backup is a dotfile and a plain listing silently omits it, which reads as a failed backup.
+
+   Record the baseline collection-run ID too. Step 5 needs it to tell a new run from the pre-upgrade one, and a baseline that is already unhealthy tells you the existing deployment was broken before this upgrade touched it.
 
 2. From the local shell where `commit_sha` was set, copy the new image archive and the reviewed non-secret assets. `collector.env.example` is a template only and does not affect the running configuration.
 
@@ -174,13 +177,15 @@ Apply any database migrations the new commit requires **before** starting the ne
 
    `docker compose config --images` must print the new tag before the service is recreated.
 
-5. Wait through the two-minute health start period, then verify against the same criteria as a first deployment:
+5. Wait for the new image to finish a collection, then verify against the same criteria as a first deployment:
 
    ```sh
    ssh "$UNRAID_SSH" 'cd /mnt/user/appdata/cwl-collector && ./verify-collector.sh && docker port cwl-collector'
    ```
 
-   Apply the acceptance rules from the first-deployment verification step. `docker port` must print nothing.
+   Container health is not a sufficient signal here. Health turns `healthy` about fifteen seconds after recreation, well before a full collection completes, and `verify-collector.sh` reports the most recent *completed* run. Verifying too early reports the pre-upgrade run and can pass or fail on evidence the new image never produced.
+
+   Compare the reported `Collection run` against the baseline from step 1. While they match, the new image has not finished its first collection; wait and re-run rather than acting on the result. Once the ID differs, apply the acceptance rules from the first-deployment verification step. `docker port` must print nothing.
 
 6. Confirm the upgrade actually changed collector behavior rather than only the tag. Check that the endpoints the new commit introduces appear in `collection_attempts` after the next scheduled run, and that the recorded image matches the intended commit:
 
@@ -190,7 +195,27 @@ Apply any database migrations the new commit requires **before** starting the ne
 
    A tag that changed while the expected new endpoints never appear means the image was built from the wrong commit. Rebuild from the reviewed commit rather than editing the container.
 
-If verification fails, roll back with the recorded prior image tag using the Rollback section. Restore the protected environment from `collector.env.backup-$stamp` only if step 3 modified it.
+If verification fails, diagnose it with the section below before rolling back. If the cause is the new image, roll back with the recorded prior image tag using the Rollback section. Restore the protected environment from `collector.env.backup-$stamp` only if step 3 modified it.
+
+### Diagnose a failed upgrade verification
+
+A verification failure after an upgrade does not by itself mean the upgrade caused it. Establish which before rolling back, because rolling back a pre-existing defect restores the same failure under an older tag.
+
+A failed normalized write presents as a *healthy* Clash attempt. The endpoint records HTTP 200 with `normalization_error`, and every attempt that depends on it is skipped, so one broken endpoint empties most of a run while connectivity looks fine. Container logs will not explain it: the collector collects internal normalization errors but does not surface them (issue [#9](https://github.com/nswanger/clash-of-clans/issues/9)).
+
+1. Read the failing run's attempts to find which endpoint broke and how. Query `collection_attempts` filtered to the failing `run_id`, selecting `endpoint`, `status`, `http_status`, and `error_category` — the same fields `verify-collector.sh` reads. An endpoint with `http_status` 200 and a normalization error is the origin; the skipped attempts downstream of it are consequences, not separate faults.
+
+2. Replay that endpoint's RPC directly against the database with the payload the collector sent. The database returns the real error where the collector reports only `normalization_error` — for example a `23514` check-constraint violation naming the constraint and the failing row. This is the only way to see the underlying cause today.
+
+3. Decide whether the new commit introduced it, by diffing the affected code path between the two image commits:
+
+   ```sh
+   git diff <previous-commit>..<new-commit> -- apps/collector/src/<affected-file>.ts
+   ```
+
+   No change in that path means the new image did not introduce the defect. A latent defect that live data only just began to trigger looks exactly like an upgrade regression, and rolling back will not fix it. Roll forward with a targeted fix and a regression test instead.
+
+Do not use the production SQL Editor to patch data or schema while diagnosing. Schema changes belong in a migration.
 
 ## Public WAN IP and Clash key
 
