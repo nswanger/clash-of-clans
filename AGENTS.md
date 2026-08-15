@@ -51,3 +51,7 @@ Use the default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-
 ### Domain docs
 
 Single-context documentation uses root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
+
+### Collector deployment
+
+The collector runs on Nick's UnRaid host. Connection details live in `deploy/unraid/target.env`, which is gitignored because this repository is public — load it with `set -a; . deploy/unraid/target.env; set +a` rather than asking where the host is. Create it from `deploy/unraid/target.env.example` if it is missing. Deployment and upgrade procedure is `docs/runbooks/unraid.md`; changes to the host still require Nick's explicit authorization.

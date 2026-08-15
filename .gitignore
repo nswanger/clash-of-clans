@@ -1,5 +1,10 @@
 .env*
 !.env.example
+
+# Private deployment target details. This repo is public; only the .example
+# template is ever committed.
+deploy/unraid/target.env
+!deploy/unraid/target.env.example
 node_modules/
 .pnpm-store/
 dist/
