@@ -1,0 +1,58 @@
+<!-- @dsCard group="Color" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.pane{padding:20px;border-radius:10px;display:flex;flex-direction:column;gap:12px}
+.pane.l{background:#FFFFFF} .pane.d{background:#1B1917}
+h3{font-size:14px;font-weight:600} .pane.l h3{color:#262320} .pane.d h3{color:#F3F1ED}
+.marks{display:flex;gap:8px;flex-wrap:wrap}
+.mark{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.row{display:flex;gap:10px;align-items:baseline;font-size:12px}
+.k{font-family:var(--cm-font-mono);font-size:10px;text-transform:uppercase;min-width:74px}
+.pane.l .k{color:#6E675C} .pane.d .k{color:#B2ABA0}
+.pane.l .v{color:#514B42} .pane.d .v{color:#D5D0C7}
+code{font-family:var(--cm-font-mono);font-size:11px}
+</style></head><body><div class="card">
+<div class="col"><h2 style="font-size:16px;font-weight:600;color:var(--cm-fg-strong)">State marks</h2>
+<p class="note" style="font-size:13px;color:var(--cm-fg-muted);line-height:1.55">
+Gold taking the brand slot forces a decision, because amber currently means <em>warning</em> and
+<em>locked</em> in this app. Amber cannot also mean caution, and orange sits only ~25&deg; away — still ambiguous.
+So caution moves to <strong>violet, 257&deg;</strong>: the furthest hue from gold, rust and green, and therefore
+unconfusable with any of them. Its job is <em>in progress, your move</em> &mdash; the pending-changes state in #21,
+an unlocked plan near a deadline, unsaved edits. Not broken, not done.
+A stale plan is <em>not</em> caution: it is action-required, which is danger.
+<br><br>
+<strong>Unknown carries no hue at all.</strong> Absent evidence is not a warning; it is an absence.
+It renders as muted text and an em-dash, which is what the domain says it is.</p></div>
+
+<div class="pane l"><h3>Light</h3>
+<div class="marks">
+  <span class="mark" style="background:#EAF2E0;color:#3F6B2A">8★ secured</span>
+  <span class="mark" style="background:#FBEAE1;color:#A33208">Reload needed</span>
+  <span class="mark" style="background:#EEEAF7;color:#5B4497">3 swaps not applied</span>
+  <span class="mark" style="background:#F3F1ED;color:#6E675C">— unknown</span>
+  <span class="mark" style="background:#D9A21B;color:#262320">Needs a turn</span>
+</div>
+<div class="row" style="margin-top:6px"><span class="k">green</span><span class="v">
+  <span class="mark" style="background:#E5F5EC;color:#11603B;font-size:11px">cool 152&deg;</span>
+  <span class="mark" style="background:#EAF2E0;color:#3F6B2A;font-size:11px">moss 101&deg;</span>
+  &nbsp;the cool green sits 109&deg; from every other hue in the system</span></div>
+<div class="row"><span class="k">success</span><span class="v"><code>#3F6B2A</code> on <code>#EAF2E0</code> — 5.46:1</span></div>
+<div class="row"><span class="k">danger</span><span class="v"><code>#A33208</code> on <code>#FBEAE1</code> — 5.95:1</span></div>
+<div class="row"><span class="k">caution</span><span class="v"><code>#5B4497</code> on <code>#EEEAF7</code> — 6.53:1 · 257&deg;, furthest from every other role</span></div>
+<div class="row"><span class="k">unknown</span><span class="v"><code>#6E675C</code> on <code>#F3F1ED</code> — 4.95:1 · no hue</span></div>
+<div class="row"><span class="k">emphasis</span><span class="v"><code>#262320</code> on gold <code>#D9A21B</code> — 6.80:1</span></div>
+</div>
+
+<div class="pane d"><h3>Dark</h3>
+<div class="marks">
+  <span class="mark" style="background:#1E2A16;color:#8FC66A">8★ secured</span>
+  <span class="mark" style="background:#33190F;color:#F08A5B">Reload needed</span>
+  <span class="mark" style="background:#231C33;color:#B9A0F0">3 swaps not applied</span>
+  <span class="mark" style="background:#262320;color:#B2ABA0">— unknown</span>
+  <span class="mark" style="background:#E8B93F;color:#141312">Needs a turn</span>
+</div>
+<div class="row"><span class="k">success</span><span class="v"><code>#8FC66A</code> — 7.48:1</span></div>
+<div class="row"><span class="k">danger</span><span class="v"><code>#F08A5B</code> — 6.60:1</span></div>
+<div class="row"><span class="k">unknown</span><span class="v"><code>#B2ABA0</code> — 6.87:1 · no hue</span></div>
+</div>
+</div></body></html>

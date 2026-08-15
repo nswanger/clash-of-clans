@@ -1,0 +1,36 @@
+<!-- @dsCard group="Color" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.sw{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.chip{width:46px;height:52px;border-radius:6px;box-shadow:inset 0 0 0 1px rgb(0 0 0/8%)}
+.t{font-family:var(--cm-font-mono);font-size:10px;color:var(--cm-fg-muted);line-height:1.3}
+.ramp{display:flex;gap:6px;flex-wrap:wrap}
+.pane{padding:20px;border-radius:10px}
+.pane.l{background:#FFFFFF} .pane.d{background:#1B1917}
+.pane.d .t{color:#B2ABA0}
+h3{font-size:14px;font-weight:600;margin-bottom:10px}
+.pane.l h3{color:#262320} .pane.d h3{color:#F3F1ED}
+table{border-collapse:collapse;font-size:11px;width:100%}
+td,th{text-align:left;padding:4px 8px 4px 0}
+th{font-family:var(--cm-font-mono);font-size:10px;text-transform:uppercase;color:var(--cm-fg-muted);font-weight:500}
+.pass{color:#11603B;font-weight:600}
+code{font-family:var(--cm-font-mono);font-size:10px}
+</style></head><body><div class="card">
+<div class="col"><h2 style="font-size:16px;font-weight:600;color:var(--cm-fg-strong)">Neutral ramp — warm</h2>
+<p class="note" style="font-size:13px;color:var(--cm-fg-muted);line-height:1.5">
+Hue ~40°, very low chroma. Warm rather than pure grey so it sits with gold instead of fighting it —
+and it continues the cast the app already had. Twelve steps carry the whole UI; colour is reserved for marks.</p></div>
+<div class="pane l"><h3>Light</h3><div class="ramp"><div class="sw"><div class="chip" style="background:#FAF9F7"></div><span class="t">50</span><span class="t">#FAF9F7</span></div><div class="sw"><div class="chip" style="background:#F3F1ED"></div><span class="t">100</span><span class="t">#F3F1ED</span></div><div class="sw"><div class="chip" style="background:#E7E3DC"></div><span class="t">200</span><span class="t">#E7E3DC</span></div><div class="sw"><div class="chip" style="background:#D5D0C7"></div><span class="t">300</span><span class="t">#D5D0C7</span></div><div class="sw"><div class="chip" style="background:#B2ABA0"></div><span class="t">400</span><span class="t">#B2ABA0</span></div><div class="sw"><div class="chip" style="background:#8E877B"></div><span class="t">500</span><span class="t">#8E877B</span></div><div class="sw"><div class="chip" style="background:#6E675C"></div><span class="t">600</span><span class="t">#6E675C</span></div><div class="sw"><div class="chip" style="background:#514B42"></div><span class="t">700</span><span class="t">#514B42</span></div><div class="sw"><div class="chip" style="background:#38332C"></div><span class="t">800</span><span class="t">#38332C</span></div><div class="sw"><div class="chip" style="background:#262320"></div><span class="t">900</span><span class="t">#262320</span></div><div class="sw"><div class="chip" style="background:#1B1917"></div><span class="t">950</span><span class="t">#1B1917</span></div><div class="sw"><div class="chip" style="background:#141312"></div><span class="t">1000</span><span class="t">#141312</span></div></div></div>
+<div class="pane d"><h3>Dark</h3><div class="ramp"><div class="sw"><div class="chip" style="background:#FAF9F7"></div><span class="t">50</span><span class="t">#FAF9F7</span></div><div class="sw"><div class="chip" style="background:#F3F1ED"></div><span class="t">100</span><span class="t">#F3F1ED</span></div><div class="sw"><div class="chip" style="background:#E7E3DC"></div><span class="t">200</span><span class="t">#E7E3DC</span></div><div class="sw"><div class="chip" style="background:#D5D0C7"></div><span class="t">300</span><span class="t">#D5D0C7</span></div><div class="sw"><div class="chip" style="background:#B2ABA0"></div><span class="t">400</span><span class="t">#B2ABA0</span></div><div class="sw"><div class="chip" style="background:#8E877B"></div><span class="t">500</span><span class="t">#8E877B</span></div><div class="sw"><div class="chip" style="background:#6E675C"></div><span class="t">600</span><span class="t">#6E675C</span></div><div class="sw"><div class="chip" style="background:#514B42"></div><span class="t">700</span><span class="t">#514B42</span></div><div class="sw"><div class="chip" style="background:#38332C"></div><span class="t">800</span><span class="t">#38332C</span></div><div class="sw"><div class="chip" style="background:#262320"></div><span class="t">900</span><span class="t">#262320</span></div><div class="sw"><div class="chip" style="background:#1B1917"></div><span class="t">950</span><span class="t">#1B1917</span></div><div class="sw"><div class="chip" style="background:#141312"></div><span class="t">1000</span><span class="t">#141312</span></div></div></div>
+<div class="col"><span class="mono-label">Verified pairings</span>
+<table>
+<tr><th>role</th><th>light</th><th>ratio</th><th>dark</th><th>ratio</th></tr>
+<tr><td>body text</td><td><code>900</code></td><td class="pass">15.63</td><td><code>100</code></td><td class="pass">15.54</td></tr>
+<tr><td>muted / unknown</td><td><code>600</code></td><td class="pass">5.59</td><td><code>400</code></td><td class="pass">7.70</td></tr>
+<tr><td>control boundary</td><td><code>500</code></td><td class="pass">3.56</td><td><code>500</code></td><td class="pass">4.93</td></tr>
+</table>
+<p class="note" style="font-size:12px;color:var(--cm-fg-muted);line-height:1.5;margin-top:6px">
+<code>500</code> clears 3:1 in <em>both</em> themes, so the control boundary is one token, not a pair.
+Decorative hairlines (<code>200</code> light, <code>800</code> dark) are deliberately below 3:1 — WCAG 1.4.11 governs
+control boundaries, not card edges, and forcing every rule to 3:1 makes a dense roster unreadable.</p></div>
+</div></body></html>

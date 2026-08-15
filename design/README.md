@@ -28,12 +28,19 @@ Each preview card carries a first-line `<!-- @dsCard group="…" -->` marker; th
 
 ## Status of the values in `colors_and_type.css`
 
-**Provisional.** They are the current de-facto values extracted in the [UI inventory audit](../docs/design/ui-inventory-audit.md) — the handful actually doing work today, out of the 100 distinct colors in the live CSS. They exist so the scaffold renders something real and so [#16](https://github.com/nswanger/clash-of-clans/issues/16), [#17](https://github.com/nswanger/clash-of-clans/issues/17), and [#18](https://github.com/nswanger/clash-of-clans/issues/18) have a concrete baseline to diff against.
+**Color is locked** ([#16](https://github.com/nswanger/clash-of-clans/issues/16)). Every pairing was verified numerically against WCAG AA; nothing was judged by eye.
 
-They are **not** decisions. Every value here is expected to change:
+The shape of the color system, in three rules:
 
-- Color — [#16](https://github.com/nswanger/clash-of-clans/issues/16). Today's palette is blue-accented; the system moves to a warm gold accent over a neutral base, dark-ready.
-- Type — [#17](https://github.com/nswanger/clash-of-clans/issues/17). Today's scale bottoms out at 9px, with 35 declarations at 11px or below. Raising that floor is the priority.
+1. **Gold fills, it does not write — in light mode.** Real gold reaches only 2.18:1 as text on white. Darkening it far enough for AA turns it to bronze, which reads muted rather than clickable. So gold is a surface (6.80:1 with dark ink on it); interactive ink uses bronze `gold-700`. In dark mode gold does both. One hue family, luminance shifting by theme, no second accent.
+2. **Warm throughout.** The neutral ramp sits at ~40°, gold at 43°, danger at 16°, success warmed to moss at 101°. The app's inherited green sat at 152° and read as foreign.
+3. **Unknown carries no hue.** Absent evidence renders as muted text and an em-dash. An absence is not a warning.
+
+Two contrast roles, not one: `--cm-hairline` is decorative and deliberately below 3:1, while `--cm-border-control` clears 3:1 for control boundaries. WCAG 1.4.11 governs the latter, not card edges — forcing every table rule to 3:1 makes a dense roster unreadable. `neutral-500` clears it in both themes, so it is one token rather than a pair.
+
+**Still provisional** — type, spacing, radii, and elevation:
+
+- Type — [#17](https://github.com/nswanger/clash-of-clans/issues/17). The scale bottoms out at 9px today, with 35 declarations at 11px or below. The 12px floor scaffolded here is a proposal, not a decision.
 - Spacing, radii, elevation — [#18](https://github.com/nswanger/clash-of-clans/issues/18).
 
 ## Not yet decided

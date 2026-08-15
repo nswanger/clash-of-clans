@@ -1,6 +1,6 @@
 /* Clan Muster tokens.
  *
- * PROVISIONAL — these are today's de-facto values, extracted in
+ * COLOR IS LOCKED (#16). Type, spacing, radii, and elevation below are still provisional, extracted in
  * docs/design/ui-inventory-audit.md. They are a baseline to diff against,
  * not decisions. See design/README.md.
  *
@@ -11,38 +11,69 @@
  */
 
 :root {
-  /* ---- color: surface ---- */
-  --cm-bg: #f6f5f4;             /* app background */
-  --cm-surface: #fff;           /* panels, cards */
-  --cm-surface-sunken: #fafafa; /* inset areas */
-  --cm-border: #e6e6e6;         /* hairlines, panel edges */
-  --cm-border-strong: #d3d3d3;  /* input borders */
-
-  /* ---- color: text ---- */
-  --cm-fg: #31302e;             /* body */
-  --cm-fg-strong: #171615;      /* headings */
-  --cm-fg-muted: #6f6e6b;       /* secondary, labels */
-
-  /* ---- color: accent ----
-   * Blue today. Moves to warm gold in #16 — an amber family already exists
-   * organically in the live CSS (#c68b0a, #f8f1d9, #fff4cf).
+  /* ---- color: neutral ramp (warm, hue ~40deg, low chroma) ----
+   * Carries the whole UI. Colour is reserved for marks. Locked in #16.
    */
-  --cm-accent: #0075de;
-  --cm-accent-hover: #005bab;
-  --cm-accent-subtle: #edf6ff;
-  --cm-on-accent: #fff;
+  --cm-n-50:  #FAF9F7;
+  --cm-n-100: #F3F1ED;
+  --cm-n-200: #E7E3DC;
+  --cm-n-300: #D5D0C7;
+  --cm-n-400: #B2ABA0;
+  --cm-n-500: #8E877B;
+  --cm-n-600: #6E675C;
+  --cm-n-700: #514B42;
+  --cm-n-800: #38332C;
+  --cm-n-900: #262320;
+  --cm-n-950: #1B1917;
+  --cm-n-1000:#141312;
 
-  /* ---- color: semantic state ----
-   * Roles, not a settled palette. The unknown/absent role is the one the domain
-   * cares most about: missing detail is unknown, never negative. Sized in #19.
+  /* ---- color: gold ---- */
+  --cm-gold-200: #F7E3AC;
+  --cm-gold-300: #F2D07A;
+  --cm-gold-400: #E8B93F;
+  --cm-gold-500: #D9A21B;
+  --cm-gold-600: #B37F0C;
+  --cm-gold-700: #8A6410;
+  --cm-gold-800: #6B4E0E;
+
+  /* ---- roles: surface ---- */
+  --cm-bg: var(--cm-n-50);
+  --cm-surface: #fff;
+  --cm-surface-sunken: var(--cm-n-100);
+  --cm-hairline: var(--cm-n-200);      /* decorative; intentionally below 3:1 */
+  --cm-border-control: var(--cm-n-500); /* 3.56 light, 4.93 dark — one token, both themes */
+
+  /* ---- roles: text ---- */
+  --cm-fg: var(--cm-n-900);
+  --cm-fg-strong: var(--cm-n-900);
+  --cm-fg-muted: var(--cm-n-600);
+  --cm-fg-unknown: var(--cm-n-600);    /* absence is not a colour — same as muted, differs by glyph */
+
+  /* ---- roles: accent ----
+   * Gold fills in light mode; it never writes. Ink uses bronze 700.
    */
-  --cm-success: #11603b;
-  --cm-success-subtle: #e5f5ec;
-  --cm-warning: #c68b0a;
-  --cm-warning-subtle: #f8f1d9;
-  --cm-danger: #dd5b00;
-  --cm-danger-subtle: #fbede4;
-  --cm-unknown: #8d8984;        /* absent evidence — muted, never alarming */
+  --cm-accent-fill: var(--cm-gold-500);
+  --cm-accent-fill-hover: var(--cm-gold-600);
+  --cm-on-accent: var(--cm-n-900);
+  --cm-accent-ink: var(--cm-gold-700);
+  --cm-accent-edge: var(--cm-gold-600);
+  --cm-focus-ring: var(--cm-gold-600);
+
+  /* ---- roles: state ----
+   * No amber caution: gold owns that hue. Caution is violet (257deg) — the
+   * furthest hue from gold, rust and moss, so it cannot be confused with any.
+   * Caution means "in progress, your move": a swap not yet applied in game
+   * (#21), an unlocked plan near a deadline, unsaved edits. A stale plan is
+   * NOT caution — it is action-required, i.e. danger.
+   * Success is moss (101deg), warmed from the app's inherited 152deg green so
+   * it sits with the warm neutral ramp instead of reading as foreign.
+   */
+  --cm-success-ink: #3F6B2A;
+  --cm-success-subtle: #EAF2E0;
+  --cm-caution-ink: #5B4497;
+  --cm-caution-subtle: #EEEAF7;
+  --cm-danger-ink: #A33208;
+  --cm-danger-subtle: #FBEAE1;
 
   /* ---- type ---- */
   --cm-font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -84,7 +115,7 @@
   /* ---- elevation: 2 levels, plus a selection indicator that is not depth ---- */
   --cm-shadow-1: 0 1px 2px rgb(23 22 21 / 4%), 0 2px 8px rgb(23 22 21 / 4%);
   --cm-shadow-2: 0 2px 6px rgb(23 22 21 / 5%), 0 10px 24px rgb(23 22 21 / 10%);
-  --cm-ring: inset 0 0 0 1px var(--cm-border);
+  --cm-ring: inset 0 0 0 1px var(--cm-hairline);
 
   /* ---- breakpoints (documentation; CSS custom properties cannot be used in
    * media queries — these record the declared set replacing today's seven) ---- */
@@ -95,24 +126,29 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --cm-bg: #171615;
-    --cm-surface: #201f1e;
-    --cm-surface-sunken: #1a1918;
-    --cm-border: #34322f;
-    --cm-border-strong: #4c4945;
+    --cm-bg: var(--cm-n-1000);
+    --cm-surface: var(--cm-n-950);
+    --cm-surface-sunken: var(--cm-n-900);
+    --cm-hairline: var(--cm-n-800);
 
-    --cm-fg: #e1e0dd;
-    --cm-fg-strong: #f4f2ef;
-    --cm-fg-muted: #9a968f;
+    --cm-fg: var(--cm-n-100);
+    --cm-fg-strong: var(--cm-n-100);
+    --cm-fg-muted: var(--cm-n-400);
+    --cm-fg-unknown: var(--cm-n-400);
 
-    --cm-accent: #62aef0;
-    --cm-accent-hover: #8ab8df;
-    --cm-accent-subtle: #1b2c3a;
+    --cm-accent-fill: var(--cm-gold-400);
+    --cm-accent-fill-hover: var(--cm-gold-300);
+    --cm-on-accent: var(--cm-n-1000);
+    --cm-accent-ink: var(--cm-gold-400);
+    --cm-accent-edge: var(--cm-gold-400);
+    --cm-focus-ring: var(--cm-gold-400);
 
-    --cm-success-subtle: #12271d;
-    --cm-warning-subtle: #2a2213;
-    --cm-danger-subtle: #2e1c11;
-    --cm-unknown: #77746e;
+    --cm-success-ink: #8FC66A;
+    --cm-success-subtle: #1E2A16;
+    --cm-caution-ink: #B9A0F0;
+    --cm-caution-subtle: #231C33;
+    --cm-danger-ink: #F08A5B;
+    --cm-danger-subtle: #33190F;
 
     --cm-shadow-1: 0 1px 2px rgb(0 0 0 / 30%), 0 2px 8px rgb(0 0 0 / 24%);
     --cm-shadow-2: 0 2px 6px rgb(0 0 0 / 32%), 0 10px 24px rgb(0 0 0 / 40%);
@@ -120,24 +156,29 @@
 }
 
 :root[data-theme="dark"] {
-  --cm-bg: #171615;
-  --cm-surface: #201f1e;
-  --cm-surface-sunken: #1a1918;
-  --cm-border: #34322f;
-  --cm-border-strong: #4c4945;
+  --cm-bg: var(--cm-n-1000);
+  --cm-surface: var(--cm-n-950);
+  --cm-surface-sunken: var(--cm-n-900);
+  --cm-hairline: var(--cm-n-800);
 
-  --cm-fg: #e1e0dd;
-  --cm-fg-strong: #f4f2ef;
-  --cm-fg-muted: #9a968f;
+  --cm-fg: var(--cm-n-100);
+  --cm-fg-strong: var(--cm-n-100);
+  --cm-fg-muted: var(--cm-n-400);
+  --cm-fg-unknown: var(--cm-n-400);
 
-  --cm-accent: #62aef0;
-  --cm-accent-hover: #8ab8df;
-  --cm-accent-subtle: #1b2c3a;
+  --cm-accent-fill: var(--cm-gold-400);
+  --cm-accent-fill-hover: var(--cm-gold-300);
+  --cm-on-accent: var(--cm-n-1000);
+  --cm-accent-ink: var(--cm-gold-400);
+  --cm-accent-edge: var(--cm-gold-400);
+  --cm-focus-ring: var(--cm-gold-400);
 
-  --cm-success-subtle: #12271d;
-  --cm-warning-subtle: #2a2213;
-  --cm-danger-subtle: #2e1c11;
-  --cm-unknown: #77746e;
+  --cm-success-ink: #8FC66A;
+  --cm-success-subtle: #1E2A16;
+  --cm-caution-ink: #B9A0F0;
+  --cm-caution-subtle: #231C33;
+  --cm-danger-ink: #F08A5B;
+  --cm-danger-subtle: #33190F;
 
   --cm-shadow-1: 0 1px 2px rgb(0 0 0 / 30%), 0 2px 8px rgb(0 0 0 / 24%);
   --cm-shadow-2: 0 2px 6px rgb(0 0 0 / 32%), 0 10px 24px rgb(0 0 0 / 40%);
