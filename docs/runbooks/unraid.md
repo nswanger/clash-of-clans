@@ -12,12 +12,20 @@ This runbook deploys one outbound-only `cwl-collector` container. The collector 
 
 ## Read-only preflight
 
-The documented SSH target and app-data conventions live in `Personal-Vault/Server Docs`. Retrieve them there rather than copying private connection details into this repository.
+Every `ssh` and `scp` command below expects `UNRAID_SSH` in the environment. Load it from the gitignored local target file:
+
+```sh
+set -a; . deploy/unraid/target.env; set +a
+```
+
+Create that file from `deploy/unraid/target.env.example` on a machine that does not have it yet. `Personal-Vault/Server Docs/OS & Infrastructure/Network & Access.md` remains the source of truth for the host's SSH target, key setup, and network layout; `target.env` is a local convenience copy so a session does not have to go looking for it.
+
+This repository is public. Keep host and account details in the gitignored file only, and never inline them into a committed command, log excerpt, or issue.
 
 Run these checks before any deployment write:
 
 ```sh
-ssh <unraid-ssh-target> '
+ssh "$UNRAID_SSH" '
   uname -m
   date +%Z
   docker version --format "{{.Server.Version}}"
@@ -63,7 +71,7 @@ Record the image tag and source commit in the deployment handoff. If a registry 
 
 ## SSH-assisted deployment
 
-These commands change UnRaid and require explicit authorization. Set `UNRAID_SSH` locally to the documented SSH target.
+These commands change UnRaid and require explicit authorization. Load `UNRAID_SSH` as shown in the read-only preflight section.
 
 1. Copy only the reviewed assets and image archive:
 
