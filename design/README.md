@@ -138,6 +138,20 @@ The baseline is durable, plan-scoped, **server-side** state, not view state: a h
 - **Two rules were written and proved unreachable, and both are deleted rather than kept as gaps.** `.avail.is-available` is dead because rows mark the exception, so the majority state is never rendered — the row-marking rule pruned the component's own API. `.pill.info` is dead because info's one live form is the provenance rail; #19 gave info a fifth mark and the surfaces only ever needed one shape for it.
 - **Two renames**, both where the name recorded a first use rather than a concept: `avail` → `cm-statustext` (the members roster already uses it for "Left 3mo ago"), and `lockchip` → `cm-statuschip`.
 
+**The mark and identity treatment are locked** ([#24](https://github.com/nswanger/clash-of-clans/issues/24)), in [`prototype/identity.html`](prototype/identity.html).
+
+- **One mark with a container variant, not two marks.** A dragon's head cabossed — facing the viewer, no neck — wherever there is room; the same head knocked out of a shield at 16–32px. The badge is generated from the head by transform rather than redrawn, so the two cannot drift as either is refined.
+- **The container is what survives shrinking.** At favicon size the bare head degrades toward a generic angular glyph, while the shield still reads unmistakably as a badge — a container holds its identity after its contents have stopped resolving. This was the finding the size test existed to produce, and it is why the answer is two mountings rather than one shape.
+- **A dragon reads by vocabulary, not by detail.** The first attempt was a forward-facing head with two horns and it read as a cat. The fix was a crown of horns rather than two, a heavy brow, and a distinct muzzle block. Evenly-spaced radial horns then read as a jester's crown, so the horn pair has to be unequal and swept.
+- **A silhouette must be one connected mass.** The profile head drawn as two floating jaws read as two darts; the mouth has to be a notch cut into a single outline. A head is legible because it is one shape, not because it has the right parts.
+- **A wyvern displayed was cut.** At 24px the wings and legs collapsed into a five-pointed star — a worse thing to be mistaken for than a generic head.
+- **All geometry is original.** Heraldic dragons are a public vocabulary centuries older than the game; nothing here derives from a Supercell asset, which matters because this repo is public and the system is meant to be reusable.
+- **Where identity is permitted:** the app mark in the top bar at 20–24px, once per screen; the favicon and app icon; and empty states, muted to a neutral rather than gold, because an empty state is not an achievement.
+- **Where it is forbidden:** on rows, as a watermark, as any repeating texture, and — most importantly — carrying a state colour. The moment the mark goes green or red it becomes a sixth semantic mark, and [#19](https://github.com/nswanger/clash-of-clans/issues/19) fixed the set at five. Identity never states an evaluation.
+- **No illustration style beyond the mark.** No spot art, no mascot poses, no scenes. The mark is one shape at one weight, recoloured but never redrawn — which is why the empty state reuses it at 56px instead of introducing a second vocabulary.
+
+The vector itself is a working draft, good enough to build against; refining it does not reopen the decision.
+
 ## Not yet decided
 
 How the web app consumes these tokens — importing this directory directly, promoting it to a workspace package under `packages/`, or copying at build time. That rides with migration mechanics in [#25](https://github.com/nswanger/clash-of-clans/issues/25). Nothing in `apps/web` imports this yet.
