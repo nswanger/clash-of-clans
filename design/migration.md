@@ -39,7 +39,7 @@ Inertness is a property of the selectors, not a judgement about the screenshot: 
 
 One cost worth naming: `tokens.css` opens with an `@import` of Archivo from Google Fonts, so importing it adds a third-party request and a font download to every load. Nothing renders in Archivo until a surface asks for `--cm-font-sans`, so this buys nothing until wave 1 — but font delivery was never settled, and self-hosting is the obvious alternative whenever someone wants it.
 
-### Wave 1 — the members roster
+### Wave 1 — the members roster — **landed**
 
 **Members goes first, not CWL.** It is a genuine surface with real data, it is not the default route, and a mistake there is cheap. That proves the migration mechanics on something recoverable before they touch the surface that must not regress.
 
@@ -52,6 +52,18 @@ Spec: [`prototype/members-roster.html`](prototype/members-roster.html) · [publi
 A counter that moved tells you someone opened the game. It does not tell you they turned up for a war, and this roster is read to decide who turns up. The cost is accepted knowingly: our war history only accumulates forward from the day collection started, so early windows are thin and more members read as having no evidence yet. That is the honest answer rather than a worse one dressed up as coverage. "Building history" changes meaning with the source — it now says we have logged no war in this window, rather than that we hold no snapshot from N days ago.
 
 The same rule settles a name collision the surface will otherwise trip on. The prototype's `warStars`, sitting beside `warAttacksMade / warAssignedAttacks`, is stars from wars we observed. It is **not** `member_roster_overview.war_stars`, which is Clash's lifetime profile counter and the one the dead-code list below drops.
+
+#### What landed, and where it differs from the plan above
+
+- **The base layer is `design/base.css`**, a third file in `@cwl/design` imported between the tokens and the component layer. It is design-system truth rather than members vocabulary, so it belongs beside the layer that documents its absence. The four jobs `styles.css` did against hard-coded values — `:root` font/colour/background, `* { box-sizing }`, `body { margin }`, `button { font: inherit }` — were deleted there in the same commit; two element bases arguing over the same properties is how a theme half-applies. Every route now renders in Archivo on the token background, which is the accepted cost named above.
+- **The windows are 3 and 7 days, defaulting to 7, where the prototype offered 1 and 7.** Those two were what the view's hard-coded lateral joins made available; the window is a function parameter now, so the choice is real. The short window has to stay short: this is a casual clan where people go quiet suddenly, and "who stopped turning up this week" is the question it exists to answer. **Thirty days is rejected** for the reason #22 already gave — in a casual clan it mostly answers "have they quit", which `is_current_member` and `departure_observed_on` answer directly and better. One day could not survive the change of source: a regular war spans about two days, so a one-day window usually contains no war at all and would report "building history" for the whole clan. Three is the shortest window that reliably holds one — which is also the honest limit on reading it, since one logged war is the difference between "turned up for the last war" and "did not". A real signal, and a thin one; hence 7 as the default.
+- **The middle status is `none`, labelled "No war activity observed".** "No change observed" named a counter that did not move, and no counter is being read any more. The three states are now: no war logged in the window (`unknown`, "Building history"), wars logged with an attack of theirs among them (`observed`), wars logged with none (`none`).
+- **The evidence chips are gone; the war record is the evidence.** The prototype's panel carried both — chips from the profile counters, and a facts grid labelled "War record · all time" because `regular_war_member_history` had no date filter. With a windowed source those two say the same thing, so the panel carries one label naming the verdict and the window, and the four numbers under it. The evidence list survives for coverage caveats only: incompletely logged wars.
+- **The Town Hall filter is gone**, because the prototype's filter panel carries four groups and Town Hall is not one of them; it remains a sort. That is a capability the old surface had, dropped on the prototype's authority rather than by accident.
+- **Six more query fields left with the counter diff** than the dead-code list below anticipated — `trophies`, `league_id`, `attack_wins`, `defense_wins`, `clan_capital_contributions`, `clan_games_points`. They were never rendered; `activityWindow()` was their only reader, so they are dead by exactly the rule that listed the others.
+- **`#/overview` keeps its old markup and five of its old rules.** It shares `members-shell`, `members-heading`, `roster-summary`, `overview-callout` and `primary-link` with the roster, and it is wave 3's — with an open question over whether it should exist at all. Only its activity count moved to the new source. The same-commit deletion rule is satisfied in the way that matters: nothing left in `styles.css` can match anything on the rebuilt roster.
+- **`filter-menu.tsx` stays.** It looks like the roster's own control and its CSS sat inside the members block, but the CWL workspace renders four of them. It is wave 2's, and it carries the app's last two `textContent` glyphs — `⌄` and `✓`.
+- **The shared sheet behaviour layer was not ported.** `_prototype.js` applies `is-entering` / `is-settling` and runs drag-to-dismiss by watching the DOM for overlays; in React that is an effect, not a MutationObserver, and rewriting it inside a surface rebuild is the second cause in one diff the icon sprite was split out to avoid. The sheet works without it — scrim, Escape, and the close control all dismiss — it simply does not animate or drag. Wave 2 needs it too, so it wants its own commit first.
 
 ### Wave 2 — the CWL lineup workspace
 
@@ -80,6 +92,8 @@ The remaining routes — `overview`, `season`, `dashboard`, `access` — brought
 
 That prefix is not hygiene. `styles.css` already defines `.eyebrow`, and so does Clan Muster's utility set.
 
+**A page stylesheet must prefix too, and must out-specify the component layer.** Wave 1 found both the hard way. The prototypes name page classes bare — `.metric`, `.row-stats` — and `.metric` is already the dashboard's in `styles.css`, so page classes take the surface's own prefix (`members-`). And a prototype's page rules win ties by source order, because `_prototype.css` is a `<link>` above the page's `<style>`; a bundler orders by import graph instead, and a page imported from `main.tsx` lands *before* the CSS imports there. Every page-layer rule that overrides a `cm-` component therefore needs an ancestor in the selector. The one that caught it: `.members-wide-only` is also a `.cm-row-stats`, and the component's `display: flex` beat the page's `display: none`.
+
 **The rename lands with the rebuild.** A standalone rename commit touches every line the rebuild touches anyway, and the test suite cannot catch a rename error because it never queries by class. One pass, one diff, one review.
 
 **Do not migrate the CWL surface during an active CWL season.** This replaces a feature flag. A flag would mean shipping both stylesheets and both component trees on a static Pages deploy with no server, to guard a risk that is really about timing.
@@ -90,7 +104,9 @@ That prefix is not hygiene. `styles.css` already defines `.eyebrow`, and so does
 
 ## What proves a surface is correct
 
-**Behaviour: the existing 80 tests, unmodified.** All 137 queries are `getByRole` or `getByText` — there is not one class-name assertion in the suite, so a restyle is invisible to it. That is the property that makes this migration safe, and it was luck rather than design, so it is worth stating plainly: *do not add class-based queries to these tests.* CI already runs `pnpm test` before build and deploy, so a behaviour regression cannot ship.
+**Behaviour: the existing tests, unmodified.** All queries are `getByRole` or `getByText` — there is not one class-name assertion in the suite, so a restyle is invisible to it. That is the property that makes this migration safe, and it was luck rather than design, so it is worth stating plainly: *do not add class-based queries to these tests.* CI already runs `pnpm test` before build and deploy, so a behaviour regression cannot ship.
+
+**It holds for every surface but the one being rebuilt.** Wave 1 rewrote the members tests, and had to: the prototype replaces five dropdown menus with a filter panel and the always-expanded card with a detail panel, so the tests that pressed `menuitemradio` were asserting on an interaction model that no longer exists. The unmodified-suite guarantee is about the *other* routes — the ones a restyle must not touch — and those did pass untouched. A rebuilt surface's own tests move with it, and one class assertion did leak in on the old members test (`{ selector: ".activity-status" }`); it left with the class.
 
 **Appearance: manual comparison against the published prototypes.** No visual-regression tooling. For a six-route personal-scale app it is more machinery than the risk warrants, and the prototypes are an exact, versioned spec already.
 
@@ -99,6 +115,6 @@ That prefix is not hygiene. `styles.css` already defines `.eyebrow`, and so does
 ## Dead code to remove on the way
 
 - **`apps/web/src/cwl-prototype/`** — empty and unreferenced since 2026-08-01. Delete it in wave 0.
-- **`baseline1d` / `baseline30d`, `previousClanRank`, `warStars` (the profile counter), `lastObservedPresentOn`** — fetched on every members load and never rendered ([#22](https://github.com/nswanger/clash-of-clans/issues/22)). Drop from the query in wave 1. `baseline7d` joins them once the activity window moves to logged war history, and `activityWindow()` in `member-history.ts` leaves with it — `members-page.tsx` is its only caller.
+- ~~**`baseline1d` / `baseline30d`, `previousClanRank`, `warStars` (the profile counter), `lastObservedPresentOn`**~~ — gone in wave 1, along with `baseline7d`, `activityWindow()`, and the six counters that turned out to have no other reader: `trophies`, `leagueId`, `attackWins`, `defenseWins`, `clanCapitalContributions`, `clanGamesPoints`. `loadMemberRoster` names its sixteen columns now instead of selecting `*`.
 - **`mapPosition`** — fetched and discarded by the CWL workspace, which reads `observed` only as a boolean set ([#21](https://github.com/nswanger/clash-of-clans/issues/21)). Wave 2 should either use it as the in-game order or stop selecting it.
 - **The 14 status treatments in `styles.css`** — reduced to two that can ever fire ([#19](https://github.com/nswanger/clash-of-clans/issues/19)). They leave with the surfaces that carry them.

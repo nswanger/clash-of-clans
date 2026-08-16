@@ -5,6 +5,7 @@
   "description": "Clan Muster design system: token layer and component layer.",
   "exports": {
     "./tokens.css": "./tokens.css",
+    "./base.css": "./base.css",
     "./clan-muster.css": "./clan-muster.css",
     "./fonts/*": "./fonts/*"
   }

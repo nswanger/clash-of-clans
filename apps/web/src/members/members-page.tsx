@@ -1,35 +1,244 @@
 import { useEffect, useMemo, useState } from "react";
-import { FilterMenu } from "../filter-menu.js";
+import { Icon } from "../design/icon.js";
 import {
-  activityWindow,
+  activityStatus,
   loadMemberRoster,
+  loadWarActivityWindow,
   roleLabel,
+  type ActivityStatus,
   type MemberRosterMember,
+  type MemberWarActivity,
 } from "./member-history.js";
+import "./members-roster.css";
 
 interface MemberPageProps { client: any; clanTag: string }
 type RosterFilter = "current" | "former" | "all";
-type ActivityFilter = "all" | "observed" | "no_change" | "unknown";
-type Sort = "rank" | "name" | "town_hall" | "activity" | "observed";
+type ActivityFilter = "all" | ActivityStatus;
+type Sort = "rank" | "name" | "town_hall" | "activity" | "tenure";
+type Panel = { mode: "member"; tag: string } | { mode: "filters" } | null;
 
-export function RosterOverviewPage(props: MemberPageProps) {
-  const state = useMemberRoster(props);
-  if (state.status !== "ready") return <MemberState state={state} title="Clan overview" />;
-  const current = state.members.filter((member) => member.isCurrentMember);
-  const active = current.filter((member) => activityWindow(member, member.baseline7d).status === "observed");
-  const unknown = current.filter((member) => activityWindow(member, member.baseline7d).status === "unknown");
+/* Three and seven, where the prototype offered one and seven.
+ *
+ * The short window exists because this is a casual clan and people go quiet
+ * suddenly; the question it answers is "who stopped turning up this week", and
+ * a long window cannot answer it. Thirty days was considered and rejected for
+ * the same reason #22 rejected it: in a casual clan it mostly answers "have
+ * they quit", which `is_current_member` and `departure_observed_on` answer
+ * directly and better.
+ *
+ * One day had to go once the source became war history rather than profile
+ * counters. A regular war spans about two days, so a one-day window usually
+ * contains no war at all and would report "building history" for the entire
+ * clan. Three is the shortest window that reliably contains one.
+ *
+ * Read the short window knowing what it can hold: one logged war, so it is the
+ * difference between "turned up for the last war" and "did not". That is a real
+ * signal and a thin one, which is why seven is the default. */
+const WINDOWS = [{ days: 3, label: "3 days" }, { days: 7, label: "7 days" }] as const;
+const DEFAULT_WINDOW_DAYS = 7;
+const WIDE_QUERY = "(min-width: 720px)";
+/* A placeholder that appears and vanishes inside a tenth of a second reads as
+ * breakage rather than progress, so a fast load shows nothing at all (#43). */
+const SKELETON_DELAY_MS = 250;
+
+export function MembersPage({ client, clanTag }: MemberPageProps) {
+  const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW_DAYS);
+  const roster = useMemberRoster(client, clanTag, windowDays);
+  const wide = useWide();
+  const [search, setSearch] = useState("");
+  const [scope, setScope] = useState<RosterFilter>("current");
+  const [role, setRole] = useState("all");
+  const [activity, setActivity] = useState<ActivityFilter>("all");
+  const [sort, setSort] = useState<Sort>("rank");
+  const [panel, setPanel] = useState<Panel>(null);
+
+  /* Fixed at mount: tenure is measured in days, and a clock that ticks on every
+   * render would re-sort the list for nothing. */
+  const [now] = useState(() => Date.now());
+  const members = roster.members;
+  const statusOf = (member: MemberRosterMember) => activityStatus(roster.activity.get(member.playerTag));
+
+  const roles = useMemo(
+    () => [...new Set(members.map((member) => member.role).filter((value): value is string => Boolean(value)))].sort(),
+    [members],
+  );
+  const visible = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return members
+      .filter((member) => !query || member.name.toLocaleLowerCase().includes(query)
+        || member.playerTag.toLocaleLowerCase().includes(query))
+      .filter((member) => scope === "all" || (scope === "current") === member.isCurrentMember)
+      .filter((member) => role === "all" || member.role === role)
+      .filter((member) => activity === "all" || statusOf(member) === activity)
+      .sort(memberSorter(sort, statusOf, now));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activity, members, now, role, roster.activity, scope, search, sort]);
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setPanel(null); };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, []);
+
+  /* Where the panel is docked rather than overlaid, an empty column is dead
+   * space that also hides the fact that rows do anything — so the first visible
+   * member opens by default. It is only ever a default: any row replaces it,
+   * and the narrow layout never auto-opens, because there the panel is a sheet
+   * over the whole screen and opening one uninvited would bury the list. */
+  const active: Panel = panel ?? (wide && visible[0] ? { mode: "member", tag: visible[0].playerTag } : null);
+  const selectedTag = active?.mode === "member" ? active.tag : null;
+  const selected = selectedTag ? members.find((member) => member.playerTag === selectedTag) : undefined;
+  const windowLabel = WINDOWS.find((option) => option.days === windowDays)?.label ?? `${windowDays} days`;
+  const current = members.filter((member) => member.isCurrentMember);
+  const filterCount = (scope !== "current" ? 1 : 0) + (role !== "all" ? 1 : 0)
+    + (activity !== "all" ? 1 : 0) + (sort !== "rank" ? 1 : 0);
+
+  const panelBody = active?.mode === "filters"
+    ? <FilterPanel
+        counts={`${visible.length} of ${members.length} observed members`}
+        roles={roles}
+        scope={scope} onScope={setScope}
+        role={role} onRole={setRole}
+        activity={activity} onActivity={setActivity}
+        sort={sort} onSort={setSort}
+        onClear={() => { setScope("current"); setRole("all"); setActivity("all"); setSort("rank"); }}
+        onClose={() => setPanel(null)}
+      />
+    : selected
+      ? <MemberPanel
+          member={selected}
+          activity={roster.activity.get(selected.playerTag)}
+          windowLabel={windowLabel}
+          wide={wide}
+          now={now}
+          onClose={() => setPanel(null)}
+        />
+      : null;
+
+  return <>
+    <main className="cm-shell members-page">
+      <header className="cm-topbar">
+        <div>
+          <p className="cm-eyebrow">Year-round clan</p>
+          <h1>Members</h1>
+        </div>
+      </header>
+
+      <div className="members-summary">
+        <Metric value={roster.ready ? current.length : null} label="Current members" />
+        <Metric
+          value={roster.ready ? current.filter((member) => statusOf(member) === "observed").length : null}
+          label={`Activity observed · ${windowLabel}`}
+        />
+        <Metric
+          value={roster.ready ? current.filter((member) => statusOf(member) === "unknown").length : null}
+          label="Building history"
+        />
+        <Metric value={roster.ready ? members.length - current.length : null} label="Former members" />
+      </div>
+
+      <div className="members-searchrow">
+        <input
+          className="cm-search"
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Find a member"
+          aria-label="Find a member"
+        />
+        <button className="members-filterbutton" type="button" onClick={() => setPanel({ mode: "filters" })}>
+          Filters{filterCount > 0 ? <span className="members-badge">{filterCount}</span> : null}
+        </button>
+      </div>
+
+      <nav className="cm-segmented members-windowrow" aria-label="Activity window">
+        {WINDOWS.map((option) => <button
+          key={option.days}
+          type="button"
+          aria-current={option.days === windowDays}
+          onClick={() => setWindowDays(option.days)}
+        ><span>{option.label}</span></button>)}
+      </nav>
+
+      {roster.error
+        ? <div className="cm-notice" role="alert">
+            <div className="cm-grow">
+              <strong>Roster unavailable</strong>
+              <p>{roster.error}</p>
+            </div>
+          </div>
+        : null}
+
+      <div className="cm-columns">
+        <div>
+          <section className="cm-section members-section" aria-busy={!roster.ready}>
+            <div className="cm-section-head">
+              <h2>Members <span className="cm-count">{
+                roster.ready ? (visible.length === members.length ? `${visible.length}` : `${visible.length} of ${members.length}`) : ""
+              }</span></h2>
+            </div>
+            <div className="members-listhead" aria-hidden="true">
+              <span>#</span><span>Member</span>
+              <span className="members-group"><span>Attacks</span><span>Stars</span><span>Tenure</span></span>
+              <span className="members-th">TH</span><span />
+            </div>
+            {roster.ready
+              ? <div className="cm-rows">
+                  {visible.map((member) => <MemberRow
+                    key={member.playerTag}
+                    member={member}
+                    activity={roster.activity.get(member.playerTag)}
+                    status={statusOf(member)}
+                    selected={member.playerTag === selectedTag}
+                    now={now}
+                    onOpen={() => setPanel({ mode: "member", tag: member.playerTag })}
+                  />)}
+                  {visible.length === 0 ? <p className="cm-empty">No members match these filters.</p> : null}
+                </div>
+              : roster.showSkeleton && !roster.error ? <SkeletonRows /> : null}
+          </section>
+        </div>
+        <div>{wide ? panelBody : null}</div>
+      </div>
+    </main>
+    {!wide && panelBody
+      ? <div data-overlay>
+          <button className="cm-scrim" type="button" aria-label="Close" onClick={() => setPanel(null)} />
+          {panelBody}
+        </div>
+      : null}
+  </>;
+}
+
+/* The year-round summary route (#/overview).
+ *
+ * Untouched by this wave beyond what the data change forces: it is wave 3's,
+ * and #25 leaves open whether it should exist at all — the members roster now
+ * carries the same four metrics, so conforming it as-is would ship two pages
+ * showing identical numbers, one of which exists only to link to the other.
+ * Deciding that inside a styling wave is how a restyle becomes a redesign. */
+export function RosterOverviewPage({ client, clanTag }: MemberPageProps) {
+  const roster = useMemberRoster(client, clanTag, DEFAULT_WINDOW_DAYS);
+  if (!roster.ready) {
+    return <main className="members-shell">
+      <h1>Clan overview</h1>
+      <p role={roster.error ? "alert" : "status"}>{roster.error ?? "Loading roster history…"}</p>
+    </main>;
+  }
+  const current = roster.members.filter((member) => member.isCurrentMember);
+  const statusOf = (member: MemberRosterMember) => activityStatus(roster.activity.get(member.playerTag));
   return (
     <main className="members-shell">
       <header className="members-heading">
         <p className="eyebrow">Year-round clan</p>
         <h1>Clan overview</h1>
-        <p>Roster health based on successful daily observations. Activity is supporting evidence, not war reliability.</p>
+        <p>Roster health based on successful daily observations, and war activity observed in the wars we logged.</p>
       </header>
       <section className="roster-summary" aria-label="Roster summary">
         <SummaryMetric label="Current members" value={current.length} />
-        <SummaryMetric label="7-day activity observed" value={active.length} />
-        <SummaryMetric label="Building history" value={unknown.length} />
-        <SummaryMetric label="Former members" value={state.members.length - current.length} />
+        <SummaryMetric label="Activity observed · 7 days" value={current.filter((member) => statusOf(member) === "observed").length} />
+        <SummaryMetric label="Building history" value={current.filter((member) => statusOf(member) === "unknown").length} />
+        <SummaryMetric label="Former members" value={roster.members.length - current.length} />
       </section>
       <section className="overview-callout">
         <div><h2>Member history</h2><p>Review roles, observation tenure, profile freshness, and the evidence behind recent activity signals.</p></div>
@@ -39,133 +248,294 @@ export function RosterOverviewPage(props: MemberPageProps) {
   );
 }
 
-export function MembersPage(props: MemberPageProps) {
-  const state = useMemberRoster(props);
-  const [search, setSearch] = useState("");
-  const [rosterFilter, setRosterFilter] = useState<RosterFilter>("current");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [townHallFilter, setTownHallFilter] = useState("all");
-  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
-  const [sort, setSort] = useState<Sort>("rank");
-  const roles = useMemo(() => state.status === "ready"
-    ? [...new Set(state.members.map((member) => member.role).filter((role): role is string => Boolean(role)))].sort()
-    : [], [state]);
-  const townHalls = useMemo(() => state.status === "ready"
-    ? [...new Set(state.members.map((member) => member.townHallLevel).filter((townHall): townHall is number => townHall !== null))].sort((left, right) => right - left)
-    : [], [state]);
-  const visible = useMemo(() => {
-    if (state.status !== "ready") return [];
-    const query = search.trim().toLocaleLowerCase();
-    return state.members
-      .filter((member) => !query || member.name.toLocaleLowerCase().includes(query)
-        || member.playerTag.toLocaleLowerCase().includes(query))
-      .filter((member) => rosterFilter === "all" || (rosterFilter === "current") === member.isCurrentMember)
-      .filter((member) => roleFilter === "all" || member.role === roleFilter)
-      .filter((member) => townHallFilter === "all" || member.townHallLevel === Number(townHallFilter))
-      .filter((member) => activityFilter === "all"
-        || activityWindow(member, member.baseline7d).status === activityFilter)
-      .sort(memberSorter(sort));
-  }, [activityFilter, roleFilter, rosterFilter, search, sort, state, townHallFilter]);
-
-  if (state.status !== "ready") return <MemberState state={state} title="Members" />;
-  return (
-    <main className="members-shell">
-      <header className="members-heading">
-        <p className="eyebrow">Year-round clan</p>
-        <h1>Members</h1>
-        <p>Daily roster facts and explainable activity evidence. “No change observed” does not mean inactive; use availability and war reliability for lineup decisions.</p>
-      </header>
-      <section className="member-filters" aria-label="Member filters">
-        <label>Find a member<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or player tag" /></label>
-        <FilterMenu label="Roster" ariaLabel="Filter members by roster" value={rosterFilter} onChange={(value) => setRosterFilter(value as RosterFilter)} options={[{ value: "current", label: "Current" }, { value: "former", label: "Former" }, { value: "all", label: "All observed" }]} />
-        <FilterMenu label="Role" ariaLabel="Filter members by role" value={roleFilter} onChange={setRoleFilter} options={[{ value: "all", label: "All roles" }, ...roles.map((role) => ({ value: role, label: roleLabel(role) }))]} />
-        <FilterMenu label="Town Hall" ariaLabel="Filter members by Town Hall" value={townHallFilter} onChange={setTownHallFilter} options={[{ value: "all", label: "All Town Halls" }, ...townHalls.map((townHall) => ({ value: String(townHall), label: `TH${townHall}` }))]} />
-        <FilterMenu label="7-day evidence" ariaLabel="Filter members by activity evidence" value={activityFilter} onChange={(value) => setActivityFilter(value as ActivityFilter)} options={[{ value: "all", label: "All" }, { value: "observed", label: "Activity observed" }, { value: "no_change", label: "No change observed" }, { value: "unknown", label: "Building history" }]} />
-        <FilterMenu label="Sort" ariaLabel="Sort members" value={sort} onChange={(value) => setSort(value as Sort)} options={[{ value: "rank", label: "Clan rank" }, { value: "name", label: "Name" }, { value: "town_hall", label: "Town Hall" }, { value: "activity", label: "Recent evidence" }, { value: "observed", label: "First observed" }]} />
-      </section>
-      <p className="member-result-count">Showing {visible.length} of {state.members.length} observed members</p>
-      <div className="member-list">
-        {visible.map((member) => <MemberCard key={member.playerTag} member={member} />)}
-        {visible.length === 0 ? <p className="empty-members">No members match these filters.</p> : null}
-      </div>
-    </main>
-  );
-}
-
-function MemberCard({ member }: { member: MemberRosterMember }) {
-  const activity = activityWindow(member, member.baseline7d);
-  return (
-    <article className={`member-card ${member.isCurrentMember ? "" : "former-member"}`}>
-      <div className="member-identity">
-        <div><h2>{member.name}</h2><p>{member.playerTag}</p></div>
-        <span className={`activity-status ${activity.status}`}>{activityLabel(activity.status)}</span>
-      </div>
-      <dl className="member-facts">
-        <div><dt>Role</dt><dd>{roleLabel(member.role)}</dd></div>
-        <div><dt>Town Hall</dt><dd>{member.townHallLevel ?? "Unknown"}</dd></div>
-        <div><dt>League</dt><dd>{member.leagueName ?? "Unknown"}</dd></div>
-        <div><dt>Donations</dt><dd>{formatNumber(member.donations)} / {formatNumber(member.donationsReceived)} received</dd></div>
-        <div><dt>War preference</dt><dd>{member.warPreference ?? "Unavailable"}</dd></div>
-        <div><dt>{member.isCurrentMember ? "Current presence observed" : "Departure observed"}</dt><dd>{formatDate(member.isCurrentMember ? member.currentPresenceStartedOn : member.departureObservedOn)}</dd></div>
-      </dl>
-      <div className="activity-evidence">
-        <strong>7-day evidence</strong>
-        {activity.status === "observed" ? <ul>{activity.evidence.map((item) => <li key={item}>{item}</li>)}</ul> : <p>{activityLabel(activity.status)}{activity.baselineOn ? ` since ${formatDate(activity.baselineOn)}` : ""}.</p>}
-        {activity.resets.length > 0 ? <p className="reset-note">Reset boundary: {activity.resets.join(", ")}.</p> : null}
-      </div>
-      <p className="member-freshness">Roster observed {formatTimestamp(member.rosterObservedAt)} · Player profile {member.profileObservedAt ? `observed ${formatTimestamp(member.profileObservedAt)}` : "unavailable"}</p>
-    </article>
-  );
-}
-
-function useMemberRoster({ client, clanTag }: MemberPageProps) {
-  const [state, setState] = useState<
-    | { status: "loading" }
-    | { status: "error"; message: string }
-    | { status: "ready"; members: MemberRosterMember[] }
-  >({ status: "loading" });
-  useEffect(() => {
-    let active = true;
-    void loadMemberRoster(client, clanTag)
-      .then((members) => { if (active) setState({ status: "ready", members }); })
-      .catch((error: unknown) => { if (active) setState({ status: "error", message: error instanceof Error ? error.message : "Unable to load member history" }); });
-    return () => { active = false; };
-  }, [clanTag, client]);
-  return state;
-}
-
-function MemberState({ state, title }: {
-  state: { status: "loading" } | { status: "error"; message: string };
-  title: string;
+/* Rows mark the exception, never the rule. Most members turn up, so a status on
+ * every row is the happy-path banner again, one row at a time — the meta line
+ * carries the role and then only what is unusual about this member. */
+function MemberRow({ member, activity, status, selected, now, onOpen }: {
+  member: MemberRosterMember;
+  activity: MemberWarActivity | undefined;
+  status: ActivityStatus;
+  selected: boolean;
+  now: number;
+  onOpen: () => void;
 }) {
-  return <main className="members-shell"><h1>{title}</h1><p role={state.status === "loading" ? "status" : "alert"}>{state.status === "loading" ? "Loading roster history…" : state.message}</p></main>;
+  const tenure = tenureDays(member, now);
+  const departed = daysSince(member.departureObservedOn, now);
+  const mark = !member.isCurrentMember
+    ? (departed === null ? "Former member" : `Left ${dayLabel(departed)} ago`)
+    : status === "none" ? "No war activity"
+    : status === "unknown" ? "Building history"
+    : null;
+  return (
+    <button
+      className={`cm-row has-pos ${selected ? "is-selected" : ""} ${member.isCurrentMember ? "" : "is-out"}`}
+      type="button"
+      onClick={onOpen}
+    >
+      <span className="cm-row-pos">{member.clanRank ?? "—"}</span>
+      <span className="cm-row-main">
+        <span className="cm-row-name">{member.name}</span>
+        <span className="cm-row-meta">
+          {roleLabel(member.role)}
+          {mark ? <><span className="cm-sep">·</span><span className="cm-statustext is-unknown">{mark}</span></> : null}
+        </span>
+      </span>
+      <span className="cm-row-stats members-wide-only">
+        <span className="cm-row-th members-stat">{activity ? `${activity.attacksMade} / ${activity.assignedAttacks}` : "—"}</span>
+        <span className="cm-row-th members-stat">{activity ? activity.stars : "—"}<Icon name="star" /></span>
+        <span className="cm-row-th members-stat">{tenure === null ? "—" : dayLabel(tenure)}</span>
+      </span>
+      <span className="cm-row-stats">
+        <span className="cm-row-th">{member.townHallLevel === null ? "TH—" : `TH${member.townHallLevel}`}</span>
+      </span>
+      <span className="cm-chev" aria-hidden="true"><Icon name="chevron" /></span>
+    </button>
+  );
+}
+
+function MemberPanel({ member, activity, windowLabel, wide, now, onClose }: {
+  member: MemberRosterMember;
+  activity: MemberWarActivity | undefined;
+  windowLabel: string;
+  wide: boolean;
+  now: number;
+  onClose: () => void;
+}) {
+  const status = activityStatus(activity);
+  const tenure = tenureDays(member, now);
+  const departed = daysSince(member.departureObservedOn, now);
+  return (
+    /* A docked column has nothing to dismiss to, so it carries no close control. */
+    <div className="cm-panel" {...(wide ? {} : { role: "dialog", "aria-modal": true })} aria-label={member.name}>
+      <div className="cm-panel-head">
+        <div className="cm-grow">
+          <h2>{member.name}</h2>
+          <p className="cm-panel-evidence">
+            {roleLabel(member.role)} <span className="cm-sep">·</span> {member.townHallLevel === null ? "TH unknown" : `TH${member.townHallLevel}`} <span className="cm-sep">·</span>{" "}
+            {member.isCurrentMember
+              ? (tenure === null ? "presence not yet dated" : `in the clan ${dayLabel(tenure)}`)
+              : (departed === null ? "former member" : `left ${dayLabel(departed)} ago`)}
+          </p>
+        </div>
+        {wide ? null : <button className="cm-iconbutton" type="button" aria-label="Close" onClick={onClose}><Icon name="close" /></button>}
+      </div>
+      <div className="cm-panel-body">
+        {/* One label, not two. The window's war record IS the evidence now, so a
+            separate "War record" heading above the same four numbers would be
+            naming the same thing twice — and in the observed case it left the
+            first label with nothing under it at all. */}
+        <p className="cm-panel-label">{activityLabel(status)} · {windowLabel}</p>
+        {status === "observed"
+          ? null
+          : <p className="members-freshness" style={{ marginBottom: "var(--cm-space-4)" }}>{status === "unknown"
+              ? "No war we logged ended in this window, so there is no evidence either way. Absent evidence is not inactivity."
+              : `No attack of theirs appears in the ${countLabel(activity?.warsObserved ?? 0, "war")} we logged in this window. That is not the same as inactive — try a longer window.`}</p>}
+        <dl className="members-facts">
+          <div><dt>Wars joined</dt><dd>{activity ? `${activity.warsParticipated} of ${activity.warsObserved} logged` : "—"}</dd></div>
+          <div><dt>Attacks used</dt><dd>{activity ? `${activity.attacksMade} of ${activity.assignedAttacks}` : "—"}</dd></div>
+          <div><dt>War stars</dt><dd>{activity ? activity.stars : "—"}</dd></div>
+          <div><dt>War preference</dt><dd>{member.warPreference ?? "—"}</dd></div>
+        </dl>
+        {activity && activity.incompleteWars > 0
+          ? <ul className="members-evidence">
+              <li>{countLabel(activity.incompleteWars, "war")} logged incompletely</li>
+            </ul>
+          : null}
+        <p className="members-freshness">A war counts towards this window by its recorded end time, so a war we
+          could not place in time falls in no window at all.</p>
+
+        <p className="cm-panel-label">Roster facts</p>
+        <dl className="members-facts">
+          <div><dt>Player tag</dt><dd>{member.playerTag}</dd></div>
+          <div><dt>League</dt><dd>{member.leagueName ?? "—"}</dd></div>
+          <div><dt>Donations</dt><dd>{formatNumber(member.donations)} given · {formatNumber(member.donationsReceived)} received</dd></div>
+          <div><dt>In the clan</dt><dd>{member.isCurrentMember
+            ? (tenure === null ? "—" : dayLabel(tenure))
+            : (departed === null ? "—" : `left ${dayLabel(departed)} ago`)}</dd></div>
+        </dl>
+        <p className="members-freshness">Roster observed {formatTimestamp(member.rosterObservedAt)} · Player profile
+          {member.profileObservedAt ? ` observed ${formatTimestamp(member.profileObservedAt)}` : " never observed"}.</p>
+      </div>
+    </div>
+  );
+}
+
+function FilterPanel(props: {
+  counts: string;
+  roles: string[];
+  scope: RosterFilter; onScope: (value: RosterFilter) => void;
+  role: string; onRole: (value: string) => void;
+  activity: ActivityFilter; onActivity: (value: ActivityFilter) => void;
+  sort: Sort; onSort: (value: Sort) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="cm-panel" role="dialog" aria-modal="true" aria-label="Filters">
+      <div className="cm-panel-head">
+        <div className="cm-grow">
+          <h2>Filters</h2>
+          <p className="cm-panel-evidence">{props.counts}</p>
+        </div>
+        <button className="cm-iconbutton" type="button" aria-label="Close" onClick={props.onClose}><Icon name="close" /></button>
+      </div>
+      <div className="cm-panel-body">
+        <Choices label="Roster" value={props.scope} onChange={props.onScope} options={[
+          ["current", "Current"], ["former", "Former"], ["all", "All observed"],
+        ]} />
+        <Choices label="Role" value={props.role} onChange={props.onRole} options={[
+          ["all", "All"], ...props.roles.map((role) => [role, roleLabel(role)] as [string, string]),
+        ]} />
+        <Choices label="Evidence" value={props.activity} onChange={props.onActivity} options={[
+          ["all", "All"], ["observed", "Observed"], ["none", "No war activity"], ["unknown", "Building history"],
+        ]} />
+        <Choices label="Sort" value={props.sort} onChange={props.onSort} options={[
+          ["rank", "Clan rank"], ["name", "Name"], ["town_hall", "Town Hall"], ["activity", "Evidence"], ["tenure", "Tenure"],
+        ]} />
+      </div>
+      <div className="cm-panel-foot">
+        <button className="cm-ghost" type="button" onClick={props.onClear}>Clear all filters</button>
+      </div>
+    </div>
+  );
+}
+
+function Choices<Value extends string>({ label, value, options, onChange }: {
+  label: string;
+  value: Value;
+  options: [Value, string][];
+  onChange: (value: Value) => void;
+}) {
+  return (
+    <div className="members-fieldset">
+      <p className="cm-panel-label" id={`members-filter-${label.toLocaleLowerCase()}`}>{label}</p>
+      <div className="members-choices" role="group" aria-labelledby={`members-filter-${label.toLocaleLowerCase()}`}>
+        {options.map(([optionValue, optionLabel]) => <button
+          key={optionValue}
+          type="button"
+          aria-pressed={optionValue === value}
+          onClick={() => onChange(optionValue)}
+        >{optionLabel}</button>)}
+      </div>
+    </div>
+  );
+}
+
+/* One primitive, in the shape of the row it stands in for — `cm-row` with
+ * blocks instead of content, so it inherits height, padding, radius and grid
+ * from the real thing and cannot drift from it (#43). No copy: loading is the
+ * most literal unknown in the app, and uncertainty is structural here. */
+function SkeletonRows() {
+  return <div className="cm-rows" aria-hidden="true">
+    {[62, 44, 71, 51, 66, 47].map((width, index) => <div key={index} className="cm-row has-pos is-skeleton">
+      <span className="cm-row-pos"><span className="cm-skel" style={{ width: "14px" }} /></span>
+      <span className="cm-row-main">
+        <span className="cm-row-name"><span className="cm-skel" style={{ width: `${width}%` }} /></span>
+        <span className="cm-row-meta"><span className="cm-skel" style={{ width: "72px", height: "9px" }} /></span>
+      </span>
+      <span className="cm-row-stats"><span className="cm-skel" style={{ width: "28px", height: "9px" }} /></span>
+    </div>)}
+  </div>;
+}
+
+function Metric({ value, label }: { value: number | null; label: string }) {
+  return <div className="members-metric"><strong>{value ?? "—"}</strong><span>{label}</span></div>;
 }
 
 function SummaryMetric({ label, value }: { label: string; value: number }) {
   return <div><strong>{value}</strong><span>{label}</span></div>;
 }
 
-function memberSorter(sort: Sort) {
+/* Roster facts and observed war activity are two loads, and only the second
+ * depends on the window — so changing the window re-fetches the activity and
+ * leaves the rows where they are. Replacing populated rows with a skeleton to
+ * say what the window selector already said destroys the reader's place (#43). */
+function useMemberRoster(client: any, clanTag: string, windowDays: number) {
+  const [members, setMembers] = useState<MemberRosterMember[]>([]);
+  const [activity, setActivity] = useState<Map<string, MemberWarActivity>>(new Map());
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    const skeletonTimer = setTimeout(() => { if (live) setShowSkeleton(true); }, SKELETON_DELAY_MS);
+    void Promise.all([
+      loadMemberRoster(client, clanTag),
+      loadWarActivityWindow(client, clanTag, windowDays),
+    ])
+      .then(([loadedMembers, loadedActivity]) => {
+        if (!live) return;
+        setMembers(loadedMembers);
+        setActivity(loadedActivity);
+        setError(null);
+        setReady(true);
+      })
+      .catch((cause: unknown) => {
+        if (!live) return;
+        setError(cause instanceof Error ? cause.message : "Unable to load member history");
+        setReady(false);
+      })
+      .finally(() => { clearTimeout(skeletonTimer); });
+    return () => { live = false; clearTimeout(skeletonTimer); };
+  }, [clanTag, client, windowDays]);
+
+  return { members, activity, ready, error, showSkeleton };
+}
+
+function useWide(): boolean {
+  const [wide, setWide] = useState(() => window.matchMedia?.(WIDE_QUERY).matches ?? false);
+  useEffect(() => {
+    const query = window.matchMedia?.(WIDE_QUERY);
+    if (!query) return;
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener?.("change", update);
+    return () => query.removeEventListener?.("change", update);
+  }, []);
+  return wide;
+}
+
+function memberSorter(sort: Sort, statusOf: (member: MemberRosterMember) => ActivityStatus, now: number) {
+  const rank = (status: ActivityStatus) => status === "observed" ? 0 : status === "none" ? 1 : 2;
   return (left: MemberRosterMember, right: MemberRosterMember): number => {
     if (sort === "name") return left.name.localeCompare(right.name);
     if (sort === "town_hall") return (right.townHallLevel ?? -1) - (left.townHallLevel ?? -1) || left.name.localeCompare(right.name);
-    if (sort === "activity") return activityRank(left) - activityRank(right) || left.name.localeCompare(right.name);
-    if (sort === "observed") return left.firstObservedPresentOn.localeCompare(right.firstObservedPresentOn);
+    if (sort === "activity") return rank(statusOf(left)) - rank(statusOf(right)) || left.name.localeCompare(right.name);
+    if (sort === "tenure") return (tenureDays(right, now) ?? -1) - (tenureDays(left, now) ?? -1) || left.name.localeCompare(right.name);
     return (left.clanRank ?? Number.MAX_SAFE_INTEGER) - (right.clanRank ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name);
   };
 }
 
-function activityRank(member: MemberRosterMember): number {
-  const status = activityWindow(member, member.baseline7d).status;
-  return status === "observed" ? 0 : status === "no_change" ? 1 : 2;
-}
-
-function activityLabel(status: "observed" | "no_change" | "unknown"): string {
+function activityLabel(status: ActivityStatus): string {
   if (status === "observed") return "Activity observed";
-  if (status === "no_change") return "No change observed";
+  if (status === "none") return "No war activity observed";
   return "Building history";
 }
 
+function tenureDays(member: MemberRosterMember, now: number): number | null {
+  if (!member.isCurrentMember) return null;
+  return daysSince(member.currentPresenceStartedOn ?? member.firstObservedPresentOn, now);
+}
+
+function daysSince(observedOn: string | null, now: number): number | null {
+  if (!observedOn) return null;
+  const observed = Date.parse(`${observedOn}T00:00:00Z`);
+  if (Number.isNaN(observed)) return null;
+  return Math.max(0, Math.floor((now - observed) / 86_400_000));
+}
+
+/* Months all the way to 18, so "12 months" and "1y 0m" never sit in the same
+ * column describing near-identical tenures. */
+function dayLabel(count: number): string {
+  if (count >= 545) return `${Math.floor(count / 365)}y ${Math.round((count % 365) / 30)}m`;
+  if (count >= 30) return `${Math.round(count / 30)} months`;
+  return `${count} days`;
+}
+
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 function formatNumber(value: number | null): string { return value === null ? "—" : value.toLocaleString(); }
-function formatDate(value: string | null): string { return value ? new Date(`${value}T00:00:00Z`).toLocaleDateString() : "Unknown"; }
-function formatTimestamp(value: string): string { return new Date(value).toLocaleString(); }
+function formatTimestamp(value: string): string { return value ? new Date(value).toLocaleString() : "never"; }

@@ -10,6 +10,7 @@ import { AppRoutes } from "./app-routes.js";
 import { IconSprite } from "./design/icon.js";
 import { createE2EClient } from "./test/e2e-client.js";
 import "@cwl/design/tokens.css";
+import "@cwl/design/base.css";
 import "@cwl/design/clan-muster.css";
 import "./styles.css";
 

@@ -1,17 +1,18 @@
-export interface MemberBaseline {
-  observedOn: string;
-  role: string | null;
-  townHallLevel: number;
-  trophies: number | null;
-  leagueId: number | null;
-  donations: number | null;
-  donationsReceived: number | null;
-  warPreference: string | null;
-  attackWins: number | null;
-  defenseWins: number | null;
-  clanCapitalContributions: number | null;
-  clanGamesPoints: number | null;
-}
+/* Roster facts and observed war activity for the members surface.
+ *
+ * The activity window reads our own logged war history, not Clash's profile
+ * counters (#34, #25 wave 1). `activityWindow()` used to diff donations, attack
+ * wins and Capital contributions against a snapshot from N days ago; a counter
+ * that moved tells you someone opened the game, and this roster is read to
+ * decide who turns up for a war. `regular_war_member_activity_window` reports
+ * what a member was observed doing in wars we logged, which is the question.
+ *
+ * The cost is accepted knowingly: war history only accumulates forward from the
+ * day collection started, so early windows are thin and more members read as
+ * having no evidence yet. "Building history" changed meaning with the source —
+ * it now says we logged no war in this window, rather than that we hold no
+ * snapshot from N days ago.
+ */
 
 export interface MemberRosterMember {
   clanTag: string;
@@ -19,44 +20,83 @@ export interface MemberRosterMember {
   name: string;
   role: string | null;
   clanRank: number | null;
-  previousClanRank: number | null;
   townHallLevel: number | null;
-  trophies: number | null;
-  leagueId: number | null;
   leagueName: string | null;
   donations: number | null;
   donationsReceived: number | null;
   warPreference: string | null;
-  warStars: number | null;
-  attackWins: number | null;
-  defenseWins: number | null;
-  clanCapitalContributions: number | null;
-  clanGamesPoints: number | null;
   rosterObservedAt: string;
   profileObservedAt: string | null;
   firstObservedPresentOn: string;
-  lastObservedPresentOn: string;
   isCurrentMember: boolean;
   currentPresenceStartedOn: string | null;
   departureObservedOn: string | null;
-  baseline1d: MemberBaseline | null;
-  baseline7d: MemberBaseline | null;
-  baseline30d: MemberBaseline | null;
 }
 
-export interface ActivityWindow {
-  status: "observed" | "no_change" | "unknown";
-  baselineOn: string | null;
-  evidence: string[];
-  resets: string[];
+/* One member's participation in the wars that ended inside the window.
+ *
+ * `warsObserved` is the clan's war count for the same period and repeats on
+ * every row — "joined 3 of 5" is only true when both halves cover the same
+ * days. `incompleteWars` is a coverage gap to report, not a penalty. */
+export interface MemberWarActivity {
+  playerTag: string;
+  windowDays: number;
+  warsObserved: number;
+  warsParticipated: number;
+  assignedAttacks: number;
+  attacksMade: number;
+  stars: number;
+  incompleteWars: number;
 }
+
+/* Three states, and the middle one is not "inactive".
+ *
+ * - `unknown`  — no war we logged ended in this window, so there is no evidence
+ *                either way.
+ * - `observed` — they attacked in a war we logged.
+ * - `none`     — wars were logged and no attack of theirs was among them. Real
+ *                evidence of absence from those wars, and nothing more: nobody
+ *                is in every war. */
+export type ActivityStatus = "observed" | "none" | "unknown";
+
+/* The roster view's own columns, named rather than `*`.
+ *
+ * `baseline_1d` / `baseline_7d` / `baseline_30d`, `previous_clan_rank`,
+ * `war_stars`, `last_observed_present_on` are gone with the counter diff that
+ * was their only reader, and so are `trophies`, `league_id`, `attack_wins`,
+ * `defense_wins`, `clan_capital_contributions` and `clan_games_points` — those
+ * six were fetched on every roster load and never rendered anywhere but inside
+ * `activityWindow()` (#22).
+ *
+ * Note `war_stars` here was Clash's lifetime profile counter. The stars this
+ * surface shows are `MemberWarActivity.stars`, from wars we observed; they are
+ * different numbers and the name collision is why one of them is now spelled
+ * out in full wherever both could be meant. */
+const ROSTER_COLUMNS = [
+  "clan_tag",
+  "player_tag",
+  "name",
+  "role",
+  "clan_rank",
+  "town_hall_level",
+  "league_name",
+  "donations",
+  "donations_received",
+  "war_preference",
+  "roster_observed_at",
+  "profile_observed_at",
+  "first_observed_present_on",
+  "is_current_member",
+  "current_presence_started_on",
+  "departure_observed_on",
+].join(",");
 
 type DatabaseRow = Record<string, any>;
 
 export async function loadMemberRoster(client: any, clanTag: string): Promise<MemberRosterMember[]> {
   const result = await client
     .from("member_roster_overview")
-    .select("*")
+    .select(ROSTER_COLUMNS)
     .eq("clan_tag", clanTag);
   if (result.error) throw new Error(result.error.message ?? "Unable to load member history");
   return ((result.data ?? []) as DatabaseRow[])
@@ -66,29 +106,30 @@ export async function loadMemberRoster(client: any, clanTag: string): Promise<Me
       || left.name.localeCompare(right.name));
 }
 
-export function activityWindow(member: MemberRosterMember, baseline: MemberBaseline | null): ActivityWindow {
-  if (!baseline) return { status: "unknown", baselineOn: null, evidence: [], resets: [] };
-  const evidence: string[] = [];
-  const resets: string[] = [];
-  counterChange(member.attackWins, baseline.attackWins, "multiplayer attacks", evidence, resets);
-  counterChange(member.donations, baseline.donations, "troops donated", evidence, resets);
-  counterChange(member.donationsReceived, baseline.donationsReceived, "troops received", evidence, resets);
-  counterChange(member.clanCapitalContributions, baseline.clanCapitalContributions, "Capital contributions", evidence, resets);
-  counterChange(member.clanGamesPoints, baseline.clanGamesPoints, "Clan Games progress", evidence, resets);
-  counterChange(member.defenseWins, baseline.defenseWins, "defense wins", evidence, resets);
-  if (member.trophies !== null && baseline.trophies !== null && member.trophies !== baseline.trophies) {
-    evidence.push(`${signed(member.trophies - baseline.trophies)} trophies`);
-  }
-  if (member.townHallLevel !== baseline.townHallLevel) evidence.push(`Town Hall ${member.townHallLevel}`);
-  if (member.leagueId !== baseline.leagueId) evidence.push(`league changed to ${member.leagueName ?? "unranked"}`);
-  if (member.role !== baseline.role) evidence.push(`role changed to ${roleLabel(member.role)}`);
-  if (member.warPreference !== baseline.warPreference) evidence.push(`war preference ${member.warPreference ?? "unavailable"}`);
-  return {
-    status: evidence.length > 0 ? "observed" : "no_change",
-    baselineOn: baseline.observedOn,
-    evidence,
-    resets,
-  };
+/* Keyed by player tag, because every reader of it is asking about one member.
+ * The function returns a row for every member the clan has observed, so a
+ * missing key means a member the war history has never heard of rather than a
+ * member who sat out. */
+export async function loadWarActivityWindow(
+  client: any,
+  clanTag: string,
+  windowDays: number,
+): Promise<Map<string, MemberWarActivity>> {
+  const result = await client.rpc("regular_war_member_activity_window", {
+    requested_clan_tag: clanTag,
+    requested_window_days: windowDays,
+  });
+  if (result.error) throw new Error(result.error.message ?? "Unable to load observed war activity");
+  const rows = (result.data ?? []) as DatabaseRow[];
+  return new Map(rows.map((row) => {
+    const activity = mapActivity(row, windowDays);
+    return [activity.playerTag, activity];
+  }));
+}
+
+export function activityStatus(activity: MemberWarActivity | undefined): ActivityStatus {
+  if (!activity || activity.warsObserved === 0) return "unknown";
+  return activity.attacksMade > 0 ? "observed" : "none";
 }
 
 export function roleLabel(role: string | null): string {
@@ -104,29 +145,30 @@ function mapMember(row: DatabaseRow): MemberRosterMember {
     name: stringValue(row.name) ?? playerTag,
     role: stringValue(row.role),
     clanRank: numberValue(row.clan_rank),
-    previousClanRank: numberValue(row.previous_clan_rank),
     townHallLevel: numberValue(row.town_hall_level),
-    trophies: numberValue(row.trophies),
-    leagueId: numberValue(row.league_id),
     leagueName: stringValue(row.league_name),
     donations: numberValue(row.donations),
     donationsReceived: numberValue(row.donations_received),
     warPreference: stringValue(row.war_preference),
-    warStars: numberValue(row.war_stars),
-    attackWins: numberValue(row.attack_wins),
-    defenseWins: numberValue(row.defense_wins),
-    clanCapitalContributions: numberValue(row.clan_capital_contributions),
-    clanGamesPoints: numberValue(row.clan_games_points),
     rosterObservedAt: stringValue(row.roster_observed_at) ?? "",
     profileObservedAt: stringValue(row.profile_observed_at),
     firstObservedPresentOn: stringValue(row.first_observed_present_on) ?? "",
-    lastObservedPresentOn: stringValue(row.last_observed_present_on) ?? "",
     isCurrentMember: row.is_current_member === true,
     currentPresenceStartedOn: stringValue(row.current_presence_started_on),
     departureObservedOn: stringValue(row.departure_observed_on),
-    baseline1d: mapBaseline(row.baseline_1d),
-    baseline7d: mapBaseline(row.baseline_7d),
-    baseline30d: mapBaseline(row.baseline_30d),
+  };
+}
+
+function mapActivity(row: DatabaseRow, windowDays: number): MemberWarActivity {
+  return {
+    playerTag: stringValue(row.player_tag) ?? "Unknown member",
+    windowDays: numberValue(row.window_days) ?? windowDays,
+    warsObserved: numberValue(row.wars_observed) ?? 0,
+    warsParticipated: numberValue(row.wars_participated) ?? 0,
+    assignedAttacks: numberValue(row.assigned_attacks) ?? 0,
+    attacksMade: numberValue(row.attacks_made) ?? 0,
+    stars: numberValue(row.stars) ?? 0,
+    incompleteWars: numberValue(row.incomplete_wars) ?? 0,
   };
 }
 
@@ -137,38 +179,3 @@ function stringValue(value: unknown): string | null {
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
-
-function mapBaseline(value: DatabaseRow | null): MemberBaseline | null {
-  if (!value) return null;
-  return {
-    observedOn: value.observed_on,
-    role: value.role,
-    townHallLevel: value.town_hall_level,
-    trophies: value.trophies,
-    leagueId: value.league_id,
-    donations: value.donations,
-    donationsReceived: value.donations_received,
-    warPreference: value.war_preference,
-    attackWins: value.attack_wins,
-    defenseWins: value.defense_wins,
-    clanCapitalContributions: value.clan_capital_contributions,
-    clanGamesPoints: value.clan_games_points,
-  };
-}
-
-function counterChange(
-  current: number | null,
-  prior: number | null,
-  label: string,
-  evidence: string[],
-  resets: string[],
-): void {
-  if (current === null || prior === null || current === prior) return;
-  if (current < prior) {
-    resets.push(`${label} reset`);
-    return;
-  }
-  evidence.push(`+${current - prior} ${label}`);
-}
-
-function signed(value: number): string { return value > 0 ? `+${value}` : String(value); }

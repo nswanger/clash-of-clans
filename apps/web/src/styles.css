@@ -1,13 +1,11 @@
-:root {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #000;
-  background: #f6f5f4;
-  font-synthesis: none;
-}
-
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-button { font: inherit; }
+/* The element-level base moved to @cwl/design/base.css with the members roster
+ * rebuild (#25, wave 1). `:root` font/colour/background, `* { box-sizing }`,
+ * `body { margin }` and `button { font: inherit }` all live there now, against
+ * tokens rather than hard-coded values; keeping either copy would leave two
+ * element bases fighting over the same properties.
+ *
+ * `min-width` stays: it is app chrome, not design-system truth. */
+body { min-width: 320px; }
 
 .access-shell { width: min(480px, calc(100% - 32px)); margin: 12vh auto; padding: 32px; border: 1px solid #e6e6e6; border-radius: 12px; background: #fff; }
 .access-shell h1 { margin: 8px 0; letter-spacing: -.8px; }
@@ -150,6 +148,36 @@ button { font: inherit; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
+/* The dropdown filter control. It was written for the members filter row, which
+ * has gone; the CWL workspace renders four of them and is wave 2's, so the
+ * component and its rules stay until that surface moves. Note the two glyphs
+ * `filter-menu.tsx` assigns as text — `⌄` and `✓` — are exactly the latent break
+ * #40 describes, and this is the last place in the app that still has one. */
+.filter-menu { position: relative; display: grid; min-width: 0; gap: 7px; }
+.filter-menu-label { color: #54524f; font-size: 12px; font-weight: 650; }
+.filter-menu-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 42px; padding: 0 11px 0 13px; border: 1px solid transparent; border-radius: 999px; color: #4c4945; background: #f4f2ef; font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; }
+.filter-menu-trigger:hover { background: #eeece8; }
+.filter-menu-trigger.is-active { color: #005bab; background: #edf6ff; }
+.filter-menu-trigger:focus-visible, .filter-menu-trigger[aria-expanded="true"] { outline: 3px solid rgb(0 117 222 / 16%); outline-offset: 1px; border-color: #78aede; background: #fff; }
+.filter-menu-caret { color: #8d8984; font-size: 16px; line-height: 1; transform: translateY(-2px); transition: transform 120ms ease; }
+.filter-menu-caret.is-open { transform: translateY(1px) rotate(180deg); }
+.filter-menu-popover { position: absolute; top: calc(100% + 7px); left: 0; z-index: 30; display: grid; min-width: 100%; padding: 6px; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; box-shadow: 0 10px 24px rgb(23 22 21 / 10%), 0 2px 6px rgb(23 22 21 / 5%); }
+.filter-menu-option { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 36px; padding: 0 9px; border: 0; border-radius: 7px; color: #31302e; background: #fff; font: inherit; font-size: 12px; text-align: left; cursor: pointer; white-space: nowrap; }
+.filter-menu-option:hover, .filter-menu-option.selected { color: #005bab; background: #edf6ff; }
+.filter-menu-option-check { width: 14px; color: #0075de; font-size: 13px; font-weight: 800; text-align: center; }
+
+/* What is left of the members block after the roster rebuilt onto Clan Muster
+ * (#25, wave 1). Every rule the roster carried is gone with the markup that
+ * matched it — cards, facts grid, evidence panel, status pills and the filter
+ * row. The `filter-menu` rules above outlived it: the CWL workspace renders the
+ * same control.
+ *
+ * These five stay because `#/overview` still uses them, and overview is wave 3
+ * with an open question over it: #25 leaves undecided whether the route should
+ * exist at all, and answering that inside a styling wave is how a restyle
+ * becomes a redesign. They match nothing on the rebuilt roster, which is the
+ * property that matters — the hazard the same-commit deletion rule guards
+ * against is an old rule still matching a rebuilt element. */
 .members-shell { width: min(1240px, calc(100% - 48px)); margin: 32px auto; }
 .members-heading { margin-bottom: 24px; }
 .members-heading h1 { margin: 4px 0 8px; font-size: clamp(32px, 5vw, 52px); letter-spacing: -2px; }
@@ -163,61 +191,18 @@ button { font: inherit; }
 .overview-callout h2 { margin: 0 0 6px; }
 .overview-callout p { margin: 0; color: #536577; line-height: 1.5; }
 .primary-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 5px; color: #fff; background: #0075de; font-size: 14px; font-weight: 650; text-decoration: none; white-space: nowrap; }
-.member-filters { display: grid; grid-template-columns: minmax(210px, 1.5fr) repeat(5, minmax(120px, 1fr)); gap: 12px; margin-bottom: 12px; padding: 16px; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; }
-.member-filters label { display: grid; gap: 7px; color: #54524f; font-size: 12px; font-weight: 650; }
-.filter-menu { position: relative; display: grid; min-width: 0; gap: 7px; }
-.filter-menu-label { color: #54524f; font-size: 12px; font-weight: 650; }
-.filter-menu-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 42px; padding: 0 11px 0 13px; border: 1px solid transparent; border-radius: 999px; color: #4c4945; background: #f4f2ef; font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; }
-.filter-menu-trigger:hover { background: #eeece8; }
-.filter-menu-trigger.is-active { color: #005bab; background: #edf6ff; }
-.filter-menu-trigger:focus-visible, .filter-menu-trigger[aria-expanded="true"] { outline: 3px solid rgb(0 117 222 / 16%); outline-offset: 1px; border-color: #78aede; background: #fff; }
-.filter-menu-caret { color: #8d8984; font-size: 16px; line-height: 1; transform: translateY(-2px); transition: transform 120ms ease; }
-.filter-menu-caret.is-open { transform: translateY(1px) rotate(180deg); }
-.filter-menu-popover { position: absolute; top: calc(100% + 7px); left: 0; z-index: 30; display: grid; min-width: 100%; padding: 6px; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; box-shadow: 0 10px 24px rgb(23 22 21 / 10%), 0 2px 6px rgb(23 22 21 / 5%); }
-.filter-menu-option { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 36px; padding: 0 9px; border: 0; border-radius: 7px; color: #31302e; background: #fff; font: inherit; font-size: 12px; text-align: left; cursor: pointer; white-space: nowrap; }
-.filter-menu-option:hover, .filter-menu-option.selected { color: #005bab; background: #edf6ff; }
-.filter-menu-option-check { width: 14px; color: #0075de; font-size: 13px; font-weight: 800; text-align: center; }
-.member-filters input { width: 100%; min-height: 42px; padding: 0 13px; border: 1px solid transparent; border-radius: 999px; color: #4c4945; background: #f4f2ef; font: inherit; font-size: 13px; font-weight: 500; }
-.member-filters input::placeholder { color: #8d8984; }
-.member-filters input:hover { background: #eeece8; }
-.member-filters input:focus { outline: 3px solid rgb(0 117 222 / 16%); outline-offset: 1px; border-color: #78aede; background: #fff; }
-.member-result-count { margin: 12px 2px; color: #6f6e6b; font-size: 13px; }
-.member-list { display: grid; gap: 12px; }
-.member-card { padding: 20px 22px; border: 1px solid #dfdedb; border-radius: 10px; background: #fff; box-shadow: 0 2px 12px rgb(0 0 0 / 3%); }
-.former-member { background: #faf9f8; }
-.member-identity { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.member-identity h2 { margin: 0; font-size: 20px; letter-spacing: -.4px; }
-.member-identity p { margin: 3px 0 0; color: #777571; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-.activity-status { padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
-.activity-status.observed { color: #11603b; background: #e8f7ef; }
-.activity-status.no_change { color: #675115; background: #f8f1d9; }
-.activity-status.unknown { color: #5c5b58; background: #eeedeb; }
-.member-facts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin: 0; }
-.member-facts div { min-width: 0; }
-.member-facts dt { margin-bottom: 4px; color: #777571; font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
-.member-facts dd { margin: 0; overflow-wrap: anywhere; font-size: 14px; }
-.activity-evidence { margin-top: 18px; padding: 14px 16px; border-left: 3px solid #8ab8df; background: #f6faff; }
-.activity-evidence strong { font-size: 13px; }
-.activity-evidence ul { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 0; padding-left: 18px; color: #364b5d; font-size: 13px; }
-.activity-evidence p { margin: 6px 0 0; color: #536577; font-size: 13px; }
-.activity-evidence .reset-note { color: #855d18; }
-.member-freshness { margin: 14px 0 0; color: #84817c; font-size: 11px; }
-.empty-members { padding: 40px; border: 1px dashed #cfceca; border-radius: 10px; color: #6f6e6b; text-align: center; }
 
 @media (max-width: 900px) {
   .roster-summary { grid-template-columns: repeat(2, 1fr); }
   .roster-summary div:nth-child(2) { border-right: 0; }
   .roster-summary div:nth-child(-n + 2) { border-bottom: 1px solid #e6e6e6; }
-  .member-filters { grid-template-columns: repeat(2, 1fr); }
-  .member-facts { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 560px) {
   .members-shell { width: min(100% - 24px, 680px); margin: 18px auto; }
-  .roster-summary, .member-filters, .member-facts { grid-template-columns: 1fr; }
+  .roster-summary { grid-template-columns: 1fr; }
   .roster-summary div { border-right: 0; border-bottom: 1px solid #e6e6e6; }
   .roster-summary div:last-child { border-bottom: 0; }
-  .overview-callout, .member-identity { align-items: stretch; flex-direction: column; }
+  .overview-callout { align-items: stretch; flex-direction: column; }
   .primary-link { justify-content: center; }
-  .activity-status { width: fit-content; }
 }

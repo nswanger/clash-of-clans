@@ -1,0 +1,48 @@
+/* Clan Muster element base.
+ *
+ * The rules `_prototype.css` opens with, and the ones `clan-muster.css`
+ * deliberately refuses to carry: they are element and pseudo-class selectors,
+ * so they restyle every route the moment the file is imported. That is why they
+ * are a separate file rather than the top of the component layer — importing
+ * components has to stay inert, and importing this cannot be.
+ *
+ * It lands with the first rebuilt surface (#25, wave 1: the members roster).
+ * `dashboard`, `overview`, `season`, `access` and the CWL workspace change font
+ * and colour here while still carrying their own layout CSS; that is known and
+ * accepted, and it is why this could not land earlier — before a rebuilt
+ * surface there was no prototype to check any of them against.
+ *
+ * `apps/web/src/styles.css` used to carry the same four jobs against hard-coded
+ * values (`:root` font/colour/background, `* { box-sizing }`, `body { margin }`,
+ * `button { font: inherit }`). Those are removed in the same commit: two element
+ * bases fighting over the same properties is how a theme silently half-applies.
+ * The one that survives there is `body { min-width: 320px }`, which is app
+ * chrome rather than design-system truth.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+/* `font-variant-numeric: tabular-nums` is here rather than on the data columns
+ * that want it: a proportional digit in one column and a tabular digit in the
+ * next is worse than either everywhere, and every number in this app sits in a
+ * column of other numbers. */
+body {
+  font-family: var(--cm-font-sans);
+  font-size: var(--cm-text-md);
+  font-variant-numeric: tabular-nums;
+  color: var(--cm-fg);
+  background: var(--cm-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The component layer repeats `font-family`, `font-variant-numeric` and
+ * `cursor` on each button-shaped component precisely because it cannot carry
+ * this rule. Those repetitions stay: they are what keeps `clan-muster.css`
+ * correct on its own, and this file is not a prerequisite for it. */
+button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: pointer; }
+
+:focus-visible {
+  outline: var(--cm-focus-width) solid var(--cm-focus-ring);
+  outline-offset: var(--cm-focus-offset);
+}

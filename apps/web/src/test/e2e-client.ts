@@ -1,13 +1,27 @@
+/* The columns `loadMemberRoster` actually names. The profile counters and the
+ * three baselines left the query with the counter-diff activity window (#34). */
 function fixtureMember(playerTag: string, name: string, role: string, clanRank: number, townHallLevel: number) {
   return {
-    clan_tag: "#E2E", player_tag: playerTag, name, role, clan_rank: clanRank, previous_clan_rank: clanRank,
-    town_hall_level: townHallLevel, trophies: 4_500 - clanRank * 50, league_id: 29000022, league_name: "Legend League",
-    donations: 250, donations_received: 100, war_preference: "in", war_stars: 100 - clanRank,
-    attack_wins: 20, defense_wins: 5, clan_capital_contributions: 2_000, clan_games_points: 500,
+    clan_tag: "#E2E", player_tag: playerTag, name, role, clan_rank: clanRank,
+    town_hall_level: townHallLevel, league_name: "Legend League",
+    donations: 250, donations_received: 100, war_preference: "in",
     roster_observed_at: "2026-07-12T17:56:00.000Z", profile_observed_at: "2026-07-12T17:56:30.000Z",
-    first_observed_present_on: "2026-07-01", last_observed_present_on: "2026-07-12", is_current_member: true,
+    first_observed_present_on: "2026-07-01", is_current_member: true,
     current_presence_started_on: "2026-07-01", departure_observed_on: null,
-    baseline_1d: null, baseline_7d: null, baseline_30d: null,
+  };
+}
+
+/* `regular_war_member_activity_window` rows for the same three members: two
+ * with observed attacks, one who was in the clan for both logged wars and
+ * appears in neither. `wars_observed` repeats on every row because it is the
+ * clan's count for the window, not the member's. */
+function fixtureWarActivity(playerTag: string, warsParticipated: number, attacksMade: number, stars: number) {
+  return {
+    clan_tag: "#E2E", player_tag: playerTag, window_days: 7,
+    window_started_at: "2026-07-05T17:56:00.000Z", wars_observed: 2,
+    wars_participated: warsParticipated, assigned_attacks: warsParticipated * 2,
+    attacks_made: attacksMade, stars, last_observed_at: "2026-07-11T23:59:59.000Z",
+    activity_score: null, performance_score: null, stars_per_attack: null, incomplete_wars: 0,
   };
 }
 
@@ -135,6 +149,16 @@ export function createE2EClient(): any {
     },
     rpc: async (name: string, args: any) => {
       if (name === "has_app_role") return { data: true, error: null };
+      if (name === "regular_war_member_activity_window") {
+        return {
+          data: [
+            fixtureWarActivity("#MASON", 2, 4, 9),
+            fixtureWarActivity("#SAM", 1, 2, 4),
+            fixtureWarActivity("#KIRA", 0, 0, 0),
+          ],
+          error: null,
+        };
+      }
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };
       if (name === "get_access_management_snapshot") return { data: accessManagementSnapshot, error: null };
       if (name === "ensure_cwl_daily_lineup_plan" || name === "save_cwl_daily_lineup_plan" || name === "set_cwl_daily_lineup_plan_lock" || name === "reinherit_cwl_daily_lineup_plan") {

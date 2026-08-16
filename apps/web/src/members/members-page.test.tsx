@@ -1,56 +1,106 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { MembersPage, RosterOverviewPage } from "./members-page.js";
 
-function clientWith(rows: unknown[]) {
+/* jsdom reports `(min-width: 720px)` as false, so every test here exercises the
+ * narrow layout: the panel is a sheet that only opens when a row is pressed,
+ * rather than a docked column that opens on the first member by default. */
+function clientWith(rows: unknown[], activityRows: unknown[] = []) {
+  const rpc = vi.fn().mockResolvedValue({ data: activityRows, error: null });
   return {
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockResolvedValue({ data: rows, error: null }),
       }),
     }),
+    rpc,
   };
 }
 
 describe("MembersPage", () => {
-  it("shows explainable recent activity without presenting it as war reliability", async () => {
-    render(<MembersPage client={clientWith([databaseRow()])} clanTag="#CLAN" />);
+  it("reports what a member was observed doing in wars we logged", async () => {
+    render(<MembersPage client={clientWith([databaseRow()], [activityRow()])} clanTag="#CLAN" />);
 
-    expect(await screen.findByRole("heading", { name: "One" })).toBeVisible();
-    expect(screen.getByText("Activity observed", { selector: ".activity-status" })).toBeVisible();
-    expect(screen.getByText("+14 multiplayer attacks")).toBeVisible();
-    expect(screen.getByText(/No change observed.*does not mean inactive/)).toBeVisible();
+    await userEvent.click(await screen.findByRole("button", { name: /One/ }));
+
+    const panel = within(screen.getByRole("dialog", { name: "One" }));
+    expect(panel.getByText("Activity observed · 7 days")).toBeVisible();
+    expect(panel.getByText("2 of 3 logged")).toBeVisible();
+    expect(panel.getByText("3 of 4")).toBeVisible();
+  });
+
+  it("calls a window with no logged war building history rather than inactivity", async () => {
+    const client = clientWith([databaseRow()], [activityRow({ wars_observed: 0, wars_participated: 0, assigned_attacks: 0, attacks_made: 0, stars: 0 })]);
+    render(<MembersPage client={client} clanTag="#CLAN" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Building history/ }));
+
+    expect(screen.getByText(/no evidence either way. Absent evidence is not inactivity/)).toBeVisible();
+  });
+
+  it("distinguishes a member who sat out logged wars from one with no evidence", async () => {
+    const client = clientWith([databaseRow()], [activityRow({ wars_participated: 0, assigned_attacks: 0, attacks_made: 0, stars: 0 })]);
+    render(<MembersPage client={client} clanTag="#CLAN" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /No war activity/ }));
+
+    expect(screen.getByText("No war activity observed · 7 days")).toBeVisible();
+    expect(screen.getByText(/That is not the same as inactive/)).toBeVisible();
   });
 
   it("filters the roster by member name", async () => {
     const other = { ...databaseRow(), player_tag: "#TWO", name: "Two", clan_rank: 2 };
-    render(<MembersPage client={clientWith([databaseRow(), other])} clanTag="#CLAN" />);
-    await screen.findByRole("heading", { name: "One" });
+    render(<MembersPage client={clientWith([databaseRow(), other], [activityRow()])} clanTag="#CLAN" />);
+    await screen.findByRole("button", { name: /One/ });
 
-    await userEvent.type(screen.getByRole("textbox", { name: "Find a member" }), "Two");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Find a member" }), "Two");
 
-    expect(screen.queryByRole("heading", { name: "One" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Two" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /One/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Two/ })).toBeVisible();
   });
 
-  it("filters the roster by role and Town Hall", async () => {
-    const other = { ...databaseRow(), player_tag: "#TWO", name: "Two", role: "member", town_hall_level: 16, clan_rank: 2 };
-    render(<MembersPage client={clientWith([databaseRow(), other])} clanTag="#CLAN" />);
-    await screen.findByRole("heading", { name: "One" });
+  it("filters the roster by role from the filter panel", async () => {
+    const other = { ...databaseRow(), player_tag: "#TWO", name: "Two", role: "member", clan_rank: 2 };
+    render(<MembersPage client={clientWith([databaseRow(), other], [activityRow()])} clanTag="#CLAN" />);
+    await screen.findByRole("button", { name: /One/ });
 
-    await userEvent.click(screen.getByRole("button", { name: "Filter members by role" }));
-    await userEvent.click(screen.getByRole("menuitemradio", { name: /^Elder$/ }));
-    expect(screen.getByRole("heading", { name: "One" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Two" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Elder" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Filter members by Town Hall" }));
-    await userEvent.click(screen.getByRole("menuitemradio", { name: /^TH17$/ }));
-    expect(screen.getByRole("heading", { name: "One" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /One/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Two/ })).not.toBeInTheDocument();
+  });
+
+  it("re-reads observed war activity when the window changes", async () => {
+    const client = clientWith([databaseRow()], [activityRow()]);
+    render(<MembersPage client={client} clanTag="#CLAN" />);
+    await screen.findByRole("button", { name: /One/ });
+
+    await userEvent.click(screen.getByRole("button", { name: "3 days" }));
+
+    expect(client.rpc).toHaveBeenLastCalledWith("regular_war_member_activity_window", {
+      requested_clan_tag: "#CLAN", requested_window_days: 3,
+    });
+    expect(await screen.findByText("Activity observed · 3 days")).toBeVisible();
+  });
+
+  it("reports a failed load in the one notice region", async () => {
+    const client = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: null, error: { message: "permission denied" } }),
+        }),
+      }),
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    render(<MembersPage client={client} clanTag="#CLAN" />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("permission denied");
   });
 
   it("summarizes the year-round roster separately from CWL operations", async () => {
-    render(<RosterOverviewPage client={clientWith([databaseRow()])} clanTag="#CLAN" />);
+    render(<RosterOverviewPage client={clientWith([databaseRow()], [activityRow()])} clanTag="#CLAN" />);
 
     expect(await screen.findByText("Current members")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Clan overview" })).toBeVisible();
@@ -61,18 +111,20 @@ describe("MembersPage", () => {
 function databaseRow() {
   return {
     clan_tag: "#CLAN", player_tag: "#ONE", name: "One", role: "elder", clan_rank: 1,
-    previous_clan_rank: 2, town_hall_level: 17, trophies: 5060, league_id: 1,
-    league_name: "Legend League", donations: 325, donations_received: 95,
-    war_preference: "in", war_stars: 100, attack_wins: 24, defense_wins: 4,
-    clan_capital_contributions: 2500, clan_games_points: 500,
+    town_hall_level: 17, league_name: "Legend League",
+    donations: 325, donations_received: 95, war_preference: "in",
     roster_observed_at: "2026-07-08T12:00:00Z", profile_observed_at: "2026-07-08T12:00:30Z",
-    first_observed_present_on: "2026-07-01", last_observed_present_on: "2026-07-08",
-    is_current_member: true, current_presence_started_on: "2026-07-01", departure_observed_on: null, baseline_1d: null,
-    baseline_7d: {
-      observed_on: "2026-07-01", role: "member", town_hall_level: 17, trophies: 5000,
-      league_id: 1, donations: 100, donations_received: 80, war_preference: "out",
-      attack_wins: 10, defense_wins: 4, clan_capital_contributions: 2000, clan_games_points: 6000,
-    },
-    baseline_30d: null,
+    first_observed_present_on: "2026-07-01", is_current_member: true,
+    current_presence_started_on: "2026-07-01", departure_observed_on: null,
+  };
+}
+
+function activityRow(overrides: Record<string, unknown> = {}) {
+  return {
+    clan_tag: "#CLAN", player_tag: "#ONE", window_days: 7,
+    window_started_at: "2026-07-01T12:00:00Z", wars_observed: 3, wars_participated: 2,
+    assigned_attacks: 4, attacks_made: 3, stars: 7, last_observed_at: "2026-07-07T12:00:00Z",
+    activity_score: 75, performance_score: 78, stars_per_attack: 2.33, incomplete_wars: 0,
+    ...overrides,
   };
 }

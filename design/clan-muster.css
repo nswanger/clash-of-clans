@@ -21,10 +21,13 @@
  * — `box-sizing`, `body` font/colour/background, `button { font: inherit }`,
  * `:focus-visible`. Those are not component rules, and shipping them here would
  * restyle every existing route the moment this file is imported, which is
- * exactly what wave 0 promises not to do. They land with the first rebuilt
- * surface, together with `font-variant-numeric: tabular-nums`, which the data
- * columns want. Until then the button-shaped components carry what the global
- * `button` rule used to give them.
+ * exactly what wave 0 promises not to do. They landed with the first rebuilt
+ * surface, as `base.css` beside this file, together with
+ * `font-variant-numeric: tabular-nums`, which the data columns want.
+ *
+ * The button-shaped components below still carry what the global `button` rule
+ * gives them. That is not redundancy to clean up now that `base.css` exists —
+ * it is what keeps this file correct when imported on its own.
  *
  * Page-layer classes are in neither file: see components.md for the boundary.
  */

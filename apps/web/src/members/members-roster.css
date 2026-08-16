@@ -1,0 +1,161 @@
+/* Members roster — page layer.
+ *
+ * Ported from the <style> block of design/prototype/members-roster.html, which
+ * is the spec (#22). Everything here is what only this surface uses; everything
+ * it stands on is `cm-`-prefixed and comes from @cwl/design.
+ *
+ * The list is deliberately short. A long page layer beside a component layer
+ * would mean the system does not actually generalise — that the prototype's own
+ * style block stayed this small is the finding, and reproducing it here is how
+ * the finding gets checked rather than assumed.
+ *
+ * Page classes are prefixed `members-` for the same reason component classes are
+ * prefixed `cm-`: this is a global stylesheet during an incremental migration,
+ * and `.metric` — the prototype's own name for the summary tile — is already
+ * taken by the dashboard in styles.css. Prefixing is not hygiene here; it is the
+ * collision.
+ */
+
+/* ---------- summary strip ----------
+ * The one component the lineup workspace had no use for: a roster is arrived at
+ * with "how healthy is the clan", and neither surface in #20 had an aggregate
+ * read. Two-up on a phone and four across above 720px — a scrolling strip
+ * clipped a metric mid-word, which reads as a bug rather than an affordance.
+ *
+ * Four metrics, not five: "no war activity" is derivable from the other three,
+ * and it is the number most likely to be misread as "inactive", which the
+ * domain explicitly refuses to say.
+ */
+.members-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-2); }
+.members-metric {
+  min-width: 0;
+  padding: var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface);
+}
+.members-metric strong {
+  display: block; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.members-metric span {
+  display: block; margin-top: 2px;
+  font-size: var(--cm-text-xs); line-height: 1.3; color: var(--cm-fg-muted);
+}
+
+/* ---------- search row ---------- */
+.members-searchrow { display: flex; gap: var(--cm-space-2); margin-top: var(--cm-space-3); }
+.members-searchrow .cm-search { margin-bottom: 0; }
+.members-filterbutton {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.members-badge {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--cm-radius-pill);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+}
+.members-windowrow { margin-top: var(--cm-space-2); }
+
+/* The detail column is wider than the component default: a member panel carries
+ * two facts grids, where the lineup's bench carries a list of rows. */
+@media (min-width: 720px) {
+  .members-page .cm-columns { grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); }
+}
+
+/* Progressive disclosure through the row's own stats slot, not a second row
+ * design.
+ *
+ * Gated on a CONTAINER query, not the viewport. The list column's width depends
+ * on whether the detail panel is docked beside it, so a viewport breakpoint gets
+ * it wrong in exactly the band where the panel is open on a small desktop — the
+ * extra columns appear, overflow the column, and push the chevron out past the
+ * card edge. The row can only know if it asks its own container.
+ */
+.members-section { container-type: inline-size; container-name: members-list; }
+/* Every rule below that overrides a `cm-` component is scoped to an ancestor on
+ * purpose. The prototype could rely on source order — `_prototype.css` is a
+ * <link> above the page's own <style> — but a bundler orders stylesheets by
+ * import graph, and `members-page.tsx` is imported before main.tsx reaches its
+ * CSS imports, so this file lands BEFORE the component layer and loses every
+ * tie. `.members-wide-only` is also a `.cm-row-stats`, and `display: flex`
+ * beat `display: none` at equal specificity. */
+.members-section .members-wide-only { display: none; }
+/* 26px rather than the component's 22px: clan rank runs to 50 here, where the
+ * lineup's slot number stops at 15. */
+.members-section .cm-row.has-pos { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+
+/* The header only exists where the columns do — it is what makes an unlabelled
+ * pair of numbers legible, and it is why the window scoping can be stated
+ * rather than assumed. */
+.members-listhead { display: none; }
+/* Header and rows are two separate grids, so every column they share must be an
+ * EXPLICIT width in both. With `auto` columns and `min-width` values they size
+ * to their own contents and drift apart — "Attacks used" is wider than any
+ * value under it, and the header's empty last cell is 0px against the row's 5px
+ * chevron, which shifts the whole run. Same track list, same fixed widths, both
+ * right-aligned. 600px because below it the name column stops being readable.
+ */
+@container members-list (min-width: 600px) {
+  .members-section .cm-row.has-pos,
+  .members-listhead { grid-template-columns: 26px minmax(0, 1fr) auto 44px 10px; }
+  .members-section .members-wide-only { display: flex; flex-direction: row; align-items: baseline; gap: var(--cm-space-4); }
+  .members-section .members-wide-only .members-stat { width: 76px; text-align: right; }
+  .members-section .cm-row-stats:not(.members-wide-only) { width: 44px; }
+  .members-listhead {
+    display: grid; align-items: end; gap: var(--cm-space-3);
+    /* +1px for the border the rows have and the header does not */
+    padding: 0 calc(var(--cm-row-pad-x) + 1px) var(--cm-space-2);
+  }
+  .members-listhead span {
+    font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+    letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+  }
+  .members-listhead .members-group { display: flex; flex-direction: row; gap: var(--cm-space-4); }
+  .members-listhead .members-group span { width: 76px; text-align: right; }
+  .members-listhead .members-th { text-align: right; }
+}
+
+/* ---------- member facts, inside the panel only ----------
+ * This grid used to be on every card in the list, six columns collapsing to six
+ * stacked rows on a phone. It was the wall of numbers. It survives, but only
+ * where someone asked for it.
+ */
+.members-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-3); margin: 0 0 var(--cm-space-4); }
+.members-facts dt {
+  margin-bottom: 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.members-facts dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); overflow-wrap: anywhere; }
+
+/* Coverage caveats, not achievements: the list is empty on a clean window and
+ * appears only when the war log itself is incomplete. */
+.members-evidence { margin: 0 0 var(--cm-space-4); padding: 0; list-style: none;
+                    display: flex; flex-wrap: wrap; gap: var(--cm-space-2); }
+.members-evidence li {
+  padding: 5px 10px; border-radius: var(--cm-radius-pill);
+  background: var(--cm-surface-sunken); color: var(--cm-fg-muted);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-medium);
+}
+.members-freshness { margin: 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+.members-freshness + .cm-panel-label { margin-top: var(--cm-space-4); }
+
+/* ---------- filter panel ---------- */
+.members-fieldset { margin-bottom: var(--cm-space-4); }
+.members-choices { display: flex; flex-wrap: wrap; gap: var(--cm-space-2); }
+.members-choices button {
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg-muted);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.members-choices button[aria-pressed="true"] {
+  border-color: var(--cm-border-control); color: var(--cm-fg-strong); background: var(--cm-surface-sunken);
+}
+
+@media (min-width: 720px) {
+  .members-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
