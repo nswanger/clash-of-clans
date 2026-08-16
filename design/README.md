@@ -161,6 +161,13 @@ The vector itself is a working draft, good enough to build against; refining it 
 - **The rule is role, not coverage:** if it sits in running text it stays a character; if it is an affordance it becomes an icon. That keeps `·` as punctuation in `.sep` and makes `×` and `›` icons even though Archivo has them, so one alignment model governs.
 - **Icons are flex items, so whitespace beside them collapses.** Any component mixing icons and text in a flex container needs an explicit `gap` — a space in the markup will not survive. The pill was the one that slipped through.
 
-## Not yet decided
+**The migration mechanics are locked** ([#25](https://github.com/nswanger/clash-of-clans/issues/25)), in [`migration.md`](migration.md) — the plan someone executes.
 
-How the web app consumes these tokens — importing this directory directly, promoting it to a workspace package under `packages/`, or copying at build time. That rides with migration mechanics in [#25](https://github.com/nswanger/clash-of-clans/issues/25). Nothing in `apps/web` imports this yet.
+- **`design/` becomes a workspace package without moving.** Add `design` to the `pnpm-workspace.yaml` globs and a `package.json` naming it `@cwl/design`. Moving it under `packages/` would be tidier and is not worth breaking every `DesignSync` and artifact path for.
+- **Four waves: tokens alone, then members, then CWL, then conformance.** Tokens land in a deliberately inert commit — if they arrive alongside a rebuilt surface, a visual regression has two possible causes instead of one.
+- **Members migrates before CWL.** CWL is the default route and the surface validated against a live season; members is real, cheap to get wrong, and proves the mechanics first.
+- **The 80 tests are the safety net, and it is luck rather than design.** All 137 queries are `getByRole` or `getByText` — not one class-name assertion — so a restyle is invisible to them, and CI runs them before build and deploy. Worth stating plainly because it can be lost by accident: *do not add class-based queries to these tests.*
+- **A surface migrates all at once, with its old CSS deleted in the same commit.** Collision is impossible by construction since every class is `cm-`-prefixed, so the real hazard runs the other way — an old rule still matching a rebuilt element that kept an old class name.
+- **The `cwl-proto-*` rename lands with the rebuild**, never as its own commit. A standalone rename touches every line the rebuild touches anyway, and the tests cannot catch a rename error because they never query by class. One CI grep asserting no `cwl-proto-` survives covers the one failure mode the suite structurally cannot see.
+- **No feature flag; a timing constraint instead.** A flag would mean shipping both stylesheets and both component trees on a static Pages deploy with no server, to guard a risk that is really about timing. **The CWL surface must be migrated before 2026-08-30**, when the next season begins.
+- **No visual-regression tooling.** The published prototypes are an exact, versioned spec, and comparison is manual — for a six-route personal-scale app, the machinery costs more than the risk.
