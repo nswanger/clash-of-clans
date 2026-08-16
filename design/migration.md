@@ -35,6 +35,12 @@ This is deliberately a wave of its own. If tokens and components arrive in the s
 
 Spec: [`prototype/members-roster.html`](prototype/members-roster.html) · [published](https://claude.ai/code/artifact/d10cff5e-b20d-4890-9bb2-4f508bec2d8e)
 
+**The activity window reads our own logged war history, not the profile counters.** Today `member_roster_overview` carries `baseline_1d` / `baseline_7d` / `baseline_30d`, and `activityWindow()` in `member-history.ts` decides "activity observed" by diffing Clash's profile counters — donations, attack wins, Capital contributions — against our snapshot from N days ago. Wave 1 moves it to `regular_war_member_activity_window(clan_tag, window_days)` ([#34](https://github.com/nswanger/clash-of-clans/issues/34)), which reports what a member was observed doing in wars we logged.
+
+A counter that moved tells you someone opened the game. It does not tell you they turned up for a war, and this roster is read to decide who turns up. The cost is accepted knowingly: our war history only accumulates forward from the day collection started, so early windows are thin and more members read as having no evidence yet. That is the honest answer rather than a worse one dressed up as coverage. "Building history" changes meaning with the source — it now says we have logged no war in this window, rather than that we hold no snapshot from N days ago.
+
+The same rule settles a name collision the surface will otherwise trip on. The prototype's `warStars`, sitting beside `warAttacksMade / warAssignedAttacks`, is stars from wars we observed. It is **not** `member_roster_overview.war_stars`, which is Clash's lifetime profile counter and the one the dead-code list below drops.
+
 ### Wave 2 — the CWL lineup workspace
 
 The one with the deadline. Spec: [`prototype/lineup-adjust.html`](prototype/lineup-adjust.html) · [published](https://claude.ai/code/artifact/4678e567-87c1-403a-a84c-1b7ae5f62434)
@@ -81,6 +87,6 @@ That prefix is not hygiene. `styles.css` already defines `.eyebrow`, and so does
 ## Dead code to remove on the way
 
 - **`apps/web/src/cwl-prototype/`** — empty and unreferenced since 2026-08-01. Delete it in wave 0.
-- **`baseline1d` / `baseline30d`, `previousClanRank`, `warStars`, `lastObservedPresentOn`** — fetched on every members load and never rendered ([#22](https://github.com/nswanger/clash-of-clans/issues/22)). Drop from the query in wave 1.
+- **`baseline1d` / `baseline30d`, `previousClanRank`, `warStars` (the profile counter), `lastObservedPresentOn`** — fetched on every members load and never rendered ([#22](https://github.com/nswanger/clash-of-clans/issues/22)). Drop from the query in wave 1. `baseline7d` joins them once the activity window moves to logged war history, and `activityWindow()` in `member-history.ts` leaves with it — `members-page.tsx` is its only caller.
 - **`mapPosition`** — fetched and discarded by the CWL workspace, which reads `observed` only as a boolean set ([#21](https://github.com/nswanger/clash-of-clans/issues/21)). Wave 2 should either use it as the in-game order or stop selecting it.
 - **The 14 status treatments in `styles.css`** — reduced to two that can ever fire ([#19](https://github.com/nswanger/clash-of-clans/issues/19)). They leave with the surfaces that carry them.
