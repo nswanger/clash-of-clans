@@ -5,212 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lineup adjustment — mobile prototype</title>
 <link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<script src="_prototype.js" defer></script>
 <style>
 /* Clan Muster — mobile lineup adjustment surface (#20 prototype).
  *
- * Rough and real: every value below comes from design/tokens.css. Nothing is
- * hand-picked. The roster is synthetic but real-shaped — 30 members, war size
- * 15 — because real player tags must not enter this public repo.
+ * Shared components live in _prototype.css. What remains here is what only this
+ * surface uses: reorder mode, the day menu, the action bar with its in-game
+ * replication list, the bench trigger, and the desktop-only rail.
  *
- * One layout, three widths. The bench is a sheet under 720px and a column at or
- * above it; the swap panel is the same markup in both, mounted differently.
+ * The roster is synthetic but real-shaped — 30 members, war size 15 — because
+ * real player tags must not enter this public repo.
  */
-
-*, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body {
-  font-family: var(--cm-font-sans);
-  font-size: var(--cm-text-md);
-  font-variant-numeric: tabular-nums;
-  color: var(--cm-fg);
-  background: var(--cm-bg);
-  -webkit-font-smoothing: antialiased;
-}
-button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: pointer; }
-:focus-visible {
-  outline: var(--cm-focus-width) solid var(--cm-focus-ring);
-  outline-offset: var(--cm-focus-offset);
-}
-
-/* ---------- prototype-only chrome (not part of the design) ---------- */
-.harness {
-  display: flex; flex-wrap: wrap; gap: var(--cm-space-2); align-items: center;
-  padding: var(--cm-space-2) var(--cm-gutter);
-  background: var(--cm-n-900); color: var(--cm-n-300);
-  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
-}
-.harness button {
-  border: 1px solid var(--cm-n-700); background: none; color: var(--cm-n-300);
-  border-radius: var(--cm-radius-pill); padding: 5px 10px;
-  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
-}
-.harness button[aria-pressed="true"] { background: var(--cm-n-100); color: var(--cm-n-900); border-color: var(--cm-n-100); }
-
-/* ---------- shell ---------- */
-.shell {
-  max-width: var(--cm-shell-lg);
-  margin: 0 auto;
-  padding: 0 var(--cm-gutter) calc(var(--cm-space-7) + 40px);
-}
-
-/* ---------- header ---------- */
-.topbar {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--cm-space-3);
-  padding: var(--cm-space-4) 0 var(--cm-space-3);
-}
-.eyebrow {
-  margin: 0 0 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
-  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
-}
-.topbar h1 {
-  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
-  letter-spacing: var(--cm-tracking-xl);
-}
-.topbar-side { display: flex; align-items: center; gap: var(--cm-space-2); }
-.lockchip {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 var(--cm-space-3);
-  border-radius: var(--cm-radius-pill);
-  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
-  background: var(--cm-surface-sunken); color: var(--cm-fg-muted);
-  border: 1px solid var(--cm-hairline);
-}
-.lockchip.is-locked { background: var(--cm-info-subtle); color: var(--cm-info-ink); border-color: transparent; }
-.iconbutton {
-  width: var(--cm-tap-min); height: var(--cm-tap-min);
-  display: grid; place-items: center;
-  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
-  background: var(--cm-surface); font-size: var(--cm-text-lg); line-height: 1;
-}
-
-/* ---------- day strip ---------- */
-.daystrip {
-  display: flex; gap: 0; overflow-x: auto; scroll-snap-type: x mandatory;
-  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
-  background: var(--cm-surface); -webkit-overflow-scrolling: touch;
-}
-.daystrip::-webkit-scrollbar { display: none; }
-.daystrip button {
-  flex: 1 0 auto; min-width: 84px; scroll-snap-align: start;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  min-height: var(--cm-tap-min); padding: var(--cm-space-2) var(--cm-space-3);
-  border: 0; border-right: 1px solid var(--cm-hairline); background: none;
-  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg-muted);
-}
-.daystrip button:last-child { border-right: 0; }
-.daystrip button small { font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase; }
-/* underline form of the edge marker — interior corners of a strip segment are square */
-.daystrip button[aria-current="true"] {
-  color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold);
-  box-shadow: inset 0 calc(-1 * var(--cm-marker-width)) 0 var(--cm-accent-edge);
-}
-
-/* ---------- the one notice region ---------- */
-.notice {
-  display: flex; align-items: flex-start; gap: var(--cm-space-3);
-  margin-top: var(--cm-space-3); padding: var(--cm-space-3);
-  border: 1px solid var(--cm-danger-ink); border-radius: var(--cm-radius-lg);
-  background: var(--cm-danger-subtle); color: var(--cm-danger-ink);
-}
-.notice strong { display: block; font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold); }
-.notice p { margin: 2px 0 0; font-size: var(--cm-text-xs); line-height: 1.4; }
-.notice button {
-  flex: none; min-height: 34px; padding: 0 var(--cm-space-3);
-  border: 1px solid currentColor; border-radius: var(--cm-radius-md);
-  background: none; color: inherit;
-  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
-}
-
-/* ---------- section ---------- */
-/* The top gap belongs to the columns grid, not to the section inside the first
- * column — otherwise the lineup is pushed down and the bench and rail sit flush
- * against the day strip. */
-.columns { margin-top: var(--cm-space-5); }
-.section { margin-top: 0; }
-.section-head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
-  margin-bottom: var(--cm-space-2);
-}
-.section-head h2 {
-  display: flex; align-items: baseline; gap: var(--cm-space-2);
-  margin: 0; font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
-  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
-}
-.count { font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg-muted); }
-.count.is-short { color: var(--cm-danger-ink); font-weight: var(--cm-weight-semibold); }
-
-/* ---------- member row ---------- */
-.rows { display: flex; flex-direction: column; gap: var(--cm-space-2); }
-.row {
-  position: relative;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center; gap: var(--cm-space-3);
-  width: 100%; min-height: var(--cm-tap-min); text-align: left;
-  padding: var(--cm-row-pad-y) var(--cm-row-pad-x);
-  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
-  background: var(--cm-surface);
-}
-/* The slot number is load-bearing, not decoration: the plan's order is a
- * hand-kept mirror of in-game base-weight order, which the API does not
- * expose. You cannot match an ordering you cannot read. */
-.row.has-pos { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
-.row-pos {
-  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
-  color: var(--cm-fg-muted); text-align: right;
-}
-.row-pos.is-edited { color: var(--cm-caution-ink); font-weight: var(--cm-weight-semibold); }
-.moved-from {
-  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-medium);
-  color: var(--cm-caution-ink); white-space: nowrap;
-}
-/* rail form of the edge marker — pseudo-element, pill-capped, inset from both
-   ends so it never meets a soft corner. Presence marks observed; planned rows
-   carry nothing at all. */
-.row.is-observed::before {
-  content: ""; position: absolute; left: 0;
-  top: var(--cm-marker-inset); bottom: var(--cm-marker-inset);
-  width: var(--cm-marker-width); border-radius: var(--cm-radius-pill);
-  background: var(--cm-info-ink);
-}
-/* The rail slot carries provenance and nothing else, as #19 locked it. Edit
- * state was briefly a second rail colour here — measured at 1.12:1 against the
- * info rail in light and 1.05:1 in dark, two 3px bars 49deg apart at the same
- * lightness. Indistinguishable, and blue-against-violet is the worst pair to
- * ask red-deficient vision to separate. Edit state moved to the position
- * number instead: a different form, not a second colour in the same slot. */
-.row.is-observed { padding-left: calc(var(--cm-row-pad-x) + var(--cm-space-2)); }
-.row.is-out { opacity: .5; }
-.row-main { min-width: 0; }
-.row-name {
-  display: block; font-size: var(--cm-row-name); font-weight: var(--cm-weight-medium);
-  color: var(--cm-fg-strong);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.row-meta {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  margin-top: 2px; font-size: var(--cm-row-meta); color: var(--cm-fg-muted);
-}
-.row-meta .sep { color: var(--cm-hairline); }
-.row-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-.row-stars { font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold); color: var(--cm-fg-strong); }
-.row-th { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
-.chev { font-size: var(--cm-text-md); color: var(--cm-fg-muted); }
-
-/* availability is displayed on the row, edited in the panel */
-.avail { font-weight: var(--cm-weight-medium); }
-.avail.is-available { color: var(--cm-success-ink); }
-.avail.is-unavailable { color: var(--cm-danger-ink); }
-.avail.is-unknown { color: var(--cm-fg-unknown); }
-
-.pill {
-  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
-  border-radius: var(--cm-radius-pill);
-  font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
-  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; white-space: nowrap;
-}
-.pill.ok   { background: var(--cm-success-subtle); color: var(--cm-success-ink); }
-.pill.turn { background: var(--cm-caution-subtle); color: var(--cm-caution-ink); }
-.pill.info { background: var(--cm-info-subtle); color: var(--cm-info-ink); }
 
 /* ---------- reorder mode ---------- */
 .rrow {
@@ -255,7 +61,6 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
 }
 .daymenu button:disabled { color: var(--cm-fg-muted); cursor: not-allowed; }
 .iconbutton.small { width: var(--cm-tap-min); height: var(--cm-tap-min); font-size: var(--cm-text-md); }
-
 /* ---------- bench trigger (mobile only) ----------
  * In the section head, not below fifteen rows: adding to a short lineup must
  * not require scrolling past the lineup first.
@@ -267,7 +72,6 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
   background: var(--cm-surface); color: var(--cm-fg);
   font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
 }
-
 /* ---------- action bar ---------- */
 .actionbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
@@ -314,64 +118,6 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
 .replicate .arrow { color: var(--cm-fg-muted); }
 .replicate .solo { grid-column: 1 / -1; }
 .replicate .was { color: var(--cm-fg-muted); font-weight: var(--cm-weight-regular); }
-
-/* ---------- panel: swap / bench browse ---------- */
-.scrim {
-  position: fixed; inset: 0; z-index: 40;
-  background: rgb(23 22 21 / 45%); border: 0; padding: 0;
-}
-.panel {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
-  max-height: 88vh; display: flex; flex-direction: column;
-  border-radius: var(--cm-radius-lg) var(--cm-radius-lg) 0 0;
-  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.panel-head {
-  display: flex; align-items: flex-start; gap: var(--cm-space-3);
-  padding: var(--cm-space-4) var(--cm-space-4) var(--cm-space-3);
-  border-bottom: 1px solid var(--cm-hairline);
-}
-.panel-head .grow { flex: 1; min-width: 0; }
-.panel-head h2 {
-  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
-  letter-spacing: var(--cm-tracking-xl);
-}
-.panel-evidence {
-  margin: var(--cm-space-2) 0 0; font-size: var(--cm-text-sm); line-height: 1.5; color: var(--cm-fg-muted);
-}
-.panel-evidence b { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
-.panel-body { overflow-y: auto; padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); -webkit-overflow-scrolling: touch; }
-.panel-label {
-  margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
-  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
-}
-.panel-foot { padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); border-top: 1px solid var(--cm-hairline); }
-.ghost {
-  width: 100%; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
-  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
-  background: var(--cm-surface); font-size: var(--cm-text-md); font-weight: var(--cm-weight-medium);
-}
-.ghost:disabled { color: var(--cm-fg-muted); border-color: var(--cm-hairline); cursor: not-allowed; }
-
-/* availability control lives here, not on the row */
-.availset { display: flex; gap: var(--cm-space-2); margin-bottom: var(--cm-space-4); }
-.availset button {
-  flex: 1; min-height: var(--cm-tap-min);
-  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
-  background: var(--cm-surface); color: var(--cm-fg-muted);
-  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
-}
-.availset button[aria-pressed="true"] { border-color: var(--cm-border-control); color: var(--cm-fg-strong); background: var(--cm-surface-sunken); }
-
-.search {
-  width: 100%; min-height: var(--cm-tap-min); margin-bottom: var(--cm-space-3);
-  padding: 0 var(--cm-space-3); font: inherit;
-  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
-  background: var(--cm-surface); color: var(--cm-fg);
-}
-.empty { margin: 0; padding: var(--cm-space-5) 0; text-align: center; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
-
 /* the desktop-only rail */
 .rail { display: none; }
 .railcard {
@@ -442,7 +188,7 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
     </div>
   </header>
 
-  <nav class="daystrip" id="daystrip" aria-label="CWL war days"></nav>
+  <nav class="segmented" id="daystrip" aria-label="CWL war days"></nav>
 
   <div id="noticeslot"></div>
 
