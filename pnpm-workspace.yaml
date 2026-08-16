@@ -1,3 +1,12 @@
 packages: ["apps/*", "packages/*", "design"]
 allowBuilds:
   esbuild: true
+
+# Refuse to install a version published less than a day ago. Compromised
+# releases are typically caught and pulled within the hour, so the delay is a
+# cheap buffer against installing one. This is pnpm 11's own default, stated
+# here so it survives a change of default and is visible when reviewing.
+#
+# CI installs with --frozen-lockfile and resolves nothing, so this guards the
+# moment that actually reaches the registry: `pnpm add` or `pnpm update` here.
+minimumReleaseAge: 1440
