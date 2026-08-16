@@ -1,0 +1,10 @@
+{
+  "name": "@cwl/design",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Clan Muster design system: token layer and component layer.",
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./clan-muster.css": "./clan-muster.css"
+  }
+}

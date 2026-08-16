@@ -8,6 +8,8 @@ import type { LiveSessionClient } from "./auth/live-app.js";
 import type { DashboardDataClient } from "./dashboard/dashboard-loader.js";
 import { AppRoutes } from "./app-routes.js";
 import { createE2EClient } from "./test/e2e-client.js";
+import "@cwl/design/tokens.css";
+import "@cwl/design/clan-muster.css";
 import "./styles.css";
 
 const root = document.querySelector<HTMLDivElement>("#root");

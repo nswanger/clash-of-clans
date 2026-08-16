@@ -1,0 +1,489 @@
+/* Clan Muster component layer.
+ *
+ * The shipped counterpart to prototype/_prototype.css, ported near-verbatim as
+ * components.md (#23) requires: the prototypes are the spec, so a direct port
+ * verifies the design by construction rather than by re-reading.
+ *
+ * Two things change in the port, both mandated there:
+ *
+ * 1. Every class is `cm-` prefixed. The prototypes use bare names because each
+ *    is a standalone document; in a shared stylesheet during an incremental
+ *    migration `.row` collides on contact, and `styles.css` already defines
+ *    `.eyebrow`. Sub-parts the prototypes scope by descent (`.check .box`) are
+ *    prefixed rather than nested, for the same reason.
+ *
+ * 2. Layer is decided by concept, not by how many prototypes happened to use a
+ *    thing. So the editing layer is here even though only the lineup has one,
+ *    and `moved-from` is not even though _prototype.css carries it — it is
+ *    reorder's own vocabulary, which components.md puts in the page layer.
+ *
+ * WHAT IS DELIBERATELY ABSENT: the element-level base _prototype.css opens with
+ * — `box-sizing`, `body` font/colour/background, `button { font: inherit }`,
+ * `:focus-visible`. Those are not component rules, and shipping them here would
+ * restyle every existing route the moment this file is imported, which is
+ * exactly what wave 0 promises not to do. They land with the first rebuilt
+ * surface, together with `font-variant-numeric: tabular-nums`, which the data
+ * columns want. Until then the button-shaped components carry what the global
+ * `button` rule used to give them.
+ *
+ * Page-layer classes are in neither file: see components.md for the boundary.
+ */
+
+/* ---------- icons (#40) ----------
+ * Sized in em and coloured by currentColor, so an icon inherits both from its
+ * type context exactly as the Unicode glyphs it replaced did. That inheritance
+ * is the only good property the glyphs had — nothing needs a per-use size, and
+ * an icon inside muted text is muted for free.
+ */
+.cm-icon { width: 1em; height: 1em; flex: none; vertical-align: -0.125em; }
+.cm-icon.is-lg { width: 1.15em; height: 1.15em; }
+
+/* The prototypes take `font: inherit; color: inherit; cursor: pointer` from a
+ * global `button` rule this layer cannot carry. The button-shaped components
+ * take it themselves instead. */
+.cm-row,
+.cm-iconbutton,
+.cm-ghost,
+.cm-check,
+.cm-handle,
+.cm-actionbar-changes,
+.cm-actionbar-save,
+.cm-segmented button,
+.cm-availset button,
+.cm-notice button {
+  font-family: inherit;
+  font-variant-numeric: inherit;
+  cursor: pointer;
+}
+
+/* ---------- shell ---------- */
+.cm-shell {
+  max-width: var(--cm-shell-lg);
+  margin: 0 auto;
+  padding: 0 var(--cm-gutter) calc(var(--cm-space-7) + 40px);
+}
+
+/* ---------- header ---------- */
+.cm-topbar {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--cm-space-3);
+  padding: var(--cm-space-4) 0 var(--cm-space-3);
+}
+.cm-topbar h1 {
+  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl);
+}
+.cm-topbar-side { display: flex; align-items: center; gap: var(--cm-space-2); }
+.cm-statuschip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 var(--cm-space-3);
+  border-radius: var(--cm-radius-pill);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
+  background: var(--cm-surface-sunken); color: var(--cm-fg-muted);
+  border: 1px solid var(--cm-hairline);
+}
+.cm-statuschip.is-on { background: var(--cm-info-subtle); color: var(--cm-info-ink); border-color: transparent; }
+.cm-iconbutton {
+  width: var(--cm-tap-min); height: var(--cm-tap-min);
+  display: grid; place-items: center;
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); font-size: var(--cm-text-lg); line-height: 1;
+}
+/* still 44px of tap target — only the glyph gets smaller */
+.cm-iconbutton.is-small { width: var(--cm-tap-min); height: var(--cm-tap-min); font-size: var(--cm-text-md); }
+
+/* ---------- segmented strip ----------
+ * A row of mutually exclusive choices, scrollable when it overflows. The CWL
+ * day strip and the members activity-window selector are the same component;
+ * naming it after either one would have hidden that.
+ */
+.cm-segmented {
+  display: flex; gap: 0; overflow-x: auto; scroll-snap-type: x mandatory;
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); -webkit-overflow-scrolling: touch;
+}
+.cm-segmented::-webkit-scrollbar { display: none; }
+.cm-segmented button {
+  flex: 1 0 auto; min-width: 84px; scroll-snap-align: start;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: var(--cm-tap-min); padding: var(--cm-space-2) var(--cm-space-3);
+  border: 0; border-right: 1px solid var(--cm-hairline); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg-muted);
+}
+.cm-segmented button:last-child { border-right: 0; }
+.cm-segmented button small { font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase; }
+/* underline form of the edge marker — interior corners of a strip segment are square */
+.cm-segmented button[aria-current="true"] {
+  color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold);
+  box-shadow: inset 0 calc(-1 * var(--cm-marker-width)) 0 var(--cm-accent-edge);
+}
+
+/* ---------- the one notice region ----------
+ * Danger only, one per screen. It has no success, caution or info variant by
+ * design (#19); everything else that wants to announce itself is a mark on the
+ * thing it describes.
+ */
+.cm-notice {
+  display: flex; align-items: flex-start; gap: var(--cm-space-3);
+  margin-top: var(--cm-space-3); padding: var(--cm-space-3);
+  border: 1px solid var(--cm-danger-ink); border-radius: var(--cm-radius-lg);
+  background: var(--cm-danger-subtle); color: var(--cm-danger-ink);
+}
+.cm-notice strong { display: block; font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold); }
+.cm-notice p { margin: 2px 0 0; font-size: var(--cm-text-xs); line-height: 1.4; }
+.cm-notice button {
+  flex: none; min-height: 34px; padding: 0 var(--cm-space-3);
+  border: 1px solid currentColor; border-radius: var(--cm-radius-md);
+  background: none; color: inherit;
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
+}
+
+/* ---------- section ---------- */
+/* The top gap belongs to the columns grid, not to the section inside the first
+ * column — otherwise the lineup is pushed down and the bench and rail sit flush
+ * against the day strip. */
+.cm-columns { margin-top: var(--cm-space-5); }
+.cm-section { margin-top: 0; }
+.cm-section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  margin-bottom: var(--cm-space-2);
+}
+.cm-section-head h2 {
+  display: flex; align-items: baseline; gap: var(--cm-space-2);
+  margin: 0; font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+
+/* ---------- list row ---------- */
+.cm-rows { display: flex; flex-direction: column; gap: var(--cm-space-2); }
+.cm-row {
+  position: relative;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center; gap: var(--cm-space-3);
+  width: 100%; min-height: var(--cm-tap-min); text-align: left;
+  padding: var(--cm-row-pad-y) var(--cm-row-pad-x);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface);
+}
+/* The slot number is load-bearing, not decoration: the plan's order is a
+ * hand-kept mirror of in-game base-weight order, which the API does not
+ * expose. You cannot match an ordering you cannot read. */
+.cm-row.has-pos { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
+.cm-row-pos {
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+  color: var(--cm-fg-muted); text-align: right;
+}
+.cm-row-pos.is-edited { color: var(--cm-caution-ink); font-weight: var(--cm-weight-semibold); }
+/* rail form of the edge marker — pseudo-element, pill-capped, inset from both
+   ends so it never meets a soft corner. Presence marks observed; planned rows
+   carry nothing at all. */
+.cm-row.is-observed::before {
+  content: ""; position: absolute; left: 0;
+  top: var(--cm-marker-inset); bottom: var(--cm-marker-inset);
+  width: var(--cm-marker-width); border-radius: var(--cm-radius-pill);
+  background: var(--cm-info-ink);
+}
+/* The rail slot carries provenance and nothing else, as #19 locked it. Edit
+ * state was briefly a second rail colour here — measured at 1.12:1 against the
+ * info rail in light and 1.05:1 in dark, two 3px bars 49deg apart at the same
+ * lightness. Indistinguishable, and blue-against-violet is the worst pair to
+ * ask red-deficient vision to separate. Edit state moved to the position
+ * number instead: a different form, not a second colour in the same slot. */
+.cm-row.is-observed { padding-left: calc(var(--cm-row-pad-x) + var(--cm-space-2)); }
+.cm-row.is-out { opacity: .5; }
+
+/* Selected — the row whose detail the docked panel is showing.
+ *
+ * Deliberately NOT the edge-marker rail. #18 names --cm-accent-edge as the
+ * selection colour and the segmented strip uses it that way, but on a row that
+ * slot already carries provenance (#20), and a row can be both observed and
+ * selected at once. Selection is a property of the view rather than of the
+ * data, so it takes the accent on the border and a background shift — which is
+ * how #18 says flat surfaces separate anyway.
+ */
+.cm-row.is-selected {
+  border-color: var(--cm-accent-edge);
+  background: var(--cm-surface-sunken);
+}
+.cm-row-main { min-width: 0; }
+.cm-row-name {
+  display: block; font-size: var(--cm-row-name); font-weight: var(--cm-weight-medium);
+  color: var(--cm-fg-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Absent entirely when there is nothing to flag — rows mark the exception. */
+.cm-row-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-top: 2px; font-size: var(--cm-row-meta); color: var(--cm-fg-muted);
+}
+.cm-row-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.cm-row-figure { font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold); color: var(--cm-fg-strong); }
+.cm-row-th { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
+.cm-chev { font-size: var(--cm-text-md); color: var(--cm-fg-muted); }
+
+/* ---------- loading (#43) ----------
+ * Loading has no copy. A skeleton is one primitive: a muted block. The skeleton
+ * ROW is just .cm-row with blocks instead of content, so it inherits height,
+ * padding, radius and grid from the real thing and cannot drift from what it
+ * stands in for.
+ *
+ * The tint is a color-mix against --cm-fg rather than a new token, so it
+ * inverts with the theme for free; a fixed grey is invisible in one theme and
+ * glaring in the other.
+ */
+.cm-skel {
+  position: relative; overflow: hidden; display: block;
+  height: 12px; border-radius: var(--cm-radius-sm);
+  background: color-mix(in oklab, var(--cm-fg) 13%, transparent);
+}
+.cm-skel::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--cm-fg) 9%, transparent), transparent);
+  animation: cm-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes cm-shimmer { to { transform: translateX(100%); } }
+/* the shimmer sits on top of a shape that already communicates, so it goes first */
+@media (prefers-reduced-motion: reduce) { .cm-skel::after { animation: none; } }
+.cm-row.is-skeleton { pointer-events: none; }
+.cm-row.is-skeleton .cm-row-meta { margin-top: 5px; }
+
+/* ---------- marks ----------
+ * A coloured status word inside a meta line. No is-available variant: rows mark
+ * the exception, so the majority state is never rendered and the variant proved
+ * unreachable (#23).
+ */
+.cm-statustext { font-weight: var(--cm-weight-medium); }
+.cm-statustext.is-unavailable { color: var(--cm-danger-ink); }
+.cm-statustext.is-unknown { color: var(--cm-fg-unknown); }
+
+/* gap, not a space in the markup: an icon is a flex item now, and the
+ * whitespace text node beside it collapses. Anything mixing icons and text in
+ * a flex container needs explicit spacing — this is the one that was caught by
+ * eye rather than by rule. */
+.cm-pill {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+  border-radius: var(--cm-radius-pill);
+  font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; white-space: nowrap;
+}
+.cm-pill.is-success { background: var(--cm-success-subtle); color: var(--cm-success-ink); }
+.cm-pill.is-caution { background: var(--cm-caution-subtle); color: var(--cm-caution-ink); }
+
+/* ---------- panel ----------
+ * One component, two mountings: a bottom sheet below 720px, docked into a
+ * column above it, from the same markup.
+ */
+.cm-scrim {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgb(23 22 21 / 45%); border: 0; padding: 0;
+}
+.cm-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
+  max-height: 88vh; display: flex; flex-direction: column;
+  border-radius: var(--cm-radius-lg) var(--cm-radius-lg) 0 0;
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cm-panel-head {
+  display: flex; align-items: flex-start; gap: var(--cm-space-3);
+  padding: var(--cm-space-4) var(--cm-space-4) var(--cm-space-3);
+  border-bottom: 1px solid var(--cm-hairline);
+}
+.cm-panel-head h2 {
+  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl);
+}
+.cm-panel-evidence {
+  margin: var(--cm-space-2) 0 0; font-size: var(--cm-text-sm); line-height: 1.5; color: var(--cm-fg-muted);
+}
+.cm-panel-evidence b { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+.cm-panel-body { overflow-y: auto; padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); -webkit-overflow-scrolling: touch; }
+.cm-panel-label {
+  margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.cm-panel-foot { padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); border-top: 1px solid var(--cm-hairline); }
+
+/* ---------- controls ---------- */
+.cm-ghost {
+  width: 100%; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); font-size: var(--cm-text-md); font-weight: var(--cm-weight-medium);
+  color: var(--cm-fg);
+}
+.cm-ghost:disabled { color: var(--cm-fg-muted); border-color: var(--cm-hairline); cursor: not-allowed; }
+.cm-search {
+  width: 100%; min-height: var(--cm-tap-min); margin-bottom: var(--cm-space-3);
+  padding: 0 var(--cm-space-3); font: inherit;
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+}
+
+/* ---------- bottom sheet behaviour ----------
+ * Only where the panel is overlaid. Docked in a column it is not a sheet, so it
+ * neither slides nor drags.
+ *
+ * The grabber is a pseudo-element rather than markup so no page has to opt in,
+ * and the whole head is the drag surface — touch-action: none there, because
+ * the browser would otherwise claim the gesture for scrolling or pull-to-
+ * refresh before the pointer handler ever sees it.
+ *
+ * [data-overlay] stays unprefixed: data attributes carry behaviour and are
+ * never styled, with this one deliberate exception — a panel behaves
+ * differently when overlaying than when docked, which is a real distinction.
+ */
+[data-overlay] .cm-panel-head { position: relative; touch-action: none; }
+[data-overlay] .cm-panel-head::before {
+  content: ""; position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  width: 36px; height: 4px; border-radius: var(--cm-radius-pill);
+  background: var(--cm-n-300);
+}
+[data-overlay] .cm-panel.is-settling { transition: transform 220ms cubic-bezier(.32,.72,0,1); }
+
+@keyframes cm-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes cm-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+/* Entry easing is decelerate-only: the sheet arrives from off-screen, so it
+ * should look like it is coming to rest rather than starting from rest. */
+[data-overlay] .cm-panel.is-entering { animation: cm-sheet-in 280ms cubic-bezier(.32,.72,0,1); }
+[data-overlay] .cm-scrim.is-entering { animation: cm-scrim-in 280ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-overlay] .cm-panel.is-entering,
+  [data-overlay] .cm-scrim.is-entering { animation: none; }
+  [data-overlay] .cm-panel.is-settling { transition: none; }
+}
+
+/* ========================= editing layer =========================
+ * Belongs to surfaces that change something. Here even though only the lineup
+ * has one today: three tickets found this boundary independently, and naming
+ * the layer tells whoever builds the next editing surface what they inherit.
+ */
+
+/* Carries exactly two controls, because "unsaved" and "not yet done in game"
+ * are two questions with two baselines (#21). Arbitrating them into one label
+ * would be lying about the other. */
+.cm-actionbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--cm-surface); border-top: 1px solid var(--cm-hairline);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cm-actionbar-inner {
+  max-width: var(--cm-shell-lg); margin: 0 auto;
+  display: flex; align-items: center; gap: var(--cm-space-3);
+  padding: var(--cm-space-2) var(--cm-gutter);
+}
+.cm-actionbar-changes {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-2) 0 0;
+  border: 0; background: none; text-align: left;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+/* violet marks an unsettled change; here it is unsettled against the game */
+.cm-actionbar-dot { width: 8px; height: 8px; border-radius: var(--cm-radius-circle); background: var(--cm-caution-ink); flex: none; }
+.cm-actionbar-changes.is-clean { color: var(--cm-fg-muted); }
+.cm-actionbar-changes.is-clean .cm-actionbar-dot { background: var(--cm-hairline); }
+.cm-actionbar-caret { color: var(--cm-fg-muted); }
+.cm-actionbar-save {
+  flex: none; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-5);
+  border: 0; border-radius: var(--cm-radius-md);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
+}
+.cm-actionbar-save:disabled { background: var(--cm-surface-sunken); color: var(--cm-fg-muted); cursor: not-allowed; }
+
+/* ---------- the in-game checklist (#21) ----------
+ * Rendered inside the shared panel, so it is a sheet on a phone and docks on
+ * desktop exactly like the bench. It is a checklist you execute in another app,
+ * not a summary of the diff — so every line is a 44px tap target with its own
+ * check control, and the list keeps its place rather than collapsing as you go.
+ */
+.cm-check {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center; gap: var(--cm-space-3);
+  width: 100%; min-height: var(--cm-tap-min);
+  padding: var(--cm-space-2) 0; border: 0; background: none; text-align: left;
+  font-size: var(--cm-text-sm); color: var(--cm-fg);
+}
+.cm-check + .cm-check { border-top: 1px solid var(--cm-hairline); }
+.cm-check-box {
+  width: 22px; height: 22px; border-radius: var(--cm-radius-circle);
+  border: 2px solid var(--cm-border-control); display: grid; place-items: center;
+  font-size: var(--cm-text-xs); color: transparent;
+}
+/* The tick is --cm-surface, not --cm-on-accent. That token is gold-specific:
+ * gold is a light fill wanting dark ink, but success in light mode is a DARK
+ * fill, and n-900 on it measures 2.49:1. Surface inverts with the theme the same
+ * way the state fill does — 6.27:1 light, 8.64:1 dark. */
+.cm-check.is-done .cm-check-box { border-color: var(--cm-success-ink); background: var(--cm-success-ink); color: var(--cm-surface); }
+.cm-check.is-done .cm-check-swap { color: var(--cm-fg-muted); }
+.cm-check.is-done .cm-check-in { font-weight: var(--cm-weight-regular); color: var(--cm-fg-muted); }
+.cm-check-swap { display: flex; align-items: center; gap: var(--cm-space-2); min-width: 0; }
+.cm-check-out { color: var(--cm-fg-muted); }
+.cm-check-in { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+.cm-check-arrow { color: var(--cm-fg-muted); flex: none; }
+.cm-check-undo { color: var(--cm-fg-muted); font-size: var(--cm-text-xs); }
+/* The order the list must be executed in, not decoration: at war size the game
+ * refuses an add before a remove, so removals lead. */
+.cm-checkgroup + .cm-checkgroup { margin-top: var(--cm-space-4); }
+.cm-checkgroup > p {
+  margin: 0 0 var(--cm-space-1); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+
+/* availability is displayed on the row, edited in the panel */
+.cm-availset { display: flex; gap: var(--cm-space-2); margin-bottom: var(--cm-space-4); }
+.cm-availset button {
+  flex: 1; min-height: var(--cm-tap-min);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg-muted);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.cm-availset button[aria-pressed="true"] { border-color: var(--cm-border-control); color: var(--cm-fg-strong); background: var(--cm-surface-sunken); }
+
+/* ---------- reorder mode ----------
+ * Pointer capture during a drag belongs on the list, not the handle, so the
+ * drag survives the re-render each move triggers (#20).
+ */
+.cm-reorder-row {
+  position: relative;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto var(--cm-tap-min);
+  align-items: center; gap: var(--cm-space-3);
+  min-height: var(--cm-tap-min); padding: 0 0 0 var(--cm-row-pad-x);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface);
+}
+.cm-reorder-row .cm-row-name { font-size: var(--cm-text-md); }
+.cm-reorder-row.is-lifted { border-color: var(--cm-accent-edge); box-shadow: var(--cm-shadow-overlay); z-index: 2; }
+.cm-handle {
+  display: grid; place-items: center; align-self: stretch;
+  color: var(--cm-fg-muted); font-size: var(--cm-text-lg);
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+
+/* ========================= utilities =========================
+ * Capped at five. Additions need justification, because an uncapped utility
+ * layer becomes Tailwind by hand.
+ */
+.cm-grow { flex: 1; min-width: 0; }
+.cm-count { font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg-muted); }
+.cm-count.is-short { color: var(--cm-danger-ink); font-weight: var(--cm-weight-semibold); }
+.cm-eyebrow {
+  margin: 0 0 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.cm-empty { margin: 0; padding: var(--cm-space-5) 0; text-align: center; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
+/* a separator is text; hairline is a border value and vanishes */
+.cm-sep { color: var(--cm-n-400); }
+
+/* ================= 720px: the panel stops being a sheet =================
+ * Shared because both surfaces do exactly this — the lineup docks the bench,
+ * members docks the member detail. Each page sets its own column count.
+ */
+@media (min-width: 720px) {
+  .cm-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); gap: var(--cm-space-5); align-items: start; }
+  .cm-scrim { display: none; }
+  .cm-panel {
+    position: static; max-height: none; border-radius: var(--cm-radius-lg);
+    border: 1px solid var(--cm-hairline); box-shadow: none; padding-bottom: 0;
+  }
+  .cm-panel-body { overflow: visible; }
+}

@@ -29,6 +29,16 @@ Land `@cwl/design`, import both stylesheets, change nothing else. Nothing uses t
 
 This is deliberately a wave of its own. If tokens and components arrive in the same commit as a rebuilt surface, a visual regression has two possible causes instead of one.
 
+Wave 0 **authors** `clan-muster.css` rather than packaging a file that already exists: the component layer lives in `prototype/_prototype.css`, and [`components.md`](components.md) is the spec for the port — `cm-` prefixes, system and editing layers in, page layer out.
+
+**The element-level base does not come with it.** `_prototype.css` opens with `box-sizing`, a `body` font/colour/background, `button { font: inherit }` and `:focus-visible`. Those are not component rules, and shipping them here would restyle every existing route the moment the file is imported — which is the one thing this wave promises not to do. They land with the first rebuilt surface, along with `font-variant-numeric: tabular-nums`, which the data columns want. Until then the button-shaped components carry what the global `button` rule used to give them.
+
+Inertness is a property of the selectors, not a judgement about the screenshot: no `cm-` class appears anywhere in `apps/web`, `tokens.css` declares nothing but custom properties, and no global or element selector is added. Nothing in the layer *can* match.
+
+**The icon sprite still has no route into the app.** The eight symbols live in `prototype/_prototype.js` as a string injected at runtime; wave 0 imports CSS only. Wave 1 needs the star and the chevron on its first row, so the sprite ships with it — as markup in `index.html` or a React component, which is a build decision rather than a design one.
+
+One cost worth naming: `tokens.css` opens with an `@import` of Archivo from Google Fonts, so importing it adds a third-party request and a font download to every load. Nothing renders in Archivo until a surface asks for `--cm-font-sans`, so this buys nothing until wave 1 — but font delivery was never settled, and self-hosting is the obvious alternative whenever someone wants it.
+
 ### Wave 1 — the members roster
 
 **Members goes first, not CWL.** It is a genuine surface with real data, it is not the default route, and a mistake there is cheap. That proves the migration mechanics on something recoverable before they touch the surface that must not regress.
