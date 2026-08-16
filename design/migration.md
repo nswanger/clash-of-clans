@@ -45,7 +45,16 @@ Note that the prototype covers behaviour the live workspace does not have yet: t
 
 ### Wave 3 — conformance
 
-The four remaining routes — `overview`, `season`, `dashboard`, `access` — brought onto the system. No deadline, and no prototype: by this point the component inventory should carry them, and anything that needs a new component is a finding worth recording rather than a licence to invent one.
+The remaining routes — `overview`, `season`, `dashboard`, `access` — brought onto the system. No deadline, and no prototype: by this point the component inventory should carry them, and anything that needs a new component is a finding worth recording rather than a licence to invent one.
+
+**Two of the four may not warrant migrating at all, and that question is not answered here.** This map decided *how* a surface moves onto the system, never *which surfaces deserve to exist* — page rebuilds are explicitly out of its scope. Conformance assumes the page should exist in roughly its current form, and for two routes that assumption does not hold:
+
+- **`overview`** is four summary metrics plus a callout linking to `#/members`. The members roster designed in [#22](https://github.com/nswanger/clash-of-clans/issues/22) carries a summary strip with the *same four metrics* — current members, activity observed over 7 days, building history, former members. Conforming it as-is would ship two pages showing identical numbers, one of which exists only to link to the other. The likely answer is deletion with `#/overview` redirecting to `#/members`, but that is a product call.
+- **`season`** is an inline stub in `app-routes.tsx`: a heading and one sentence saying verified group standings are not available in the normalized data yet. There is nothing to conform.
+
+`dashboard` and `access` are real surfaces and conform normally.
+
+**Settle this before starting wave 3**, in its own session. Deciding what the app should contain is a different question from deciding what it should look like, and answering it inside a styling wave is how a restyle silently becomes a redesign.
 
 ## Rules
 
