@@ -8,7 +8,15 @@ design/
   preview/
     _card.css           shared chrome for preview cards; imports tokens.css
     *.html              one card per foundation, rendered as a gallery in Claude Design
+  prototype/
+    *.html              whole working surfaces, built against real-shaped data
 ```
+
+Preview cards and prototypes answer different questions. A card puts one
+foundation next to its alternatives so a value can be judged; a prototype is a
+whole surface you operate, because some questions only answer themselves under a
+thumb. Prototypes carry a synthetic roster of the live clan's real scale — never
+real player tags, which must not enter this public repo.
 
 Preview cards pin themselves to light with `<html data-theme="light">`. They are light documents that *depict* dark where the comparison matters — without the pin, `_card.css` resolves `--cm-bg` dark on a dark-mode viewer while the card's own text stays pinned light.
 
@@ -67,6 +75,20 @@ Two contrast roles, not one: `--cm-hairline` is decorative and deliberately belo
 - **Two treatments deleted**: the happy-path banner reading "Latest saved lineup", and a permanently mounted documentation paragraph. Both carry a live control, so the action is rehomed rather than lost; where Save lives is #20.
 
 The largest finding was not in the audit, which was CSS-only: `dashboard-model.ts` pushes one `role="alert"` per coverage gap and one per confidence note, unbounded. Those are per-recommendation explanations hoisted out of the panel they explain, and they return to it.
+
+**The mobile lineup adjustment surface is locked** ([#20](https://github.com/nswanger/clash-of-clans/issues/20)), in [`prototype/lineup-adjust.html`](prototype/lineup-adjust.html).
+
+- **The unit of work is the swap, not the list.** Tap a lineup row, get a panel on that member, tap a replacement. Two taps, no drag. That panel is also where full evidence lives and where availability is edited, so the row itself carries only what you scan for.
+- **Reordering is a first-class requirement, and gets its own mode.** The plan's order is a hand-kept mirror of in-game base-weight order, which the API does not expose — so it is how a leader tracks who is in and out, not decoration. Reorder mode collapses rows to number, name, Town Hall and a handle: 44px against 82px, so ten rows fit a phone instead of six. It uses pointer events, because the HTML5 drag-and-drop the workspace uses today fires no events on touch at all — the phone has never been able to reorder.
+- **Moves are marked by intent, not by index.** Dragging one row past another changes both rows' positions, and a positional diff marks both for one move. Displacement is a consequence, not an edit, so only what you dragged is marked, and dragging something back to where it started un-marks it. Intent has the same lifetime as the draft, so a reload discards both together.
+- **The edge marker slot carries provenance and nothing else; edit state is carried by the position number.** Edit state was briefly a second rail colour, which measured **1.12:1 against the info rail in light and 1.05:1 in dark** — two 3px bars 49° apart at the same lightness, and blue-against-violet is the worst pair to hand red-deficient vision. The fix is a different form, not a different hue in the same slot.
+- **One persistent action bar** carries Save, the change count, and — expanded — the in-game replication list. This is where [#19](https://github.com/nswanger/clash-of-clans/issues/19) deferred Save to. Day-scoped actions (Re-inherit, Lock day) live in the day strip's own overflow menu, because they act on the day rather than on the lineup.
+- **Rows mark the exception, never the rule.** "Available" on thirteen of fifteen rows is the happy-path banner again, one row at a time. A row with nothing to flag carries no second line, so it is visibly shorter and the flagged ones carry the eye.
+- **Candidates rank by availability, then rotation need, then rating** — never rating alone, which floats already-secured members to the top and does nothing for bonus fairness.
+- **Desktop is the same layout at wider breakpoints, not a second one.** The bench is a bottom sheet below 720px and a docked column above it, from the same markup; the rail (bonus priority, history) appears at 1120px. Column top spacing belongs to the columns grid, not to a section inside the first column.
+- **Auto-scroll during a drag is time-based, not frame-based**, with a quadratic ramp: ~33px/s just inside the 96px edge band, 520px/s at the edge. A per-frame step runs at double speed on a 120Hz phone and normal speed on a 60Hz display — invisible when testing on 60Hz, and the reason the first attempt felt wrong on the device it was built for.
+
+Dropped: drag-and-drop between lists, the four-control roster filter row (a single search in the panel, with ranking replacing sort), and the inline availability popover on rows.
 
 ## Not yet decided
 

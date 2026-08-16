@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lineup adjustment — mobile prototype</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+/* Clan Muster — mobile lineup adjustment surface (#20 prototype).
+ *
+ * Rough and real: every value below comes from design/tokens.css. Nothing is
+ * hand-picked. The roster is synthetic but real-shaped — 30 members, war size
+ * 15 — because real player tags must not enter this public repo.
+ *
+ * One layout, three widths. The bench is a sheet under 720px and a column at or
+ * above it; the swap panel is the same markup in both, mounted differently.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--cm-font-sans);
+  font-size: var(--cm-text-md);
+  font-variant-numeric: tabular-nums;
+  color: var(--cm-fg);
+  background: var(--cm-bg);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: pointer; }
+:focus-visible {
+  outline: var(--cm-focus-width) solid var(--cm-focus-ring);
+  outline-offset: var(--cm-focus-offset);
+}
+
+/* ---------- prototype-only chrome (not part of the design) ---------- */
+.harness {
+  display: flex; flex-wrap: wrap; gap: var(--cm-space-2); align-items: center;
+  padding: var(--cm-space-2) var(--cm-gutter);
+  background: var(--cm-n-900); color: var(--cm-n-300);
+  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
+}
+.harness button {
+  border: 1px solid var(--cm-n-700); background: none; color: var(--cm-n-300);
+  border-radius: var(--cm-radius-pill); padding: 5px 10px;
+  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
+}
+.harness button[aria-pressed="true"] { background: var(--cm-n-100); color: var(--cm-n-900); border-color: var(--cm-n-100); }
+
+/* ---------- shell ---------- */
+.shell {
+  max-width: var(--cm-shell-lg);
+  margin: 0 auto;
+  padding: 0 var(--cm-gutter) calc(var(--cm-space-7) + 40px);
+}
+
+/* ---------- header ---------- */
+.topbar {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--cm-space-3);
+  padding: var(--cm-space-4) 0 var(--cm-space-3);
+}
+.eyebrow {
+  margin: 0 0 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.topbar h1 {
+  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl);
+}
+.topbar-side { display: flex; align-items: center; gap: var(--cm-space-2); }
+.lockchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 var(--cm-space-3);
+  border-radius: var(--cm-radius-pill);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
+  background: var(--cm-surface-sunken); color: var(--cm-fg-muted);
+  border: 1px solid var(--cm-hairline);
+}
+.lockchip.is-locked { background: var(--cm-info-subtle); color: var(--cm-info-ink); border-color: transparent; }
+.iconbutton {
+  width: var(--cm-tap-min); height: var(--cm-tap-min);
+  display: grid; place-items: center;
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); font-size: var(--cm-text-lg); line-height: 1;
+}
+
+/* ---------- day strip ---------- */
+.daystrip {
+  display: flex; gap: 0; overflow-x: auto; scroll-snap-type: x mandatory;
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); -webkit-overflow-scrolling: touch;
+}
+.daystrip::-webkit-scrollbar { display: none; }
+.daystrip button {
+  flex: 1 0 auto; min-width: 84px; scroll-snap-align: start;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: var(--cm-tap-min); padding: var(--cm-space-2) var(--cm-space-3);
+  border: 0; border-right: 1px solid var(--cm-hairline); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg-muted);
+}
+.daystrip button:last-child { border-right: 0; }
+.daystrip button small { font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase; }
+/* underline form of the edge marker — interior corners of a strip segment are square */
+.daystrip button[aria-current="true"] {
+  color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold);
+  box-shadow: inset 0 calc(-1 * var(--cm-marker-width)) 0 var(--cm-accent-edge);
+}
+
+/* ---------- the one notice region ---------- */
+.notice {
+  display: flex; align-items: flex-start; gap: var(--cm-space-3);
+  margin-top: var(--cm-space-3); padding: var(--cm-space-3);
+  border: 1px solid var(--cm-danger-ink); border-radius: var(--cm-radius-lg);
+  background: var(--cm-danger-subtle); color: var(--cm-danger-ink);
+}
+.notice strong { display: block; font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold); }
+.notice p { margin: 2px 0 0; font-size: var(--cm-text-xs); line-height: 1.4; }
+.notice button {
+  flex: none; min-height: 34px; padding: 0 var(--cm-space-3);
+  border: 1px solid currentColor; border-radius: var(--cm-radius-md);
+  background: none; color: inherit;
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
+}
+
+/* ---------- section ---------- */
+/* The top gap belongs to the columns grid, not to the section inside the first
+ * column — otherwise the lineup is pushed down and the bench and rail sit flush
+ * against the day strip. */
+.columns { margin-top: var(--cm-space-5); }
+.section { margin-top: 0; }
+.section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  margin-bottom: var(--cm-space-2);
+}
+.section-head h2 {
+  display: flex; align-items: baseline; gap: var(--cm-space-2);
+  margin: 0; font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.count { font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg-muted); }
+.count.is-short { color: var(--cm-danger-ink); font-weight: var(--cm-weight-semibold); }
+
+/* ---------- member row ---------- */
+.rows { display: flex; flex-direction: column; gap: var(--cm-space-2); }
+.row {
+  position: relative;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center; gap: var(--cm-space-3);
+  width: 100%; min-height: var(--cm-tap-min); text-align: left;
+  padding: var(--cm-row-pad-y) var(--cm-row-pad-x);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface);
+}
+/* The slot number is load-bearing, not decoration: the plan's order is a
+ * hand-kept mirror of in-game base-weight order, which the API does not
+ * expose. You cannot match an ordering you cannot read. */
+.row.has-pos { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
+.row-pos {
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+  color: var(--cm-fg-muted); text-align: right;
+}
+.row-pos.is-edited { color: var(--cm-caution-ink); font-weight: var(--cm-weight-semibold); }
+.moved-from {
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-medium);
+  color: var(--cm-caution-ink); white-space: nowrap;
+}
+/* rail form of the edge marker — pseudo-element, pill-capped, inset from both
+   ends so it never meets a soft corner. Presence marks observed; planned rows
+   carry nothing at all. */
+.row.is-observed::before {
+  content: ""; position: absolute; left: 0;
+  top: var(--cm-marker-inset); bottom: var(--cm-marker-inset);
+  width: var(--cm-marker-width); border-radius: var(--cm-radius-pill);
+  background: var(--cm-info-ink);
+}
+/* The rail slot carries provenance and nothing else, as #19 locked it. Edit
+ * state was briefly a second rail colour here — measured at 1.12:1 against the
+ * info rail in light and 1.05:1 in dark, two 3px bars 49deg apart at the same
+ * lightness. Indistinguishable, and blue-against-violet is the worst pair to
+ * ask red-deficient vision to separate. Edit state moved to the position
+ * number instead: a different form, not a second colour in the same slot. */
+.row.is-observed { padding-left: calc(var(--cm-row-pad-x) + var(--cm-space-2)); }
+.row.is-out { opacity: .5; }
+.row-main { min-width: 0; }
+.row-name {
+  display: block; font-size: var(--cm-row-name); font-weight: var(--cm-weight-medium);
+  color: var(--cm-fg-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.row-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-top: 2px; font-size: var(--cm-row-meta); color: var(--cm-fg-muted);
+}
+.row-meta .sep { color: var(--cm-hairline); }
+.row-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.row-stars { font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold); color: var(--cm-fg-strong); }
+.row-th { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
+.chev { font-size: var(--cm-text-md); color: var(--cm-fg-muted); }
+
+/* availability is displayed on the row, edited in the panel */
+.avail { font-weight: var(--cm-weight-medium); }
+.avail.is-available { color: var(--cm-success-ink); }
+.avail.is-unavailable { color: var(--cm-danger-ink); }
+.avail.is-unknown { color: var(--cm-fg-unknown); }
+
+.pill {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+  border-radius: var(--cm-radius-pill);
+  font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; white-space: nowrap;
+}
+.pill.ok   { background: var(--cm-success-subtle); color: var(--cm-success-ink); }
+.pill.turn { background: var(--cm-caution-subtle); color: var(--cm-caution-ink); }
+.pill.info { background: var(--cm-info-subtle); color: var(--cm-info-ink); }
+
+/* ---------- reorder mode ---------- */
+.rrow {
+  position: relative;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto var(--cm-tap-min);
+  align-items: center; gap: var(--cm-space-3);
+  min-height: var(--cm-tap-min); padding: 0 0 0 var(--cm-row-pad-x);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface);
+}
+.rrow .row-name { font-size: var(--cm-text-md); }
+.rrow.is-lifted { border-color: var(--cm-accent-edge); box-shadow: var(--cm-shadow-overlay); z-index: 2; }
+.handle {
+  display: grid; place-items: center; align-self: stretch;
+  color: var(--cm-fg-muted); font-size: var(--cm-text-lg);
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.donebutton {
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  border: 0; border-radius: var(--cm-radius-md);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+}
+.headactions { display: flex; align-items: center; gap: var(--cm-space-2); }
+
+/* Day-scoped actions live in the day strip's context, not above it. #19 deleted
+ * the permanent documentation bar that carried Re-inherit; the action is
+ * rehomed here, alongside the day lock, because both act on the day rather than
+ * on the lineup. */
+.daymenu-wrap { position: relative; }
+.daymenu {
+  position: absolute; right: 0; top: calc(var(--cm-tap-min) + var(--cm-space-1)); z-index: 20;
+  min-width: 210px; padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.daymenu button {
+  display: block; width: 100%; text-align: left;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-md); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.daymenu button:disabled { color: var(--cm-fg-muted); cursor: not-allowed; }
+.iconbutton.small { width: var(--cm-tap-min); height: var(--cm-tap-min); font-size: var(--cm-text-md); }
+
+/* ---------- bench trigger (mobile only) ----------
+ * In the section head, not below fifteen rows: adding to a short lineup must
+ * not require scrolling past the lineup first.
+ */
+.benchbutton {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+
+/* ---------- action bar ---------- */
+.actionbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--cm-surface); border-top: 1px solid var(--cm-hairline);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.actionbar-inner {
+  max-width: var(--cm-shell-lg); margin: 0 auto;
+  display: flex; align-items: center; gap: var(--cm-space-3);
+  padding: var(--cm-space-2) var(--cm-gutter);
+}
+.changes {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-2) 0 0;
+  border: 0; background: none; text-align: left;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.changes .dot { width: 8px; height: 8px; border-radius: var(--cm-radius-circle); background: var(--cm-caution-ink); flex: none; }
+.changes.is-clean { color: var(--cm-fg-muted); }
+.changes.is-clean .dot { background: var(--cm-hairline); }
+.changes .caret { color: var(--cm-fg-muted); }
+.save {
+  flex: none; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-5);
+  border: 0; border-radius: var(--cm-radius-md);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
+}
+.save:disabled { background: var(--cm-surface-sunken); color: var(--cm-fg-muted); cursor: not-allowed; }
+
+/* the in-game replication list — #21 designs its content; #20 gives it this home */
+.replicate { border-bottom: 1px solid var(--cm-hairline); background: var(--cm-surface-sunken); }
+.replicate-inner { max-width: var(--cm-shell-lg); margin: 0 auto; padding: var(--cm-space-3) var(--cm-gutter); }
+.replicate h3 {
+  margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.replicate ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--cm-space-2); }
+.replicate li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; gap: var(--cm-space-2); font-size: var(--cm-text-sm);
+}
+.replicate .out { color: var(--cm-fg-muted); text-align: right; }
+.replicate .in { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+.replicate .arrow { color: var(--cm-fg-muted); }
+.replicate .solo { grid-column: 1 / -1; }
+.replicate .was { color: var(--cm-fg-muted); font-weight: var(--cm-weight-regular); }
+
+/* ---------- panel: swap / bench browse ---------- */
+.scrim {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgb(23 22 21 / 45%); border: 0; padding: 0;
+}
+.panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
+  max-height: 88vh; display: flex; flex-direction: column;
+  border-radius: var(--cm-radius-lg) var(--cm-radius-lg) 0 0;
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.panel-head {
+  display: flex; align-items: flex-start; gap: var(--cm-space-3);
+  padding: var(--cm-space-4) var(--cm-space-4) var(--cm-space-3);
+  border-bottom: 1px solid var(--cm-hairline);
+}
+.panel-head .grow { flex: 1; min-width: 0; }
+.panel-head h2 {
+  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl);
+}
+.panel-evidence {
+  margin: var(--cm-space-2) 0 0; font-size: var(--cm-text-sm); line-height: 1.5; color: var(--cm-fg-muted);
+}
+.panel-evidence b { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+.panel-body { overflow-y: auto; padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); -webkit-overflow-scrolling: touch; }
+.panel-label {
+  margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.panel-foot { padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); border-top: 1px solid var(--cm-hairline); }
+.ghost {
+  width: 100%; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); font-size: var(--cm-text-md); font-weight: var(--cm-weight-medium);
+}
+.ghost:disabled { color: var(--cm-fg-muted); border-color: var(--cm-hairline); cursor: not-allowed; }
+
+/* availability control lives here, not on the row */
+.availset { display: flex; gap: var(--cm-space-2); margin-bottom: var(--cm-space-4); }
+.availset button {
+  flex: 1; min-height: var(--cm-tap-min);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg-muted);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.availset button[aria-pressed="true"] { border-color: var(--cm-border-control); color: var(--cm-fg-strong); background: var(--cm-surface-sunken); }
+
+.search {
+  width: 100%; min-height: var(--cm-tap-min); margin-bottom: var(--cm-space-3);
+  padding: 0 var(--cm-space-3); font: inherit;
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+}
+.empty { margin: 0; padding: var(--cm-space-5) 0; text-align: center; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
+
+/* the desktop-only rail */
+.rail { display: none; }
+.railcard {
+  padding: var(--cm-space-4);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg); background: var(--cm-surface);
+}
+.railcard + .railcard { margin-top: var(--cm-space-4); }
+.railcard h2 {
+  margin: 0 0 var(--cm-space-3); font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.railcard ol { margin: 0; padding: 0; list-style: none; }
+.railcard li {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: var(--cm-space-2);
+  align-items: center; padding: var(--cm-space-2) 0; font-size: var(--cm-text-sm);
+}
+.railcard li + li { border-top: 1px solid var(--cm-hairline); }
+.railcard .rank { color: var(--cm-fg-muted); font-size: var(--cm-text-xs); }
+
+/* ================= 720px: the bench stops being a sheet ================= */
+@media (min-width: 720px) {
+  .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); gap: var(--cm-space-5); align-items: start; }
+  .section.bench { margin-top: 0; }
+  .benchbutton { display: none; }
+  .bench-column { display: block; }
+
+  /* same panel markup, docked into the bench column instead of overlaying */
+  .scrim { display: none; }
+  .panel {
+    position: static; max-height: none; border-radius: var(--cm-radius-lg);
+    border: 1px solid var(--cm-hairline); box-shadow: none; padding-bottom: 0;
+  }
+  .panel-body { overflow: visible; }
+}
+@media (max-width: 719.98px) {
+  .bench-column .section.bench { display: none; }
+}
+
+/* ================= 1120px: the desktop-only rail appears ================= */
+@media (min-width: 1120px) {
+  .columns { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px) minmax(280px, 320px); }
+  .rail { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <span>Prototype state</span>
+  <button type="button" data-state="notice" aria-pressed="false">Collection stale</button>
+  <button type="button" data-state="locked" aria-pressed="false">Day locked</button>
+  <button type="button" data-state="warStarted" aria-pressed="false">War started</button>
+  <button type="button" data-state="reset" aria-pressed="false">Reset plan</button>
+</div>
+
+<div class="shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">CWL · 2026-08</p>
+      <h1>Day 3 lineup</h1>
+    </div>
+    <div class="topbar-side">
+      <span class="lockchip" id="lockchip">Unlocked</span>
+      <span class="daymenu-wrap">
+        <button class="iconbutton" type="button" id="daymenu" aria-label="Day options" aria-haspopup="menu" aria-expanded="false">⋯</button>
+        <div id="daymenuslot"></div>
+      </span>
+    </div>
+  </header>
+
+  <nav class="daystrip" id="daystrip" aria-label="CWL war days"></nav>
+
+  <div id="noticeslot"></div>
+
+  <div class="columns">
+    <div>
+      <section class="section">
+        <div class="section-head">
+          <h2 id="sectiontitle">Lineup <span class="count" id="lineupcount"></span></h2>
+          <div class="headactions" id="headactions"></div>
+        </div>
+        <div class="rows" id="lineup"></div>
+      </section>
+    </div>
+
+    <div class="bench-column" id="benchcolumn"></div>
+
+    <aside class="rail">
+      <div class="railcard">
+        <h2>Bonus priority</h2>
+        <ol id="bonuslist"></ol>
+      </div>
+      <div class="railcard">
+        <h2>Lineup history</h2>
+        <ol id="historylist"></ol>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="actionbar">
+  <div class="replicate" id="replicate" hidden>
+    <div class="replicate-inner">
+      <h3 id="replicatehead"></h3>
+      <ul id="replicatelist"></ul>
+    </div>
+  </div>
+  <div class="actionbar-inner">
+    <button class="changes" type="button" id="changesbutton" aria-expanded="false">
+      <span class="dot"></span>
+      <span id="changeslabel"></span>
+      <span class="caret" id="changescaret"></span>
+    </button>
+    <button class="save" type="button" id="save">Save</button>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * Synthetic roster, real shape. Field names mirror CwlLineupMember exactly.
+ * 30 members, war size 15 — the live clan's actual scale.
+ * ------------------------------------------------------------------------- */
+const WAR_SIZE = 15;
+const BONUS_THRESHOLD = 8;
+
+const ROSTER = [
+  ["Ashfall",      16, "leader",   "available",   14, 3, 82, 91, 2, 2],
+  ["Bramblefang",  16, "coLeader", "available",   11, 3, 74, 88, 2, 2],
+  ["Ironvale",     15, "coLeader", "available",    9, 3, 71, 62, 2, 1],
+  ["Quillon",      16, "elder",    "available",    4, 2, 68, 79, 2, 2],
+  ["Emberwake",    15, "elder",    "available",    8, 3, 66, 55, 2, 2],
+  ["Thane",        15, "member",   "available",    3, 2, 61, 84, 2, 1],
+  ["Nettlebrook",  14, "member",   "unknown",      6, 3, 58, null, 0, 0],
+  ["Sableridge",   15, "elder",    "available",   12, 3, 77, 70, 2, 2],
+  ["Cairnwick",    14, "member",   "unavailable",  2, 1, 44, 31, 0, 0],
+  ["Foxglove",     16, "member",   "available",    7, 2, 64, 90, 2, 2],
+  ["Marrowgate",   15, "member",   "available",    5, 3, 52, 47, 2, 0],
+  ["Pellworth",    14, "member",   "unknown",      0, 0, null, null, 0, 0],
+  ["Rookhaven",    16, "coLeader", "available",   13, 3, 80, 86, 2, 2],
+  ["Stonebarrow",  15, "member",   "available",    6, 3, 59, 68, 2, 1],
+  ["Thistledown",  14, "member",   "available",    3, 2, 49, 40, 2, 1],
+  ["Vantwick",     15, "elder",    "available",    9, 3, 72, 75, 0, 0],
+  ["Wrenfield",    13, "member",   "unknown",      1, 1, 38, null, 0, 0],
+  ["Yarrowmere",   14, "member",   "available",    0, 0, 55, 52, 0, 0],
+  ["Alderstone",   16, "member",   "available",   10, 3, 76, 81, 0, 0],
+  ["Briarhold",    15, "member",   "unavailable",  5, 2, 57, 44, 0, 0],
+  ["Coldmoor",     14, "member",   "available",    0, 0, 46, 63, 0, 0],
+  ["Duskmantle",   15, "elder",    "available",    8, 3, 69, 58, 0, 0],
+  ["Elmsworth",    13, "member",   "unknown",      0, 0, null, null, 0, 0],
+  ["Fernhollow",   14, "member",   "available",    0, 0, 51, 36, 0, 0],
+  ["Grimsby",      16, "member",   "available",   11, 3, 78, 72, 0, 0],
+  ["Hallowdrift",  15, "member",   "available",    6, 2, 62, 66, 0, 0],
+  ["Larkspur",     14, "member",   "unknown",      2, 1, 43, null, 0, 0],
+  ["Mirefen",      13, "member",   "unavailable",  0, 0, null, 22, 0, 0],
+  ["Norwood",      15, "member",   "available",    7, 3, 65, 60, 0, 0],
+  ["Ospreymoor",   14, "member",   "available",    0, 0, 53, 49, 0, 0],
+].map(([name, townHallLevel, role, availability, stars, cwlWarsParticipated, overallRating, regularActivityScore, currentWarAssignedAttacks, currentWarAttacksMade], i) => ({
+  playerTag: "#P" + String(i).padStart(3, "0"),
+  name, townHallLevel, role, availability, stars, cwlWarsParticipated,
+  overallRating, regularActivityScore,
+  currentWarAssignedAttacks, currentWarAttacksMade,
+  assignedAttacks: cwlWarsParticipated * 2,
+  regularWarsParticipated: regularActivityScore === null ? 0 : Math.max(1, Math.round(regularActivityScore / 8)),
+  regularStarsPerAttack: regularActivityScore === null ? null : Math.round((regularActivityScore / 45) * 10) / 10,
+}));
+
+const BY_TAG = new Map(ROSTER.map((m) => [m.playerTag, m]));
+const SAVED = ROSTER.slice(0, WAR_SIZE).map((m) => m.playerTag);
+
+const state = {
+  draft: [...SAVED],
+  locked: false,
+  notice: false,
+  warStarted: false,
+  panel: null,        // null | {mode:"swap", tag} | {mode:"bench"}
+  changesOpen: false,
+  dayMenuOpen: false,
+  reordering: false,
+  /* Which members you actually dragged. Moving one row past another changes
+   * BOTH rows' indices, so a positional diff marks two rows for one move and
+   * you lose track of what you touched. Displacement is a consequence, not an
+   * edit — so the mark follows intent, not index. This has exactly the same
+   * lifetime as the draft: unsaved changes are local, so a reload discards
+   * both together and there is nothing to reconstruct. */
+  movedTags: new Set(),
+  search: "",
+};
+
+/* ---------------------------------------------------------------------------
+ * Derivations — the same predicates the real workspace exports.
+ * ------------------------------------------------------------------------- */
+const isSecured = (m) => m.stars >= BONUS_THRESHOLD;
+const needsTurn = (m) => m.availability === "available" && m.stars < BONUS_THRESHOLD && m.assignedAttacks === 0;
+const isObserved = (m) => state.warStarted && SAVED.includes(m.playerTag);
+const roleLabel = (r) => r === "coLeader" ? "Co-leader" : r[0].toUpperCase() + r.slice(1);
+const availLabel = (a) => a === "available" ? "Available" : a === "unavailable" ? "Unavailable" : "Unknown";
+
+/* Mirrors lineupAdjustmentSummary() in the real workspace: membership changes,
+ * and — when membership is identical — a pure order change, which is a real
+ * change because the order is a hand-kept mirror of in-game base weight. */
+function diff() {
+  const out = SAVED.filter((t) => !state.draft.includes(t));
+  const inn = state.draft.filter((t) => !SAVED.includes(t));
+  const swaps = [];
+  const added = [];
+  const removed = [...out];
+  for (const tag of inn) {
+    const partner = removed.shift();
+    if (partner) swaps.push({ out: partner, in: tag });
+    else added.push(tag);
+  }
+  // moves are reported per member, and only for members who were already in
+  // the saved plan — someone swapped in is a swap, not also a move
+  const moved = [...state.movedTags].filter((tag) => SAVED.includes(tag) && state.draft.includes(tag));
+  return { swaps, added, removed, moved };
+}
+const changeCount = () => {
+  const d = diff();
+  return d.swaps.length + d.added.length + d.removed.length + d.moved.length;
+};
+
+/* Candidate ranking. Availability dominates — an unavailable member is not a
+ * candidate at all — and rotation need outranks raw strength, because swapping
+ * in someone already at 8★ does nothing for bonus fairness. Ranking by rating
+ * alone floats the secured members to the top, which is exactly backwards. */
+const availRank = (m) => m.availability === "available" ? 0 : m.availability === "unknown" ? 1 : 2;
+const rotationRank = (m) => needsTurn(m) ? 0 : isSecured(m) ? 2 : 1;
+
+function candidates() {
+  const q = state.search.trim().toLowerCase();
+  return ROSTER
+    .filter((m) => !state.draft.includes(m.playerTag))
+    .filter((m) => !q || m.name.toLowerCase().includes(q))
+    .sort((a, b) =>
+      (availRank(a) - availRank(b)) ||
+      (rotationRank(a) - rotationRank(b)) ||
+      ((b.overallRating ?? -1) - (a.overallRating ?? -1)) ||
+      a.name.localeCompare(b.name));
+}
+
+/* ---------------------------------------------------------------------------
+ * Render
+ * ------------------------------------------------------------------------- */
+const el = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* Mark the exception, never the rule. "Available" on thirteen of fifteen rows
+ * is the happy-path banner again, one row at a time — so availability only
+ * renders when it is unknown or unavailable, and a row with nothing to flag
+ * carries no second line at all. */
+function metaFor(m) {
+  const bits = [];
+  if (m.availability !== "available") bits.push(`<span class="avail is-${m.availability}">${availLabel(m.availability)}</span>`);
+  if (isSecured(m)) bits.push(`<span class="pill ok">8★ secured</span>`);
+  else if (needsTurn(m)) bits.push(`<span class="pill turn">Needs a turn</span>`);
+  if (isObserved(m) && m.currentWarAssignedAttacks > 0) {
+    bits.push(`<span>${m.currentWarAttacksMade}/${m.currentWarAssignedAttacks} attacks</span>`);
+  }
+  return bits.join("");
+}
+
+function rowHtml(m, { out = false, edited = false, pos = null } = {}) {
+  const meta = metaFor(m);
+  return `<button class="row ${pos ? "has-pos" : ""} ${isObserved(m) ? "is-observed" : ""} ${out ? "is-out" : ""}" type="button" data-tag="${m.playerTag}">
+    ${pos ? `<span class="row-pos ${edited ? "is-edited" : ""}">${pos}</span>` : ""}
+    <span class="row-main">
+      <span class="row-name">${esc(m.name)}</span>
+      ${meta ? `<span class="row-meta">${meta}</span>` : ""}
+    </span>
+    <span class="row-stats">
+      <span class="row-stars">${m.stars}★</span>
+      <span class="row-th">TH${m.townHallLevel}</span>
+    </span>
+    <span class="chev" aria-hidden="true">›</span>
+  </button>`;
+}
+
+/* Reorder mode. Matching in-game order is a bulk task — you look at the game,
+ * come back, and move several people — so it gets its own mode rather than a
+ * per-row affordance. Rows collapse to number, name and handle, which roughly
+ * doubles how many fit on a phone screen while you are comparing against the
+ * game. Drag is pointer-based, not HTML5 drag-and-drop, which does not fire on
+ * touch at all. */
+function reorderRowHtml(m, i) {
+  const was = SAVED.indexOf(m.playerTag);
+  const moved = state.movedTags.has(m.playerTag);
+  return `<div class="rrow" data-tag="${m.playerTag}">
+    <span class="row-pos ${moved ? "is-edited" : ""}">${i + 1}</span>
+    <span class="row-name">${esc(m.name)}</span>
+    <span class="moved-from">${moved && was >= 0 ? `was ${was + 1}` : ""}</span>
+    <span class="row-th">TH${m.townHallLevel}</span>
+    <span class="handle" data-handle aria-label="Reorder ${esc(m.name)}">⠿</span>
+  </div>`;
+}
+
+function renderDayStrip() {
+  const labels = ["Complete", "Complete", state.warStarted ? "In war" : "Planning", "Upcoming", "Upcoming", "Upcoming", "Upcoming"];
+  el("daystrip").innerHTML = [1, 2, 3, 4, 5, 6, 7].map((d) =>
+    `<button type="button" aria-current="${d === 3}"><span>Day ${d}</span><small>${labels[d - 1]}</small></button>`).join("");
+  // seven days never fit 390px; the current one must be in view without a swipe
+  const current = el("daystrip").querySelector('[aria-current="true"]');
+  if (current) el("daystrip").scrollLeft = Math.max(0, current.offsetLeft - 12);
+}
+
+function renderNotice() {
+  el("noticeslot").innerHTML = state.notice
+    ? `<div class="notice" role="alert">
+        <div class="grow">
+          <strong>Collection data is stale</strong>
+          <p>Last refreshed 6 hours ago. Availability and attack evidence may be out of date.</p>
+        </div>
+        <button type="button">Retry</button>
+      </div>`
+    : "";
+}
+
+function renderLineup() {
+  const planned = state.draft.map((t) => BY_TAG.get(t)).filter(Boolean);
+  el("lineup").innerHTML = state.reordering
+    ? planned.map(reorderRowHtml).join("")
+    : planned.map((m, i) => rowHtml(m, {
+        pos: i + 1,
+        edited: !SAVED.includes(m.playerTag) || state.movedTags.has(m.playerTag),
+      })).join("");
+  el("lineup").className = "rows" + (state.reordering ? " is-reordering" : "");
+
+  const short = planned.length < WAR_SIZE;
+  el("lineupcount").className = "count" + (short ? " is-short" : "");
+  el("lineupcount").textContent = `${planned.length} / ${WAR_SIZE}`;
+  el("sectiontitle").firstChild.textContent = state.reordering ? "Match in-game order " : "Lineup ";
+
+  el("headactions").innerHTML = state.reordering
+    ? `<button class="donebutton" type="button" id="donereorder">Done</button>`
+    : `<button class="iconbutton small" type="button" id="startreorder" aria-label="Reorder lineup">⇅</button>
+       <button class="benchbutton" type="button" id="openbench">Bench ${ROSTER.length - planned.length} <span aria-hidden="true">›</span></button>`;
+}
+
+function panelHtml() {
+  if (!state.panel) return "";
+  if (state.panel.mode === "swap") {
+    const m = BY_TAG.get(state.panel.tag);
+    const list = candidates();
+    return `<div class="panel" role="dialog" aria-modal="true" aria-label="${esc(m.name)}">
+      <div class="panel-head">
+        <div class="grow">
+          <h2>${esc(m.name)}</h2>
+          <p class="panel-evidence">
+            ${roleLabel(m.role)} · TH${m.townHallLevel} · <b>${m.stars}★</b> across ${m.cwlWarsParticipated} CWL war${m.cwlWarsParticipated === 1 ? "" : "s"}<br>
+            ${m.overallRating === null ? "No CWL rating yet" : `<b>${m.overallRating}</b> CWL rating`} ·
+            ${m.regularActivityScore === null ? "No regular-war evidence" : `<b>${m.regularActivityScore}%</b> regular activity over ${m.regularWarsParticipated} wars`}
+            ${isObserved(m) && m.currentWarAssignedAttacks > 0 ? `<br><b>${m.currentWarAttacksMade} / ${m.currentWarAssignedAttacks}</b> attacks observed this war` : ""}
+          </p>
+        </div>
+        <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+      </div>
+      <div class="panel-body">
+        <p class="panel-label">Availability</p>
+        <div class="availset">
+          ${["available", "unknown", "unavailable"].map((v) =>
+            `<button type="button" data-avail="${v}" aria-pressed="${m.availability === v}">${availLabel(v)}</button>`).join("")}
+        </div>
+        <p class="panel-label">Replace with</p>
+        <input class="search" type="search" placeholder="Find a member" value="${esc(state.search)}" data-search>
+        <div class="rows">
+          ${list.length ? list.map((c) => rowHtml(c)).join("") : `<p class="empty">No one matches “${esc(state.search)}”.</p>`}
+        </div>
+      </div>
+      <div class="panel-foot">
+        <button class="ghost" type="button" data-bench ${state.locked ? "disabled" : ""}>Bench ${esc(m.name)} without a replacement</button>
+      </div>
+    </div>`;
+  }
+  const list = candidates();
+  return `<div class="panel" role="dialog" aria-modal="true" aria-label="Bench">
+    <div class="panel-head">
+      <div class="grow"><h2>Bench</h2>
+        <p class="panel-evidence">${list.length} of ${ROSTER.length - state.draft.length} shown · ranked by rotation need, then availability</p></div>
+      <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+    </div>
+    <div class="panel-body">
+      <input class="search" type="search" placeholder="Find a member" value="${esc(state.search)}" data-search>
+      <div class="rows">
+        ${list.length ? list.map((c) => rowHtml(c)).join("") : `<p class="empty">No one matches “${esc(state.search)}”.</p>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPanel() {
+  const wide = window.matchMedia("(min-width: 720px)").matches;
+  const mounted = state.panel ?? (wide ? { mode: "bench" } : null);
+  const saved = state.panel;
+  state.panel = mounted;
+  const html = panelHtml();
+  state.panel = saved;
+
+  document.querySelectorAll("[data-overlay]").forEach((n) => n.remove());
+  el("benchcolumn").innerHTML = "";
+
+  if (!mounted) return;
+  if (wide) {
+    el("benchcolumn").innerHTML = html;
+  } else {
+    document.body.insertAdjacentHTML("beforeend",
+      `<div data-overlay><button class="scrim" type="button" data-close aria-label="Close"></button>${html}</div>`);
+  }
+}
+
+function renderActionBar() {
+  const n = changeCount();
+  const btn = el("changesbutton");
+  btn.className = "changes" + (n === 0 ? " is-clean" : "");
+  el("changeslabel").textContent = n === 0 ? "No changes since last save" : `${n} change${n === 1 ? "" : "s"} to make in game`;
+  el("changescaret").textContent = n === 0 ? "" : (state.changesOpen ? "⌄" : "⌃");
+  btn.setAttribute("aria-expanded", String(state.changesOpen && n > 0));
+  el("save").disabled = n === 0 || state.locked;
+
+  const open = state.changesOpen && n > 0;
+  el("replicate").hidden = !open;
+  if (!open) return;
+  const d = diff();
+  el("replicatehead").textContent = "In game";
+  el("replicatelist").innerHTML = [
+    ...d.swaps.map((s) => `<li><span class="out">${esc(BY_TAG.get(s.out).name)}</span><span class="arrow">→</span><span class="in">${esc(BY_TAG.get(s.in).name)}</span></li>`),
+    ...d.added.map((t) => `<li><span class="solo in">Add ${esc(BY_TAG.get(t).name)}</span></li>`),
+    ...d.removed.map((t) => `<li><span class="solo out">Remove ${esc(BY_TAG.get(t).name)}</span></li>`),
+    ...d.moved.map((tag) => `<li><span class="solo in">Move ${esc(BY_TAG.get(tag).name)} to ${state.draft.indexOf(tag) + 1}<span class="was"> · was ${SAVED.indexOf(tag) + 1}</span></span></li>`),
+  ].join("");
+}
+
+function renderRail() {
+  el("bonuslist").innerHTML = [...ROSTER]
+    .sort((a, b) => (isSecured(b) - isSecured(a)) || (b.stars - a.stars) || a.name.localeCompare(b.name))
+    .slice(0, 8)
+    .map((m, i) => `<li><span class="rank">${i + 1}</span>
+      <span>${esc(m.name)}</span>
+      <span class="${isSecured(m) ? "pill ok" : "row-th"}">${isSecured(m) ? "Qualified" : `${m.stars}★`}</span></li>`).join("");
+  el("historylist").innerHTML = [
+    ["Plan saved", "Nick · rev 12", "Added Quillon · Removed Cairnwick"],
+    ["Observed lineup refreshed", "System · 2h ago", ""],
+    ["Day 3 inherited from Day 2", "Nick · rev 1", ""],
+  ].map(([a, b, c]) => `<li><span></span><span><b>${a}</b><br><span class="row-th">${b}${c ? " · " + c : ""}</span></span><span></span></li>`).join("");
+}
+
+function renderDayMenu() {
+  el("daymenu").setAttribute("aria-expanded", String(state.dayMenuOpen));
+  el("daymenuslot").innerHTML = state.dayMenuOpen
+    ? `<div class="daymenu" role="menu">
+        <button type="button" role="menuitem" id="reinherit" ${state.locked ? "disabled" : ""}>Re-inherit Day 2</button>
+        <button type="button" role="menuitem" id="togglelock">${state.locked ? "Unlock day" : "Lock day"}</button>
+      </div>`
+    : "";
+}
+
+function renderLock() {
+  const chip = el("lockchip");
+  chip.className = "lockchip" + (state.locked ? " is-locked" : "");
+  chip.textContent = state.locked ? "Locked" : "Unlocked";
+}
+
+function render() {
+  renderDayStrip(); renderNotice(); renderLineup(); renderPanel();
+  renderActionBar(); renderRail(); renderLock(); renderDayMenu();
+}
+
+/* ---------------------------------------------------------------------------
+ * Behaviour — two taps per swap: open a slot, choose a replacement.
+ * ------------------------------------------------------------------------- */
+document.addEventListener("click", (event) => {
+  const t = event.target;
+
+  const harness = t.closest(".harness button");
+  if (harness) {
+    const key = harness.dataset.state;
+    if (key === "reset") { state.draft = [...SAVED]; state.movedTags.clear(); state.changesOpen = false; state.reordering = false; }
+    else { state[key] = !state[key]; harness.setAttribute("aria-pressed", String(state[key])); }
+    return render();
+  }
+
+  if (t.closest("[data-close]")) { state.panel = null; state.search = ""; return render(); }
+  if (t.closest("#openbench")) { state.panel = { mode: "bench" }; state.search = ""; return render(); }
+  if (t.closest("#daymenu")) { state.dayMenuOpen = !state.dayMenuOpen; return renderDayMenu(); }
+  if (t.closest("#togglelock")) { state.locked = !state.locked; state.dayMenuOpen = false; return render(); }
+  if (t.closest("#reinherit")) {
+    state.dayMenuOpen = false;
+    alert("Prototype: this is where Day 3 re-inherits Day 2's lineup.");
+    return render();
+  }
+  if (state.dayMenuOpen && !t.closest(".daymenu")) { state.dayMenuOpen = false; renderDayMenu(); }
+  if (t.closest("#startreorder")) { state.reordering = true; state.panel = null; return render(); }
+  if (t.closest("#donereorder")) { state.reordering = false; return render(); }
+  if (t.closest("#changesbutton")) { state.changesOpen = !state.changesOpen; return renderActionBar(); }
+  if (t.closest("#save")) { alert("Prototype: this is where the plan saves."); return; }
+
+  const avail = t.closest("[data-avail]");
+  if (avail) {
+    BY_TAG.get(state.panel.tag).availability = avail.dataset.avail;
+    return render();
+  }
+
+  if (t.closest("[data-bench]")) {
+    state.draft = state.draft.filter((tag) => tag !== state.panel.tag);
+    state.panel = null; state.search = "";
+    return render();
+  }
+
+  const row = t.closest(".row");
+  if (!row) return;
+  const tag = row.dataset.tag;
+
+  // a row inside the panel is a candidate: swap it in (or add it)
+  if (row.closest(".panel")) {
+    if (state.locked) return;
+    if (state.panel && state.panel.mode === "swap") {
+      state.draft = state.draft.map((x) => x === state.panel.tag ? tag : x);
+      state.panel = null;
+    } else if (state.draft.length < WAR_SIZE) {
+      state.draft = [...state.draft, tag];
+    }
+    state.search = "";
+    return render();
+  }
+
+  // a row in the lineup opens the swap panel for that member
+  state.panel = { mode: "swap", tag };
+  state.search = "";
+  render();
+});
+
+document.addEventListener("input", (event) => {
+  if (!event.target.matches("[data-search]")) return;
+  state.search = event.target.value;
+  const box = event.target;
+  const rows = box.closest(".panel-body").querySelector(".rows");
+  const list = candidates();
+  rows.innerHTML = list.length ? list.map((c) => rowHtml(c)).join("") : `<p class="empty">No one matches “${esc(state.search)}”.</p>`;
+});
+
+/* Pointer-based reorder. HTML5 drag-and-drop — what the desktop workspace uses
+ * today — fires no events at all on touch, so the phone has never been able to
+ * reorder. Pointer capture is taken on the list, not the handle, so the drag
+ * survives the re-render each move triggers. */
+let drag = null;
+let dragFrame = null;
+
+/* Only ten rows of fifteen fit on a phone, so a drag has to be able to leave
+ * the screen. The pointer stops moving once it reaches the edge, so the scroll
+ * cannot be driven by pointermove alone — a frame loop runs for the life of the
+ * drag, scrolling while the pointer sits in the edge zone and re-resolving the
+ * drop index each frame from the last known pointer position. */
+const EDGE_ZONE = 96;    // how deep the auto-scroll band reaches from each edge
+const EDGE_SPEED = 520;  // px per SECOND at the very edge, not per frame — a
+                         // per-frame step runs at double speed on a 120Hz
+                         // ProMotion phone and normal speed on a 60Hz display
+
+function resolveDropIndex() {
+  const list = el("lineup");
+  const rows = [...list.querySelectorAll(".rrow")];
+  if (rows.length < 2) return;
+  const first = rows[0].getBoundingClientRect();
+  const pitch = rows[1].getBoundingClientRect().top - first.top;
+  const target = Math.max(0, Math.min(rows.length - 1, Math.round((drag.y - first.top) / pitch)));
+  const from = state.draft.indexOf(drag.tag);
+  if (target === from) return;
+  const next = [...state.draft];
+  next.splice(target, 0, ...next.splice(from, 1));
+  state.draft = next;
+  renderLineup();
+  renderActionBar();
+  list.querySelector(`.rrow[data-tag="${drag.tag}"]`)?.classList.add("is-lifted");
+}
+
+function dragFrameTick(now) {
+  if (!drag) return;
+  const dt = Math.min(0.05, (now - (drag.last ?? now)) / 1000); // clamp after a stall
+  drag.last = now;
+
+  const bottomEdge = window.innerHeight - EDGE_ZONE;
+  // Depth into the edge band, 0 at the boundary and 1 at the screen edge. The
+  // ramp is quadratic rather than linear so easing a thumb just inside the band
+  // creeps instead of lurching, and full speed is reserved for the very edge.
+  let depth = 0;
+  if (drag.y < EDGE_ZONE) depth = -(EDGE_ZONE - drag.y) / EDGE_ZONE;
+  else if (drag.y > bottomEdge) depth = (drag.y - bottomEdge) / EDGE_ZONE;
+
+  if (depth) {
+    drag.carry = (drag.carry ?? 0) + Math.sign(depth) * depth * depth * EDGE_SPEED * dt;
+    const step = Math.trunc(drag.carry);   // keep the sub-pixel remainder
+    if (step) { window.scrollBy(0, step); drag.carry -= step; }
+  } else {
+    drag.carry = 0;
+  }
+
+  resolveDropIndex();
+  dragFrame = requestAnimationFrame(dragFrameTick);
+}
+
+el("lineup").addEventListener("pointerdown", (event) => {
+  if (!state.reordering || state.locked) return;
+  const handle = event.target.closest("[data-handle]");
+  if (!handle) return;
+  const row = handle.closest(".rrow");
+  drag = { tag: row.dataset.tag, y: event.clientY };
+  el("lineup").setPointerCapture(event.pointerId);
+  row.classList.add("is-lifted");
+  event.preventDefault();
+  dragFrame = requestAnimationFrame(dragFrameTick);
+});
+
+el("lineup").addEventListener("pointermove", (event) => {
+  if (!drag) return;
+  drag.y = event.clientY;
+  resolveDropIndex();
+});
+
+const endDrag = () => {
+  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = null; }
+  if (!drag) return;
+  // dragged back to where it started is not a move
+  if (state.draft.indexOf(drag.tag) === SAVED.indexOf(drag.tag)) state.movedTags.delete(drag.tag);
+  else state.movedTags.add(drag.tag);
+  drag = null;
+  renderLineup();
+  renderActionBar();
+};
+el("lineup").addEventListener("pointerup", endDrag);
+el("lineup").addEventListener("pointercancel", endDrag);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.panel) { state.panel = null; state.search = ""; render(); }
+});
+
+window.matchMedia("(min-width: 720px)").addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
