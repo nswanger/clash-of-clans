@@ -35,13 +35,15 @@ Wave 0 **authors** `clan-muster.css` rather than packaging a file that already e
 
 Inertness is a property of the selectors, not a judgement about the screenshot: no `cm-` class appears anywhere in `apps/web`, `tokens.css` declares nothing but custom properties, and no global or element selector is added. Nothing in the layer *can* match.
 
-**The icon sprite still has no route into the app.** The eight symbols live in `prototype/_prototype.js` as a string injected at runtime; wave 0 imports CSS only. Wave 1 needs the star and the chevron on its first row, so the sprite ships with it — as markup in `index.html` or a React component, which is a build decision rather than a design one.
+**The icon sprite landed separately, after wave 0 and before wave 1.** It is `IconSprite` and `Icon` in `apps/web/src/design/icon.tsx`, mounted once in `main.tsx` and as inert as the stylesheets — nothing calls `Icon` yet. It went in its own commit for the same reason wave 0 did: wave 1 needs the star and the chevron on its first row, and inventing the sprite inside a surface rebuild would put two unrelated causes in one diff.
 
 One cost worth naming: `tokens.css` opens with an `@import` of Archivo from Google Fonts, so importing it adds a third-party request and a font download to every load. Nothing renders in Archivo until a surface asks for `--cm-font-sans`, so this buys nothing until wave 1 — but font delivery was never settled, and self-hosting is the obvious alternative whenever someone wants it.
 
 ### Wave 1 — the members roster
 
 **Members goes first, not CWL.** It is a genuine surface with real data, it is not the default route, and a mistake there is cheap. That proves the migration mechanics on something recoverable before they touch the surface that must not regress.
+
+**The element-level base lands here, inside this rebuild, and cannot be done ahead of it.** `box-sizing`, the `body` font/colour/background, `button { font: inherit }`, `:focus-visible` and `font-variant-numeric: tabular-nums` are global by nature: the moment they exist, every route changes font and colour. Landing them before a rebuilt surface would restyle `dashboard`, `overview`, `season`, `access` and the CWL workspace while each still carries its old layout CSS — five surfaces changed with no prototype to check any of them against. Inside this commit the members roster is the one surface that moves, and it has a spec to verify against.
 
 Spec: [`prototype/members-roster.html`](prototype/members-roster.html) · [published](https://claude.ai/code/artifact/d10cff5e-b20d-4890-9bb2-4f508bec2d8e)
 
