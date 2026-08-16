@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Members roster — mobile prototype</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<script src="_prototype.js" defer></script>
+<style>
+/* Clan Muster — members roster surface (#22 prototype).
+ *
+ * The contrasting proof: list-heavy, read-mostly, per-person, where the lineup
+ * workspace is dense, interactive and decision-making. Shared components come
+ * from _prototype.css untouched. What remains here is what only this surface
+ * uses — and it is deliberately short, because a long list here would mean the
+ * system does not actually generalise.
+ *
+ * Roster is synthetic but real-shaped: 50 observed members at the clan cap,
+ * with three activity baselines so the window selector genuinely changes the
+ * answer. Real player tags must not enter this public repo.
+ */
+
+/* ---------- summary strip ----------
+ * The one genuinely new component. Neither surface in #20 had an aggregate
+ * read; a roster does, because "how healthy is the clan" is the question you
+ * arrive with. Two-up on a phone and four across above 720px — a scrolling
+ * strip clipped a metric mid-word, which reads as a bug rather than an
+ * affordance.
+ *
+ * Four metrics, not five: "no change observed" is derivable from the other
+ * three, and it is the number most likely to be misread as "inactive", which
+ * the domain explicitly refuses to say.
+ */
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-2); }
+.metric {
+  min-width: 0;
+  padding: var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface);
+}
+.metric strong {
+  display: block; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.metric span {
+  display: block; margin-top: 2px;
+  font-size: var(--cm-text-xs); line-height: 1.3; color: var(--cm-fg-muted);
+}
+
+/* ---------- search row ---------- */
+.searchrow { display: flex; gap: var(--cm-space-2); margin-top: var(--cm-space-3); }
+.searchrow .search { margin-bottom: 0; }
+.filterbutton {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.filterbutton .badge {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--cm-radius-pill);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+}
+.windowrow { margin-top: var(--cm-space-2); }
+
+/* Progressive disclosure through the row's own stats slot, not a second row
+ * design.
+ *
+ * Gated on a CONTAINER query, not the viewport. The list column's width depends
+ * on whether the detail panel is docked beside it, so a viewport breakpoint gets
+ * it wrong in exactly the band where the panel is open on a small desktop — the
+ * extra columns appear, overflow the column, and push the chevron out past the
+ * card edge. The row can only know if it asks its own container.
+ */
+.section { container-type: inline-size; container-name: list; }
+.wide-only { display: none; }
+.row.has-pos { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+
+/* The header only exists where the columns do — it is what makes an unlabelled
+ * pair of numbers legible, and it is why the lifetime scoping can be stated
+ * rather than assumed. */
+.listhead { display: none; }
+/* Header and rows are two separate grids, so every column they share must be an
+ * EXPLICIT width in both. With `auto` columns and `min-width` values they size
+ * to their own contents and drift apart — "Attacks used" is wider than any
+ * value under it, and the header's empty last cell is 0px against the row's 5px
+ * chevron, which shifts the whole run. Same track list, same fixed widths, both
+ * right-aligned. 600px because below it the name column stops being readable.
+ */
+@container list (min-width: 600px) {
+  .row.has-pos, .listhead { grid-template-columns: 26px minmax(0, 1fr) auto 44px 10px; }
+  .wide-only { display: flex; flex-direction: row; gap: var(--cm-space-4); }
+  .wide-only .stat { width: 76px; text-align: right; }
+  .row-stats:not(.wide-only) { width: 44px; } /* .wide-only is also a .row-stats */
+  .listhead {
+    display: grid; align-items: end; gap: var(--cm-space-3);
+    /* +1px for the border the rows have and the header does not */
+    padding: 0 calc(var(--cm-row-pad-x) + 1px) var(--cm-space-2);
+  }
+  .listhead span {
+    font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+    letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+  }
+  .listhead .group { display: flex; flex-direction: row; gap: var(--cm-space-4); }
+  .listhead .group span { width: 76px; text-align: right; }
+  .listhead .th { text-align: right; }
+}
+
+/* ---------- member facts, inside the panel only ----------
+ * Today this grid is on every card in the list, six columns collapsing to six
+ * stacked rows on a phone. It is the wall of numbers. It survives, but only
+ * where someone asked for it.
+ */
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-3); margin: 0 0 var(--cm-space-4); }
+.facts dt {
+  margin-bottom: 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.facts dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); overflow-wrap: anywhere; }
+
+.evidence { margin: 0 0 var(--cm-space-4); padding: 0; list-style: none;
+            display: flex; flex-wrap: wrap; gap: var(--cm-space-2); }
+.evidence li {
+  padding: 5px 10px; border-radius: var(--cm-radius-pill);
+  background: var(--cm-info-subtle); color: var(--cm-info-ink);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-medium);
+}
+.evidence li.reset { background: var(--cm-surface-sunken); color: var(--cm-fg-muted); }
+.freshness { margin: 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+
+/* ---------- filter panel ---------- */
+.fieldset { margin-bottom: var(--cm-space-4); }
+.choices { display: flex; flex-wrap: wrap; gap: var(--cm-space-2); }
+.choices button {
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg-muted);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.choices button[aria-pressed="true"] {
+  border-color: var(--cm-border-control); color: var(--cm-fg-strong); background: var(--cm-surface-sunken);
+}
+
+@media (min-width: 720px) {
+  .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .columns { grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <span>Prototype state</span>
+  <button type="button" data-state="notice" aria-pressed="false">Collection stale</button>
+  <button type="button" data-state="wall" aria-pressed="false">Show today's card</button>
+</div>
+
+<div class="shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Year-round clan</p>
+      <h1>Members</h1>
+    </div>
+  </header>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="searchrow">
+    <input class="search" type="search" id="search" placeholder="Find a member" aria-label="Find a member">
+    <button class="filterbutton" type="button" id="openfilters">Filters <span id="filterbadge"></span></button>
+  </div>
+
+  <nav class="segmented windowrow" id="windowsel" aria-label="Activity window"></nav>
+
+  <div id="noticeslot"></div>
+
+  <div class="columns">
+    <div>
+      <section class="section">
+        <div class="section-head">
+          <h2 id="listtitle">Members <span class="count" id="listcount"></span></h2>
+        </div>
+        <div class="listhead" aria-hidden="true">
+          <span>#</span><span>Member</span>
+          <span class="group"><span>Attacks</span><span>Stars</span><span>Tenure</span></span>
+          <span class="th">TH</span><span></span>
+        </div>
+        <div class="rows" id="list"></div>
+      </section>
+    </div>
+    <div id="panelcolumn"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * Synthetic roster, real shape. Field names mirror MemberRosterMember, and the
+ * activity derivation mirrors activityWindow() in member-history.ts including
+ * its counter-reset handling.
+ * ------------------------------------------------------------------------- */
+const NAMES = ["Ashfall","Bramblefang","Ironvale","Quillon","Emberwake","Thane","Nettlebrook","Sableridge",
+"Cairnwick","Foxglove","Marrowgate","Pellworth","Rookhaven","Stonebarrow","Thistledown","Vantwick","Wrenfield",
+"Yarrowmere","Alderstone","Briarhold","Coldmoor","Duskmantle","Elmsworth","Fernhollow","Grimsby","Hallowdrift",
+"Larkspur","Mirefen","Norwood","Ospreymoor","Peatwold","Quarrenden","Rushlight","Saltmarch","Tarnbrook",
+"Underhythe","Verrowfield","Wickerstone","Ymbry","Zephrant","Ashgrove","Blackthorn","Cindermoor","Dunmarrow",
+"Eastwater","Frostmere","Glasswend","Harrowgate","Inkwell","Jessamine"];
+const ROLES = ["leader","coLeader","elder","member"];
+const LEAGUES = ["Crystal League I","Master League III","Gold League I","Champion League III","Master League I","Unranked"];
+const CURRENT_COUNT = 44;
+
+/* Deterministic pseudo-random so the roster is stable across reloads. */
+let seed = 20260816;
+const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+const ROSTER = NAMES.map((name, i) => {
+  const isCurrent = i < CURRENT_COUNT;
+  const role = i === 0 ? "leader" : i < 4 ? "coLeader" : i < 12 ? "elder" : "member";
+  // How long ago this member last did anything the API can see. A window only
+  // finds evidence if it reaches back far enough to contain that day — which is
+  // what makes 1d / 7d / 30d different answers rather than the same one three
+  // times. Roughly half the clan moves on a given day, most within a week.
+  const roll = rnd();
+  const lastActiveDaysAgo = roll < 0.46 ? 0 : roll < 0.62 ? 1 + Math.floor(rnd() * 3)
+    : roll < 0.80 ? 4 + Math.floor(rnd() * 3) : roll < 0.92 ? 8 + Math.floor(rnd() * 20) : 34 + Math.floor(rnd() * 60);
+  const rate = 0.25 + rnd() * 0.95;
+  const townHall = 16 - Math.floor(rnd() * 4);
+  const warsObserved = 38;
+  const donations = Math.round(rnd() * 2400);
+  const received = Math.round(rnd() * 2100);
+  return {
+    playerTag: "#P" + String(i).padStart(3, "0") + "XY",
+    name, role, isCurrentMember: isCurrent,
+    clanRank: isCurrent ? i + 1 : null,
+    townHallLevel: townHall,
+    leagueName: i % 11 === 3 ? null : LEAGUES[i % LEAGUES.length],
+    warPreference: i % 7 === 2 ? null : (i % 4 === 0 ? "out" : "in"),
+    donations, donationsReceived: received,
+    attackWins: Math.round(rnd() * 900),
+    defenseWins: Math.round(rnd() * 300),
+    clanCapitalContributions: Math.round(rnd() * 40000),
+    clanGamesPoints: Math.round(rnd() * 4000),
+    trophies: 1200 + Math.round(rnd() * 3600),
+    rate, lastActiveDaysAgo,
+    // regular_war_member_history: lifetime across every ended war, no date
+    // filter. Windowing these to the activity period needs a view change.
+    warsParticipated: warsObserved - Math.floor(rnd() * warsObserved * 0.55),
+    warAssignedAttacks: 0, warAttacksMade: 0, warStars: 0,
+    // a few members have never been profiled — the domain's real "unknown"
+    profiled: i % 13 !== 5,
+    tenureDays: 20 + Math.round(rnd() * 900),
+    departedDaysAgo: isCurrent ? null : 5 + Math.round(rnd() * 120),
+    // categorical changes, keyed to the window in which they happened
+    roleChangedWithin: i === 3 ? 7 : i === 18 ? 30 : null,
+    townHallChangedWithin: i === 9 ? 30 : null,
+    leagueChangedWithin: i % 6 === 1 ? 7 : null,
+    // a counter reset (season rollover) for a couple of members
+    resetWithin: i === 14 || i === 27 ? 30 : null,
+  };
+});
+
+for (const m of ROSTER) {
+  m.warAssignedAttacks = m.warsParticipated * 2;
+  m.warAttacksMade = Math.round(m.warAssignedAttacks * (0.62 + rnd() * 0.38));
+  m.warStars = Math.round(m.warAttacksMade * (1.1 + rnd() * 1.4));
+}
+const WARS_OBSERVED = 38;
+const BY_TAG = new Map(ROSTER.map((m) => [m.playerTag, m]));
+/* Only 1 and 7. The view hard-codes baseline_1d / baseline_7d / baseline_30d as
+ * three lateral joins, so these are the windows that exist without a schema
+ * change — and 30 days is the one to drop: in a casual clan it mostly answers
+ * "have they quit", which is_current_member and departure_observed_on already
+ * answer directly and better. A 14-day window would be a one-line view change,
+ * but that is data work, not a design decision. */
+const WINDOWS = [{ days: 1, label: "Today" }, { days: 7, label: "7 days" }];
+
+/* Mirrors activityWindow(): a member with no baseline is unknown, a baseline
+ * with no movement is no_change, and movement produces one evidence string per
+ * changed counter. A counter that went backwards is a reset, not evidence. */
+function activityWindow(m, days) {
+  if (!m.profiled) return { status: "unknown", evidence: [], resets: [] };
+  // The window has to reach the day they were last seen moving, or there is
+  // nothing in it to compare — no_change, which is not the same as inactive.
+  if (m.lastActiveDaysAgo >= days) return { status: "no_change", evidence: [], resets: [] };
+  const span = days - m.lastActiveDaysAgo;
+  const evidence = [];
+  const resets = [];
+  const step = (label, perDay) => {
+    const delta = Math.floor(m.rate * perDay * span);
+    if (delta > 0) evidence.push(`+${delta.toLocaleString()} ${label}`);
+  };
+  step("troops donated", 34);
+  step("troops received", 29);
+  step("multiplayer attacks", 1.6);
+  step("Capital contributions", 260);
+  step("Clan Games progress", 46);
+  step("defense wins", 0.7);
+  const trophies = Math.round((m.rate - 0.7) * 22 * span);
+  if (trophies !== 0) evidence.push(`${trophies > 0 ? "+" : ""}${trophies} trophies`);
+  if (m.townHallChangedWithin && days >= m.townHallChangedWithin) evidence.push(`Town Hall ${m.townHallLevel}`);
+  if (m.leagueChangedWithin && days >= m.leagueChangedWithin) evidence.push(`league changed to ${m.leagueName ?? "unranked"}`);
+  if (m.roleChangedWithin && days >= m.roleChangedWithin) evidence.push(`role changed to ${roleLabel(m.role)}`);
+  if (m.resetWithin && days >= m.resetWithin) resets.push("Clan Games progress reset");
+  return { status: evidence.length ? "observed" : "no_change", evidence, resets };
+}
+
+const roleLabel = (r) => r === "coLeader" ? "Co-leader" : r[0].toUpperCase() + r.slice(1);
+const activityLabel = (s) => s === "observed" ? "Activity observed" : s === "no_change" ? "No change observed" : "Building history";
+
+const state = {
+  window: 7,
+  search: "",
+  scope: "current",       // current | former | all
+  role: "all",
+  activity: "all",
+  sort: "rank",
+  panel: null,            // null | {mode:"member", tag} | {mode:"filters"}
+  notice: false,
+  wall: false,
+};
+
+const activeFilterCount = () =>
+  (state.scope !== "current" ? 1 : 0) + (state.role !== "all" ? 1 : 0) +
+  (state.activity !== "all" ? 1 : 0) + (state.sort !== "rank" ? 1 : 0);
+
+function visible() {
+  const q = state.search.trim().toLowerCase();
+  return ROSTER
+    .filter((m) => !q || m.name.toLowerCase().includes(q) || m.playerTag.toLowerCase().includes(q))
+    .filter((m) => state.scope === "all" || (state.scope === "current") === m.isCurrentMember)
+    .filter((m) => state.role === "all" || m.role === state.role)
+    .filter((m) => state.activity === "all" || activityWindow(m, state.window).status === state.activity)
+    .sort((a, b) => {
+      if (state.sort === "name") return a.name.localeCompare(b.name);
+      if (state.sort === "town_hall") return b.townHallLevel - a.townHallLevel || a.name.localeCompare(b.name);
+      if (state.sort === "tenure") return b.tenureDays - a.tenureDays;
+      if (state.sort === "activity") {
+        const rank = (m) => ({ observed: 0, no_change: 1, unknown: 2 })[activityWindow(m, state.window).status];
+        return rank(a) - rank(b) || a.name.localeCompare(b.name);
+      }
+      return (a.clanRank ?? 1e9) - (b.clanRank ?? 1e9) || a.name.localeCompare(b.name);
+    });
+}
+
+/* ------------------------------------------------------------------------- */
+const el = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+/* Months all the way to 18, so "12 months" and "1y 0m" never sit in the same
+ * column describing near-identical tenures. */
+const days = (n) => n >= 545 ? `${Math.floor(n / 365)}y ${Math.round((n % 365) / 30)}m`
+  : n >= 30 ? `${Math.round(n / 30)} months` : `${n} days`;
+
+function renderSummary() {
+  const current = ROSTER.filter((m) => m.isCurrentMember);
+  const observed = current.filter((m) => activityWindow(m, state.window).status === "observed").length;
+  const building = current.filter((m) => activityWindow(m, state.window).status === "unknown").length;
+  const label = WINDOWS.find((w) => w.days === state.window).label;
+  el("summary").innerHTML = [
+    [current.length, "Current members"],
+    [observed, `Activity observed · ${label}`],
+    [building, "Building history"],
+    [ROSTER.length - current.length, "Former members"],
+  ].map(([v, l]) => `<div class="metric"><strong>${v}</strong><span>${l}</span></div>`).join("");
+}
+
+function renderWindow() {
+  el("windowsel").innerHTML = WINDOWS.map((w) =>
+    `<button type="button" data-window="${w.days}" aria-current="${w.days === state.window}">
+      <span>${w.label}</span></button>`).join("");
+}
+
+function renderNotice() {
+  el("noticeslot").innerHTML = state.notice
+    ? `<div class="notice" role="alert">
+        <div class="grow"><strong>Collection data is stale</strong>
+        <p>Last successful observation was 2 days ago. Activity evidence covers a shorter window than it says.</p></div>
+        <button type="button">Retry</button>
+      </div>` : "";
+}
+
+/* The list row is _prototype.css's row, unmodified. The only judgement here is
+ * what goes in the meta line — and the answer is the same rule the lineup
+ * settled: mark the exception, never the rule. Most members show activity, so
+ * showing "Activity observed" on all of them is the happy-path banner again. */
+function rowHtml(m, selected) {
+  const a = activityWindow(m, state.window);
+  const bits = [roleLabel(m.role)];
+  if (!m.isCurrentMember) bits.push(`<span class="avail is-unknown">Left ${days(m.departedDaysAgo)} ago</span>`);
+  else if (a.status === "no_change") bits.push(`<span class="avail is-unknown">No change observed</span>`);
+  else if (a.status === "unknown") bits.push(`<span class="avail is-unknown">Building history</span>`);
+  return `<button class="row has-pos ${selected ? "is-selected" : ""} ${m.isCurrentMember ? "" : "is-out"}" type="button" data-tag="${m.playerTag}">
+    <span class="row-pos">${m.clanRank ?? "—"}</span>
+    <span class="row-main">
+      <span class="row-name">${esc(m.name)}</span>
+      <span class="row-meta">${bits.join(' <span class="sep">·</span> ')}</span>
+    </span>
+    <span class="row-stats wide-only">
+      <span class="row-th stat">${m.warAttacksMade} / ${m.warAssignedAttacks}</span>
+      <span class="row-th stat">${m.warStars}★</span>
+      <span class="row-th stat">${m.isCurrentMember ? days(m.tenureDays) : "—"}</span>
+    </span>
+    <span class="row-stats"><span class="row-th">TH${m.townHallLevel}</span></span>
+    <span class="chev" aria-hidden="true">›</span>
+  </button>`;
+}
+
+function renderList() {
+  const rows = visible();
+  const active = effectivePanel(window.matchMedia("(min-width: 720px)").matches);
+  const selected = active?.mode === "member" ? active.tag : null;
+  el("list").innerHTML = rows.length
+    ? rows.map((m) => rowHtml(m, m.playerTag === selected)).join("")
+    : `<p class="empty">No members match these filters.</p>`;
+  el("listcount").textContent = rows.length === ROSTER.length ? `${rows.length}` : `${rows.length} of ${ROSTER.length}`;
+  const n = activeFilterCount();
+  el("filterbadge").innerHTML = n ? `<span class="badge">${n}</span>` : "";
+}
+
+function memberPanelHtml(m, wide) {
+  const a = activityWindow(m, state.window);
+  const label = WINDOWS.find((w) => w.days === state.window).label;
+  // A docked column has nothing to dismiss to, so it carries no close control.
+  return `<div class="panel" ${wide ? "" : 'role="dialog" aria-modal="true"'} aria-label="${esc(m.name)}">
+    <div class="panel-head">
+      <div class="grow">
+        <h2>${esc(m.name)}</h2>
+        <p class="panel-evidence">${roleLabel(m.role)} · TH${m.townHallLevel} ·
+          ${m.isCurrentMember ? `in the clan ${days(m.tenureDays)}` : `left ${days(m.departedDaysAgo)} ago`}</p>
+      </div>
+      ${wide ? "" : '<button class="iconbutton" type="button" data-close aria-label="Close">×</button>'}
+    </div>
+    <div class="panel-body">
+      <p class="panel-label">${activityLabel(a.status)} · ${label}</p>
+      ${a.status === "observed"
+        ? `<ul class="evidence">${a.evidence.map((e) => `<li>${esc(e)}</li>`).join("")}
+           ${a.resets.map((r) => `<li class="reset">${esc(r)}</li>`).join("")}</ul>`
+        : `<p class="freshness" style="margin-bottom:var(--cm-space-4)">${a.status === "unknown"
+            ? "This member has not been profiled yet, so there is no baseline to compare against. Absent evidence is not inactivity."
+            : `No counter moved in this window. That is not the same as inactive — try a longer window.`}</p>`}
+      <p class="panel-label">War record · all time</p>
+      <dl class="facts">
+        <div><dt>Attacks used</dt><dd>${m.warAttacksMade} of ${m.warAssignedAttacks}</dd></div>
+        <div><dt>War stars</dt><dd>${m.warStars}</dd></div>
+        <div><dt>Wars joined</dt><dd>${m.warsParticipated} of ${WARS_OBSERVED} observed</dd></div>
+        <div><dt>War preference</dt><dd>${m.warPreference ?? "—"}</dd></div>
+      </dl>
+      <p class="freshness" style="margin-bottom:var(--cm-space-4)">War figures cover every observed war, not the
+        activity window above — <code>regular_war_member_history</code> has no date filter.</p>
+
+      <p class="panel-label">Roster facts</p>
+      <dl class="facts">
+        <div><dt>Player tag</dt><dd>${m.playerTag}</dd></div>
+        <div><dt>League</dt><dd>${m.leagueName ?? "—"}</dd></div>
+        <div><dt>Donations</dt><dd>${m.donations.toLocaleString()} given · ${m.donationsReceived.toLocaleString()} received</dd></div>
+        <div><dt>In the clan</dt><dd>${m.isCurrentMember ? days(m.tenureDays) : `left ${days(m.departedDaysAgo)} ago`}</dd></div>
+      </dl>
+      <p class="freshness">Roster observed 3 hours ago · Player profile
+        ${m.profiled ? "observed 3 hours ago" : "never observed"}.</p>
+    </div>
+  </div>`;
+}
+
+function filterPanelHtml() {
+  const group = (label, key, options) => `<div class="fieldset">
+    <p class="panel-label">${label}</p>
+    <div class="choices">${options.map(([v, l]) =>
+      `<button type="button" data-filter="${key}" data-value="${v}" aria-pressed="${state[key] === v}">${l}</button>`).join("")}</div>
+  </div>`;
+  return `<div class="panel" role="dialog" aria-modal="true" aria-label="Filters">
+    <div class="panel-head">
+      <div class="grow"><h2>Filters</h2>
+        <p class="panel-evidence">${visible().length} of ${ROSTER.length} observed members</p></div>
+      <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+    </div>
+    <div class="panel-body">
+      ${group("Roster", "scope", [["current", "Current"], ["former", "Former"], ["all", "All observed"]])}
+      ${group("Role", "role", [["all", "All"], ...ROLES.map((r) => [r, roleLabel(r)])])}
+      ${group("Evidence", "activity", [["all", "All"], ["observed", "Observed"], ["no_change", "No change"], ["unknown", "Building history"]])}
+      ${group("Sort", "sort", [["rank", "Clan rank"], ["name", "Name"], ["town_hall", "Town Hall"], ["activity", "Evidence"], ["tenure", "Tenure"]])}
+    </div>
+    <div class="panel-foot"><button class="ghost" type="button" data-clear>Clear all filters</button></div>
+  </div>`;
+}
+
+/* Today's card, for comparison only — six stacked facts and an unbounded
+ * evidence list, per member, always expanded. */
+function wallHtml() {
+  const m = ROSTER[1];
+  const a = activityWindow(m, 30);
+  return `<div class="panel" role="dialog" aria-label="Today's member card">
+    <div class="panel-head"><div class="grow"><h2>${esc(m.name)}</h2>
+      <p class="panel-evidence">Today's card, unchanged — one of fifty in the list</p></div>
+      <button class="iconbutton" type="button" data-close aria-label="Close">×</button></div>
+    <div class="panel-body">
+      <dl class="facts" style="grid-template-columns:1fr">
+        <div><dt>Role</dt><dd>${roleLabel(m.role)}</dd></div>
+        <div><dt>Town Hall</dt><dd>${m.townHallLevel}</dd></div>
+        <div><dt>League</dt><dd>${m.leagueName ?? "Unknown"}</dd></div>
+        <div><dt>Donations</dt><dd>${m.donations.toLocaleString()} / ${m.donationsReceived.toLocaleString()} received</dd></div>
+        <div><dt>War preference</dt><dd>${m.warPreference ?? "Unavailable"}</dd></div>
+        <div><dt>Current presence observed</dt><dd>${days(m.tenureDays)} ago</dd></div>
+      </dl>
+      <p class="panel-label">7-day evidence</p>
+      <ul class="evidence">${a.evidence.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
+      <p class="freshness">Roster observed 3 hours ago · Player profile observed 3 hours ago</p>
+    </div>
+  </div>`;
+}
+
+/* What the panel column should be showing right now.
+ *
+ * Where the panel is docked rather than overlaid, an empty column is dead space
+ * that also hides the fact that rows do anything — so the first visible member
+ * opens by default. It is only ever a default: any row replaces it, and the
+ * narrow layout never auto-opens, because there the panel is a sheet over the
+ * whole screen and opening one uninvited would bury the list.
+ */
+function effectivePanel(wide) {
+  if (state.wall) return { mode: "wall" };
+  if (state.panel) return state.panel;
+  if (!wide) return null;
+  const first = visible()[0];
+  return first ? { mode: "member", tag: first.playerTag, auto: true } : null;
+}
+
+function renderPanel() {
+  const wide = window.matchMedia("(min-width: 720px)").matches;
+  const panel = effectivePanel(wide);
+  let html = "";
+  if (panel?.mode === "wall") html = wallHtml();
+  else if (panel?.mode === "member") html = memberPanelHtml(BY_TAG.get(panel.tag), wide);
+  else if (panel?.mode === "filters") html = filterPanelHtml();
+
+  document.querySelectorAll("[data-overlay]").forEach((n) => n.remove());
+  el("panelcolumn").innerHTML = "";
+  if (!html) return;
+  if (wide) el("panelcolumn").innerHTML = html;
+  else document.body.insertAdjacentHTML("beforeend",
+    `<div data-overlay><button class="scrim" type="button" data-close aria-label="Close"></button>${html}</div>`);
+}
+
+function render() { renderSummary(); renderWindow(); renderNotice(); renderList(); renderPanel(); }
+
+/* ------------------------------------------------------------------------- */
+document.addEventListener("click", (event) => {
+  const t = event.target;
+
+  const harness = t.closest(".harness button");
+  if (harness) {
+    const key = harness.dataset.state;
+    state[key] = !state[key];
+    harness.setAttribute("aria-pressed", String(state[key]));
+    if (key === "wall" && state.wall) state.panel = null;
+    return render();
+  }
+
+  if (t.closest("[data-close]")) { state.panel = null; state.wall = false;
+    document.querySelectorAll('[data-state="wall"]').forEach((b) => b.setAttribute("aria-pressed", "false"));
+    return render(); }
+  if (t.closest("#openfilters")) { state.panel = { mode: "filters" }; return render(); }
+
+  const filter = t.closest("[data-filter]");
+  if (filter) { state[filter.dataset.filter] = filter.dataset.value; return render(); }
+  if (t.closest("[data-clear]")) {
+    Object.assign(state, { scope: "current", role: "all", activity: "all", sort: "rank" });
+    return render();
+  }
+
+  const win = t.closest("[data-window]");
+  if (win) { state.window = Number(win.dataset.window); return render(); }
+
+  const row = t.closest(".row");
+  if (row) { state.panel = { mode: "member", tag: row.dataset.tag }; return render(); }
+});
+
+el("search").addEventListener("input", (event) => { state.search = event.target.value; renderList(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && (state.panel || state.wall)) { state.panel = null; state.wall = false; render(); }
+});
+window.matchMedia("(min-width: 720px)").addEventListener("change", render);
+render();
+</script>
+</body>
+</html>

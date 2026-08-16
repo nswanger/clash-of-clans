@@ -9,8 +9,14 @@ design/
     _card.css           shared chrome for preview cards; imports tokens.css
     *.html              one card per foundation, rendered as a gallery in Claude Design
   prototype/
+    _prototype.css      the shared component layer — used by more than one surface
+    _prototype.js       the shared behaviour layer — currently the bottom sheet
     *.html              whole working surfaces, built against real-shaped data
 ```
+
+The `_prototype.*` split is a test, not just tidiness: a component that had to be
+bent to fit the second surface would be a fault in the system rather than a
+special case of the page, so the file boundary is where that shows up.
 
 Preview cards and prototypes answer different questions. A card puts one
 foundation next to its alternatives so a value can be judged; a prototype is a
@@ -89,6 +95,22 @@ The largest finding was not in the audit, which was CSS-only: `dashboard-model.t
 - **Auto-scroll during a drag is time-based, not frame-based**, with a quadratic ramp: ~33px/s just inside the 96px edge band, 520px/s at the edge. A per-frame step runs at double speed on a 120Hz phone and normal speed on a 60Hz display — invisible when testing on 60Hz, and the reason the first attempt felt wrong on the device it was built for.
 
 Dropped: drag-and-drop between lists, the four-control roster filter row (a single search in the panel, with ranking replacing sort), and the inline availability popover on rows.
+
+**The members roster is locked** ([#22](https://github.com/nswanger/clash-of-clans/issues/22)), in [`prototype/members-roster.html`](prototype/members-roster.html). It is the contrasting proof: list-heavy, read-mostly, per-person, against a lineup workspace that is dense, interactive and decision-making.
+
+- **The system held.** 79 shared rules against 52 lineup-only and 29 members-only; members uses 31 of 37 shared classes. Nothing needed bending. One thing needed renaming — the CWL day strip and the activity-window selector are the same component, and calling it `.daystrip` had hidden that. It is `.segmented`.
+- **One genuinely new component: the summary strip.** Neither #20 surface had an aggregate read; a roster does, because "how healthy is the clan" is the question you arrive with.
+- **The action bar did not survive, and that is the useful part.** Members has nothing to save, so it has no bottom bar — confirming the bar belongs to editing surfaces rather than to the system.
+- **The wall of numbers moves into the panel rather than being deleted.** Today's card is **621px per member** at 390px — six stacked facts, an unbounded evidence list, a freshness line — so a 44-member roster is 33 phone screens of scroll. The row is **62px**, and the list is 3.6 screens. Everything else is one tap away.
+- **Rows mark the exception here too.** Today every card carries an `activity-status` pill including the majority saying the ordinary thing. Now `observed` is silent; only `No change observed` and `Building history` are marked, in muted, never negative.
+- **Detail is an overlay, not a route** — the same panel component as the lineup, mounted as a sheet below 720px and docked above it.
+- **Where the panel is docked it opens on the first member by default.** An empty column is dead space that also hides the fact that rows do anything. The narrow layout never auto-opens, because there the panel covers the list. A docked panel carries no close control — there is nowhere to dismiss it to.
+- **Selection is the accent on the border plus a background shift, never the rail.** #18 names `--cm-accent-edge` as the selection colour and the segmented strip uses it that way, but on a row that slot already carries provenance (#20) and a row can be observed and selected at once.
+- **The activity window is 1 day and 7 days.** The view hard-codes `baseline_1d`, `baseline_7d` and `baseline_30d` as three lateral joins, and 30 days mostly answers "have they quit" — which `is_current_member` and `departure_observed_on` answer directly. `baseline_30d` is fetched today and never read.
+- **Desktop columns are gated on a container query, not the viewport.** The list column's width depends on whether the detail panel is docked beside it, so a viewport breakpoint is wrong in exactly the band where the panel is open on a small desktop — the columns appear, overflow, and push the chevron past the card edge. A header row comes with them, since unlabelled number pairs are unreadable, and header and rows share one explicit track list because two grids size `auto` columns independently.
+- **The bottom sheet is shared behaviour.** Slide-up on open, drag the header down to dismiss past 28% of sheet height or on a flick, scrim fading with the thumb, `prefers-reduced-motion` honoured. The header alone is draggable: a sheet that dismisses when you try to scroll its contents is worse than one that never dismisses.
+
+War figures are **all-time**, labelled as such. `regular_war_member_history` has no date filter, so scoping them to the activity window is a data change — [#34](https://github.com/nswanger/clash-of-clans/issues/34), tracked outside this map.
 
 ## Not yet decided
 
