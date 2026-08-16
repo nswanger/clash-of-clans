@@ -1,7 +1,7 @@
 {
   "name": "cwl-ops-assistant",
   "private": true,
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": ">=22"
   },
