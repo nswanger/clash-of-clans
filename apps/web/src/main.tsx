@@ -7,6 +7,7 @@ import { mapDashboardData } from "./dashboard/dashboard-model.js";
 import type { LiveSessionClient } from "./auth/live-app.js";
 import type { DashboardDataClient } from "./dashboard/dashboard-loader.js";
 import { AppRoutes } from "./app-routes.js";
+import { IconSprite } from "./design/icon.js";
 import { createE2EClient } from "./test/e2e-client.js";
 import "@cwl/design/tokens.css";
 import "@cwl/design/clan-muster.css";
@@ -26,6 +27,7 @@ const loadDashboard = () => loadDashboardSnapshot(supabase as unknown as Dashboa
 
 createRoot(root).render(
   <StrictMode>
+    <IconSprite />
     <LiveApp client={supabase as unknown as LiveSessionClient} location={window.location} basePath={import.meta.env.BASE_URL}>
       {(session) => <AppRoutes client={supabase} clanTag={activeClanTag} role={session.role} origin={window.location.origin} basePath={import.meta.env.BASE_URL} loadDashboard={loadDashboard} />}
     </LiveApp>
