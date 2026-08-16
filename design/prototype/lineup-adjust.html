@@ -101,23 +101,48 @@
 }
 .save:disabled { background: var(--cm-surface-sunken); color: var(--cm-fg-muted); cursor: not-allowed; }
 
-/* the in-game replication list — #21 designs its content; #20 gives it this home */
-.replicate { border-bottom: 1px solid var(--cm-hairline); background: var(--cm-surface-sunken); }
-.replicate-inner { max-width: var(--cm-shell-lg); margin: 0 auto; padding: var(--cm-space-3) var(--cm-gutter); }
-.replicate h3 {
-  margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+/* ---------- the in-game checklist (#21) ----------
+ * Rendered inside the shared .panel, so it is a sheet on a phone and docks on
+ * desktop exactly like the bench. It is a checklist you execute in another app,
+ * not a summary of the diff — so every line is a 44px tap target with its own
+ * check control, and the list keeps its place rather than collapsing as you go.
+ */
+.check {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center; gap: var(--cm-space-3);
+  width: 100%; min-height: var(--cm-tap-min);
+  padding: var(--cm-space-2) 0; border: 0; background: none; text-align: left;
+  font-size: var(--cm-text-sm); color: var(--cm-fg);
+}
+.check + .check { border-top: 1px solid var(--cm-hairline); }
+.check .box {
+  width: 22px; height: 22px; border-radius: var(--cm-radius-circle);
+  border: 2px solid var(--cm-border-control); display: grid; place-items: center;
+  font-size: var(--cm-text-xs); color: transparent;
+}
+/* The tick is --cm-surface, not --cm-on-accent. That token is gold-specific: gold
+ * is a light fill wanting dark ink, but success in light mode is a DARK fill, and
+ * n-900 on it measures 2.49:1. Surface inverts with the theme the same way the
+ * state fill does — 6.27:1 light, 8.64:1 dark. #23 owes the inventory a rule here. */
+.check.is-done .box { border-color: var(--cm-success-ink); background: var(--cm-success-ink); color: var(--cm-surface); }
+.check.is-done .swap { color: var(--cm-fg-muted); }
+.check.is-done .in { font-weight: var(--cm-weight-regular); color: var(--cm-fg-muted); }
+.check .swap { display: flex; align-items: center; gap: var(--cm-space-2); min-width: 0; }
+.check .out { color: var(--cm-fg-muted); }
+.check .in { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+.check .arrow { color: var(--cm-fg-muted); flex: none; }
+.check .undo { color: var(--cm-fg-muted); font-size: var(--cm-text-xs); }
+/* The order the list must be executed in, not decoration: at war size the game
+ * refuses an add before a remove, so removals lead. */
+.checkgroup + .checkgroup { margin-top: var(--cm-space-4); }
+.checkgroup > p {
+  margin: 0 0 var(--cm-space-1); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
   letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
 }
-.replicate ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--cm-space-2); }
-.replicate li {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center; gap: var(--cm-space-2); font-size: var(--cm-text-sm);
+.checkdone {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  padding: var(--cm-space-3) 0; font-size: var(--cm-text-sm); color: var(--cm-fg-muted);
 }
-.replicate .out { color: var(--cm-fg-muted); text-align: right; }
-.replicate .in { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
-.replicate .arrow { color: var(--cm-fg-muted); }
-.replicate .solo { grid-column: 1 / -1; }
-.replicate .was { color: var(--cm-fg-muted); font-weight: var(--cm-weight-regular); }
 /* the desktop-only rail */
 .rail { display: none; }
 .railcard {
@@ -170,6 +195,8 @@
   <button type="button" data-state="notice" aria-pressed="false">Collection stale</button>
   <button type="button" data-state="locked" aria-pressed="false">Day locked</button>
   <button type="button" data-state="warStarted" aria-pressed="false">War started</button>
+  <button type="button" data-state="coleader" aria-pressed="false">Co-leader saves</button>
+  <button type="button" data-state="observe" aria-pressed="false">Collection sees war</button>
   <button type="button" data-state="reset" aria-pressed="false">Reset plan</button>
 </div>
 
@@ -218,13 +245,11 @@
   </div>
 </div>
 
+<!-- Two independent controls, not one arbitrated label. The left is the in-game
+     checklist (saved plan vs the game); the right is Save (draft vs saved plan).
+     They are different questions with different answers, and a bar that showed
+     only the more urgent one would be lying about the other. -->
 <div class="actionbar">
-  <div class="replicate" id="replicate" hidden>
-    <div class="replicate-inner">
-      <h3 id="replicatehead"></h3>
-      <ul id="replicatelist"></ul>
-    </div>
-  </div>
   <div class="actionbar-inner">
     <button class="changes" type="button" id="changesbutton" aria-expanded="false">
       <span class="dot"></span>
@@ -285,15 +310,29 @@ const ROSTER = [
 }));
 
 const BY_TAG = new Map(ROSTER.map((m) => [m.playerTag, m]));
-const SAVED = ROSTER.slice(0, WAR_SIZE).map((m) => m.playerTag);
+/* Three lists, not two. The draft is what you are editing; SAVED is the plan of
+ * record at SAVED_REV; APPLIED_BASE is what the *game* is known to hold.
+ *
+ * "Unsaved" and "not yet done in game" are different questions with different
+ * baselines, and merging them is what made the old draft's checklist evaporate
+ * on Save — the exact moment you switch to Clash to act on it.
+ */
+let SAVED = ROSTER.slice(0, WAR_SIZE).map((m) => m.playerTag);
+let SAVED_REV = 12;
+let APPLIED_BASE = [...SAVED];
 
 const state = {
   draft: [...SAVED],
   locked: false,
   notice: false,
   warStarted: false,
-  panel: null,        // null | {mode:"swap", tag} | {mode:"bench"}
-  changesOpen: false,
+  panel: null,        // null | {mode:"swap", tag} | {mode:"bench"} | {mode:"changes"}
+  /* Changes you have confirmed you made in the game, oldest first. This is a
+   * record of physical acts, so it is deliberately NOT keyed to a revision:
+   * swapping someone in Clash stays true no matter what the plan says later.
+   * The baseline is these effects replayed over APPLIED_BASE. */
+  applied: [],
+  listRev: 12,        // the revision the checklist in hand was built against
   dayMenuOpen: false,
   reordering: false,
   /* Which members you actually dragged. Moving one row past another changes
@@ -318,9 +357,9 @@ const availLabel = (a) => a === "available" ? "Available" : a === "unavailable" 
 /* Mirrors lineupAdjustmentSummary() in the real workspace: membership changes,
  * and — when membership is identical — a pure order change, which is a real
  * change because the order is a hand-kept mirror of in-game base weight. */
-function diff() {
-  const out = SAVED.filter((t) => !state.draft.includes(t));
-  const inn = state.draft.filter((t) => !SAVED.includes(t));
+function membershipDiff(from, to) {
+  const out = from.filter((t) => !to.includes(t));
+  const inn = to.filter((t) => !from.includes(t));
   const swaps = [];
   const added = [];
   const removed = [...out];
@@ -329,15 +368,50 @@ function diff() {
     if (partner) swaps.push({ out: partner, in: tag });
     else added.push(tag);
   }
+  return { swaps, added, removed };
+}
+
+function diff() {
+  const d = membershipDiff(SAVED, state.draft);
   // moves are reported per member, and only for members who were already in
   // the saved plan — someone swapped in is a swap, not also a move
-  const moved = [...state.movedTags].filter((tag) => SAVED.includes(tag) && state.draft.includes(tag));
-  return { swaps, added, removed, moved };
+  d.moved = [...state.movedTags].filter((tag) => SAVED.includes(tag) && state.draft.includes(tag));
+  return d;
 }
 const changeCount = () => {
   const d = diff();
   return d.swaps.length + d.added.length + d.removed.length + d.moved.length;
 };
+
+/* ---------------------------------------------------------------------------
+ * The in-game checklist. Order changes are absent by design: the game orders by
+ * base weight, which it decides — a move here is you transcribing what Clash
+ * already shows, never an instruction to carry back. Membership is the only
+ * thing you can actually go and do.
+ * ------------------------------------------------------------------------- */
+function baseline() {
+  const b = [...APPLIED_BASE];
+  for (const e of state.applied) {
+    if (e.out) { const i = b.indexOf(e.out); if (i >= 0) b.splice(i, 1); }
+    if (e.in && !b.includes(e.in)) b.push(e.in);
+  }
+  return b;
+}
+
+/* Removals lead: at war size the game refuses an add before a remove, so the
+ * order the rows are listed in is the order they can actually be executed. */
+function pending() {
+  const d = membershipDiff(baseline(), SAVED);
+  return [
+    ...d.swaps.map((s) => ({ key: `swap:${s.out}>${s.in}`, out: s.out, in: s.in })),
+    ...d.removed.map((t) => ({ key: `rm:${t}`, out: t })),
+    ...d.added.map((t) => ({ key: `add:${t}`, in: t })),
+  ];
+}
+const pendingCount = () => pending().length;
+/* Fires only when the plan moved under a checklist you are part-way through.
+ * An untouched list just recomputes — nothing was invalidated. */
+const revisionConflict = () => state.listRev !== SAVED_REV && state.applied.length > 0;
 
 /* Candidate ranking. Availability dominates — an unavailable member is not a
  * candidate at all — and rotation need outranks raw strength, because swapping
@@ -422,16 +496,27 @@ function renderDayStrip() {
   if (current) el("daystrip").scrollLeft = Math.max(0, current.offsetLeft - 12);
 }
 
+/* One region, and both claimants are danger (#19). The revision conflict wins
+ * ties: stale collection makes the evidence you decide on older than you think,
+ * but a moved revision makes the list you are physically executing wrong. */
 function renderNotice() {
-  el("noticeslot").innerHTML = state.notice
+  el("noticeslot").innerHTML = revisionConflict()
     ? `<div class="notice" role="alert">
         <div class="grow">
-          <strong>Collection data is stale</strong>
-          <p>Last refreshed 6 hours ago. Availability and attack evidence may be out of date.</p>
+          <strong>The plan changed while you were applying it</strong>
+          <p>Now at rev ${SAVED_REV}; your checklist was built from rev ${state.listRev}. The ${state.applied.length} ${state.applied.length === 1 ? "change you already made is" : "changes you already made are"} kept — what is left has been recalculated.</p>
         </div>
-        <button type="button">Retry</button>
+        <button type="button" data-ackrev>Review</button>
       </div>`
-    : "";
+    : state.notice
+      ? `<div class="notice" role="alert">
+          <div class="grow">
+            <strong>Collection data is stale</strong>
+            <p>Last refreshed 6 hours ago. Availability and attack evidence may be out of date.</p>
+          </div>
+          <button type="button">Retry</button>
+        </div>`
+      : "";
 }
 
 function renderLineup() {
@@ -455,8 +540,43 @@ function renderLineup() {
        <button class="benchbutton" type="button" id="openbench">Bench ${ROSTER.length - planned.length} <span aria-hidden="true">›</span></button>`;
 }
 
+function checkRow(item, isDone) {
+  const name = (t) => esc(BY_TAG.get(t).name);
+  const body = item.out && item.in
+    ? `<span class="out">${name(item.out)}</span><span class="arrow">→</span><span class="in">${name(item.in)}</span>`
+    : item.out
+      ? `<span class="out">Remove ${name(item.out)}</span>`
+      : `<span class="in">Add ${name(item.in)}</span>`;
+  return `<button class="check${isDone ? " is-done" : ""}" type="button" data-check="${item.key}">
+    <span class="box" aria-hidden="true">✓</span>
+    <span class="swap">${body}</span>
+    <span class="undo">${isDone ? "Undo" : ""}</span>
+  </button>`;
+}
+
+function changesPanelHtml() {
+  const todo = pending();
+  const done = state.applied;
+  return `<div class="panel" role="dialog" aria-modal="true" aria-label="In game">
+    <div class="panel-head">
+      <div class="grow"><h2>In game</h2>
+        <p class="panel-evidence">${todo.length
+          ? `${todo.length} left · tap each one as you make it in Clash`
+          : `All ${done.length} made · this clears itself when collection sees the war`}</p></div>
+      <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+    </div>
+    <div class="panel-body">
+      ${todo.length ? `<div class="checkgroup"><p>To do</p>${todo.map((i) => checkRow(i, false)).join("")}</div>` : ""}
+      ${done.length ? `<div class="checkgroup"><p>Done</p>${done.map((i) => checkRow(i, true)).join("")}</div>` : ""}
+      ${todo.length === 0 ? `<p class="checkdone">The plan and the game agree.</p>` : ""}
+    </div>
+    ${todo.length === 0 ? `<div class="panel-foot"><button class="ghost" type="button" data-clearlist>Clear this list</button></div>` : ""}
+  </div>`;
+}
+
 function panelHtml() {
   if (!state.panel) return "";
+  if (state.panel.mode === "changes") return changesPanelHtml();
   if (state.panel.mode === "swap") {
     const m = BY_TAG.get(state.panel.tag);
     const list = candidates();
@@ -527,25 +647,22 @@ function renderPanel() {
 }
 
 function renderActionBar() {
-  const n = changeCount();
+  const unsaved = changeCount();
+  const todo = pendingCount();
+  const done = state.applied.length;
   const btn = el("changesbutton");
-  btn.className = "changes" + (n === 0 ? " is-clean" : "");
-  el("changeslabel").textContent = n === 0 ? "No changes since last save" : `${n} change${n === 1 ? "" : "s"} to make in game`;
-  el("changescaret").textContent = n === 0 ? "" : (state.changesOpen ? "⌄" : "⌃");
-  btn.setAttribute("aria-expanded", String(state.changesOpen && n > 0));
-  el("save").disabled = n === 0 || state.locked;
-
-  const open = state.changesOpen && n > 0;
-  el("replicate").hidden = !open;
-  if (!open) return;
-  const d = diff();
-  el("replicatehead").textContent = "In game";
-  el("replicatelist").innerHTML = [
-    ...d.swaps.map((s) => `<li><span class="out">${esc(BY_TAG.get(s.out).name)}</span><span class="arrow">→</span><span class="in">${esc(BY_TAG.get(s.in).name)}</span></li>`),
-    ...d.added.map((t) => `<li><span class="solo in">Add ${esc(BY_TAG.get(t).name)}</span></li>`),
-    ...d.removed.map((t) => `<li><span class="solo out">Remove ${esc(BY_TAG.get(t).name)}</span></li>`),
-    ...d.moved.map((tag) => `<li><span class="solo in">Move ${esc(BY_TAG.get(tag).name)} to ${state.draft.indexOf(tag) + 1}<span class="was"> · was ${SAVED.indexOf(tag) + 1}</span></span></li>`),
-  ].join("");
+  const quiet = todo === 0 && done === 0;
+  btn.className = "changes" + (quiet ? " is-clean" : "");
+  btn.disabled = quiet;
+  el("changeslabel").textContent = quiet
+    ? "Nothing to make in game"
+    : todo === 0
+      ? `All ${done} made in game`
+      : `${todo} to make in game${done ? ` · ${done} done` : ""}`;
+  el("changescaret").textContent = quiet ? "" : "›";
+  btn.setAttribute("aria-expanded", String(state.panel?.mode === "changes"));
+  el("save").disabled = unsaved === 0 || state.locked;
+  el("save").textContent = unsaved === 0 ? "Saved" : `Save ${unsaved}`;
 }
 
 function renderRail() {
@@ -592,7 +709,24 @@ document.addEventListener("click", (event) => {
   const harness = t.closest(".harness button");
   if (harness) {
     const key = harness.dataset.state;
-    if (key === "reset") { state.draft = [...SAVED]; state.movedTags.clear(); state.changesOpen = false; state.reordering = false; }
+    if (key === "reset") {
+      SAVED = ROSTER.slice(0, WAR_SIZE).map((m) => m.playerTag);
+      SAVED_REV = 12; APPLIED_BASE = [...SAVED];
+      state.draft = [...SAVED]; state.applied = []; state.listRev = 12;
+      state.movedTags.clear(); state.panel = null; state.reordering = false;
+    }
+    /* Someone else saves a revision while you hold a part-done checklist. The
+     * target moves, the baseline does not, and what is left recalculates. */
+    else if (key === "coleader") {
+      const swapOut = SAVED[SAVED.length - 1];
+      const swapIn = ROSTER.map((m) => m.playerTag).find((tg) => !SAVED.includes(tg));
+      if (swapIn) SAVED = SAVED.map((tg) => tg === swapOut ? swapIn : tg);
+      SAVED_REV += 1;
+      state.draft = [...SAVED]; state.movedTags.clear();
+    }
+    /* The collector observes the real war roster. Observation is ground truth,
+     * so it replaces the baseline wholesale — it does not merely tick items. */
+    else if (key === "observe") { APPLIED_BASE = baseline(); state.applied = []; }
     else { state[key] = !state[key]; harness.setAttribute("aria-pressed", String(state[key])); }
     return render();
   }
@@ -609,8 +743,34 @@ document.addEventListener("click", (event) => {
   if (state.dayMenuOpen && !t.closest(".daymenu")) { state.dayMenuOpen = false; renderDayMenu(); }
   if (t.closest("#startreorder")) { state.reordering = true; state.panel = null; return render(); }
   if (t.closest("#donereorder")) { state.reordering = false; return render(); }
-  if (t.closest("#changesbutton")) { state.changesOpen = !state.changesOpen; return renderActionBar(); }
-  if (t.closest("#save")) { alert("Prototype: this is where the plan saves."); return; }
+  if (t.closest("#changesbutton")) {
+    state.panel = state.panel?.mode === "changes" ? null : { mode: "changes" };
+    return render();
+  }
+  if (t.closest("[data-ackrev]")) { state.listRev = SAVED_REV; state.panel = { mode: "changes" }; return render(); }
+  if (t.closest("[data-clearlist]")) {
+    APPLIED_BASE = baseline(); state.applied = []; state.panel = null;
+    return render();
+  }
+  const check = t.closest("[data-check]");
+  if (check) {
+    const key = check.dataset.check;
+    const i = state.applied.findIndex((e) => e.key === key);
+    if (i >= 0) state.applied.splice(i, 1);                       // undo
+    else state.applied.push(pending().find((p) => p.key === key));
+    return render();
+  }
+  /* Save is real here, because the whole finding is that Save must NOT destroy
+   * the checklist. The plan of record advances; the game has not moved, so the
+   * baseline does not — and the work to do in Clash appears rather than
+   * vanishing. */
+  if (t.closest("#save")) {
+    SAVED = [...state.draft];
+    SAVED_REV += 1;
+    state.listRev = SAVED_REV;
+    state.movedTags.clear();
+    return render();
+  }
 
   const avail = t.closest("[data-avail]");
   if (avail) {
