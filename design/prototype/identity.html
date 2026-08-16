@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Identity — mark candidates</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<style>
+/* Clan Muster — identity spec sheet (#24 prototype).
+ *
+ * Not a UI surface. It exists to answer one question honestly: does a mark
+ * survive at 16px? So every candidate is rendered at real size against both
+ * grounds, and the 16px row is the one that decides.
+ *
+ * All marks are original heraldic geometry. Heraldic dragons are a public
+ * vocabulary centuries older than the game; nothing here derives from a
+ * Supercell asset, which matters because this repo is public and the system is
+ * meant to be reusable.
+ */
+.sheet { max-width: var(--cm-shell-lg); margin: 0 auto; padding: var(--cm-space-5) var(--cm-gutter) var(--cm-space-6); }
+.sheet h1 { margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold); }
+.lede { margin: 0 0 var(--cm-space-5); max-width: 58ch; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); line-height: 1.5; }
+h2.head {
+  margin: var(--cm-space-6) 0 var(--cm-space-3); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.note { margin: var(--cm-space-2) 0 0; font-size: var(--cm-text-xs); color: var(--cm-fg-muted); line-height: 1.5; max-width: 62ch; }
+
+/* candidates */
+.cands { display: grid; gap: var(--cm-space-4); grid-template-columns: 1fr; }
+@media (min-width: 720px) { .cands { grid-template-columns: repeat(3, 1fr); } }
+.cand { border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg); padding: var(--cm-space-4); background: var(--cm-surface); }
+.cand h3 { margin: 0 0 2px; font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold); }
+.cand p { margin: 0 0 var(--cm-space-3); font-size: var(--cm-text-xs); color: var(--cm-fg-muted); line-height: 1.5; }
+.big { display: grid; place-items: center; padding: var(--cm-space-4) 0; border-radius: var(--cm-radius-md); background: var(--cm-surface-sunken); }
+
+/* the size test — the row that actually decides */
+.sizes { display: flex; align-items: flex-end; gap: var(--cm-space-4); margin-top: var(--cm-space-3); }
+.size { display: grid; justify-items: center; gap: 4px; }
+.size span { font-size: 10px; color: var(--cm-fg-muted); font-variant-numeric: tabular-nums; }
+.ground { display: flex; gap: var(--cm-space-2); margin-top: var(--cm-space-3); }
+.ground > div { flex: 1; display: grid; place-items: center; padding: var(--cm-space-3) 0; border-radius: var(--cm-radius-sm); }
+.on-light { background: #fff; }
+.on-dark  { background: #141312; }
+.on-gold  { background: var(--cm-accent-fill); }
+
+/* a real browser tab, at real size */
+.tabs { display: flex; gap: 2px; align-items: flex-end; }
+.tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 8px 8px 0 0;
+  background: var(--cm-surface-sunken); font-size: 12px; color: var(--cm-fg-muted);
+  max-width: 190px; white-space: nowrap; overflow: hidden;
+}
+.tab.is-active { background: var(--cm-surface); color: var(--cm-fg); border: 1px solid var(--cm-hairline); border-bottom: 0; }
+
+/* permitted / forbidden */
+.rules { display: grid; gap: var(--cm-space-3); grid-template-columns: 1fr; }
+@media (min-width: 720px) { .rules { grid-template-columns: 1fr 1fr; } }
+.rule { border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg); overflow: hidden; background: var(--cm-surface); }
+.rule > header {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  padding: var(--cm-space-2) var(--cm-space-3); border-bottom: 1px solid var(--cm-hairline);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+}
+.rule .tick { width: 18px; height: 18px; border-radius: var(--cm-radius-circle); display: grid; place-items: center; font-size: 11px; color: var(--cm-surface); flex: none; }
+.rule.yes .tick { background: var(--cm-success-ink); }
+.rule.no  .tick { background: var(--cm-danger-ink); }
+.rule .demo { padding: var(--cm-space-3); background: var(--cm-surface-sunken); }
+.rule .why { padding: var(--cm-space-3); font-size: var(--cm-text-xs); color: var(--cm-fg-muted); line-height: 1.5; }
+
+/* miniature app chrome for the placement demos */
+.mini { border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-md); background: var(--cm-surface); overflow: hidden; }
+.mini-bar { display: flex; align-items: center; gap: var(--cm-space-2); padding: var(--cm-space-2) var(--cm-space-3); border-bottom: 1px solid var(--cm-hairline); }
+.mini-bar b { font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold); }
+.mini-row { display: flex; align-items: center; gap: var(--cm-space-2); padding: var(--cm-space-2) var(--cm-space-3); font-size: var(--cm-text-xs); }
+.mini-row + .mini-row { border-top: 1px solid var(--cm-hairline); }
+.mini-row .nm { flex: 1; }
+.mini-row .th { color: var(--cm-fg-muted); }
+.mini-empty { display: grid; place-items: center; gap: var(--cm-space-2); padding: var(--cm-space-5) var(--cm-space-3); text-align: center; }
+.mini-empty p { margin: 0; font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
+.watermark { position: relative; }
+.watermark svg.wm { position: absolute; right: -14px; bottom: -18px; opacity: .12; }
+</style>
+</head>
+<body>
+
+<!-- ===================================================================
+     The marks. Each is one <symbol>, drawn on a 48x48 grid, so the same
+     geometry is what gets tested at every size — scaling a mark down is
+     the test; redrawing a simpler one for small sizes would dodge it.
+     =================================================================== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- A · Head cabossed — facing the viewer, no neck. The first attempt at this
+       read as a cat, and the fix is not detail but vocabulary: a CROWN of
+       horns rather than two, a heavy brow, and a distinct muzzle block. Two
+       ears and a triangle is a cat; five horns and a muzzle is a dragon.
+       Symmetry is what buys the small sizes — an asymmetric mark loses its
+       balance point before it loses its features. -->
+  <path id="head-cabossed" d="M24 13 L18 6 L16 13 L4 2 L10 17 L5 23 L12 29 L15 38 L24 46 L33 38 L36 29 L43 23 L38 17 L44 2 L32 13 L30 6 Z"/>
+  <g id="head-cabossed-cuts">
+    <path d="M11 21 L20 25 L12 25.5 Z"/>
+    <path d="M37 21 L28 25 L36 25.5 Z"/>
+    <path d="M20 34 L28 34 L24 39 Z"/>
+  </g>
+
+  <!-- One connected mass with the mouth as a notch cut into the right edge.
+       Drawn as two floating jaws first, which read as two darts — a head is
+       legible because it is one shape, not because it has the right parts. -->
+  <path id="head-profile" d="M46 20 L30 16 L20 13 L3 3 L13 15 L7 22 L9 32 L16 44 L22 34 L38 33 L28 27 L44 24 Z"/>
+  <path id="head-profile-eye" d="M13.5 17 L19 19 L13.5 20.5 Z"/>
+
+  <symbol id="mark-a" viewBox="0 0 48 48">
+    <use href="#head-cabossed"/>
+    <use href="#head-cabossed-cuts" fill="var(--mark-bg,#fff)"/>
+  </symbol>
+
+  <!-- B · The same beast in profile. Kept as the alternative because it is a
+       different strategy rather than a different drawing: the snout does the
+       identifying, so it needs no crown of horns. A wyvern displayed was the
+       third candidate here and it was cut — at 24px the wings and legs
+       collapsed into a five-pointed star, which is a worse thing to be
+       mistaken for than a generic head. -->
+  <symbol id="mark-b" viewBox="0 0 48 48">
+    <use href="#head-profile"/>
+    <use href="#head-profile-eye" fill="var(--mark-bg,#fff)"/>
+  </symbol>
+
+  <!-- C · The clan badge — the same head knocked out of a shield. A shield
+       is itself a muster signal, and a container is the shape that survives
+       smallest: at 16px a badge still reads as a badge when its contents
+       have stopped resolving. -->
+  <symbol id="mark-c" viewBox="0 0 48 48">
+    <path d="M24 2 L44 8 L44 24 C44 37 35 43.5 24 47 C13 43.5 4 37 4 24 L4 8 Z"/>
+    <!-- the same head, transformed rather than redrawn, so the two marks
+         cannot drift apart as either is refined -->
+    <g transform="translate(10.5 9.5) scale(0.56)">
+      <use href="#head-cabossed" fill="var(--mark-bg,#fff)"/>
+    </g>
+  </symbol>
+</svg>
+
+<div class="sheet">
+  <h1>Clan Muster identity</h1>
+  <p class="lede">
+    Three candidates for the mark, each drawn once on a 48×48 grid and then only scaled — so the 16px row is a real
+    test rather than a redrawn shortcut. Gold is the constant; the mark is the only place the system is allowed
+    a personality that is not neutral.
+  </p>
+
+  <div class="notice" role="note" style="margin-bottom:var(--cm-space-5)">
+    <div class="grow">
+      <strong>Decided: A everywhere, C at 16–32px</strong>
+      <p>One mark with a container variant, not two marks — C is A knocked out of a shield by transform, so they cannot drift.
+         The bare head wherever there is room; the badge where the container is what survives.</p>
+    </div>
+  </div>
+
+  <h2 class="head">Candidates</h2>
+  <div class="cands">
+    <div class="cand">
+      <h3>A · Head cabossed</h3>
+      <p>Facing you, no neck. A crown of horns, a heavy brow, a muzzle block — the vocabulary that separates a dragon from a cat.</p>
+      <div class="big"><svg width="112" height="112" style="--mark-bg:var(--cm-surface-sunken)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg></div>
+      <div class="sizes">
+        <div class="size"><svg width="48" height="48" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg><span>48</span></div>
+        <div class="size"><svg width="32" height="32" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg><span>32</span></div>
+        <div class="size"><svg width="24" height="24" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg><span>24</span></div>
+        <div class="size"><svg width="16" height="16" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg><span>16</span></div>
+      </div>
+      <div class="ground">
+        <div class="on-light"><svg width="28" height="28" style="--mark-bg:#fff" fill="#B8860B"><use href="#mark-a"/></svg></div>
+        <div class="on-dark"><svg width="28" height="28" style="--mark-bg:#141312" fill="#E8B93F"><use href="#mark-a"/></svg></div>
+        <div class="on-gold"><svg width="28" height="28" style="--mark-bg:var(--cm-accent-fill)" fill="var(--cm-on-accent)"><use href="#mark-a"/></svg></div>
+      </div>
+    </div>
+
+    <div class="cand">
+      <h3>B · Head in profile</h3>
+      <p>Open jaw, one swept horn. The snout does the identifying here, so it needs no crown.</p>
+      <div class="big"><svg width="112" height="112" style="--mark-bg:var(--cm-surface-sunken)" fill="var(--cm-accent-fill)"><use href="#mark-b"/></svg></div>
+      <div class="sizes">
+        <div class="size"><svg width="48" height="48" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-b"/></svg><span>48</span></div>
+        <div class="size"><svg width="32" height="32" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-b"/></svg><span>32</span></div>
+        <div class="size"><svg width="24" height="24" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-b"/></svg><span>24</span></div>
+        <div class="size"><svg width="16" height="16" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-b"/></svg><span>16</span></div>
+      </div>
+      <div class="ground">
+        <div class="on-light"><svg width="28" height="28" style="--mark-bg:#fff" fill="#B8860B"><use href="#mark-b"/></svg></div>
+        <div class="on-dark"><svg width="28" height="28" style="--mark-bg:#141312" fill="#E8B93F"><use href="#mark-b"/></svg></div>
+        <div class="on-gold"><svg width="28" height="28" style="--mark-bg:var(--cm-accent-fill)" fill="var(--cm-on-accent)"><use href="#mark-b"/></svg></div>
+      </div>
+    </div>
+
+    <div class="cand">
+      <h3>C · The clan badge</h3>
+      <p>The same head knocked out of a shield. A container survives shrinking better than a silhouette does.</p>
+      <div class="big"><svg width="112" height="112" style="--mark-bg:var(--cm-surface-sunken)" fill="var(--cm-accent-fill)"><use href="#mark-c"/></svg></div>
+      <div class="sizes">
+        <div class="size"><svg width="48" height="48" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-c"/></svg><span>48</span></div>
+        <div class="size"><svg width="32" height="32" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-c"/></svg><span>32</span></div>
+        <div class="size"><svg width="24" height="24" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-c"/></svg><span>24</span></div>
+        <div class="size"><svg width="16" height="16" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-c"/></svg><span>16</span></div>
+      </div>
+      <div class="ground">
+        <div class="on-light"><svg width="28" height="28" style="--mark-bg:#fff" fill="#B8860B"><use href="#mark-c"/></svg></div>
+        <div class="on-dark"><svg width="28" height="28" style="--mark-bg:#141312" fill="#E8B93F"><use href="#mark-c"/></svg></div>
+        <div class="on-gold"><svg width="28" height="28" style="--mark-bg:var(--cm-accent-fill)" fill="var(--cm-on-accent)"><use href="#mark-c"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">
+    Each candidate is shown on white, on near-black, and knocked out of gold. The third is the app-icon case, and it is
+    the strictest: a mark that needs its own interior colour to read cannot be a single-colour icon.
+  </p>
+
+  <h2 class="head">The 16px test, in a tab</h2>
+  <div class="tabs">
+    <div class="tab is-active"><svg width="16" height="16" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg> Clan Muster · A</div>
+    <div class="tab"><svg width="16" height="16" style="--mark-bg:var(--cm-surface-sunken)" fill="var(--cm-accent-fill)"><use href="#mark-b"/></svg> Clan Muster · B</div>
+    <div class="tab"><svg width="16" height="16" style="--mark-bg:var(--cm-surface-sunken)" fill="var(--cm-accent-fill)"><use href="#mark-c"/></svg> Clan Muster · C</div>
+  </div>
+  <p class="note">Real size, real context. A mark that only works in the specimen block above is not a favicon.</p>
+
+  <h2 class="head">Where identity is allowed</h2>
+  <div class="rules">
+    <div class="rule yes">
+      <header><span class="tick">✓</span> App mark, in the top bar</header>
+      <div class="demo">
+        <div class="mini">
+          <div class="mini-bar"><svg width="20" height="20" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg><b>Clan Muster</b></div>
+          <div class="mini-row"><span class="nm">Yarrowmere</span><span class="th">TH14</span></div>
+          <div class="mini-row"><span class="nm">Bramblefang</span><span class="th">TH16</span></div>
+        </div>
+      </div>
+      <div class="why">Once per screen, at 20–24px, beside the product name. This is the only place the mark appears in normal use.</div>
+    </div>
+
+    <div class="rule yes">
+      <header><span class="tick">✓</span> Empty state</header>
+      <div class="demo">
+        <div class="mini">
+          <div class="mini-empty">
+            <svg width="56" height="56" style="--mark-bg:var(--cm-surface)" fill="var(--cm-n-300)"><use href="#mark-a"/></svg>
+            <p>No war day selected yet.</p>
+          </div>
+        </div>
+      </div>
+      <div class="why">Muted to a neutral, never gold — an empty state is not an achievement, and gold here would read as a status.</div>
+    </div>
+
+    <div class="rule no">
+      <header><span class="tick">✕</span> As UI texture</header>
+      <div class="demo">
+        <div class="mini watermark">
+          <div class="mini-bar"><b>Day 3 lineup</b></div>
+          <div class="mini-row"><svg width="14" height="14" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)" class="rowmark"><use href="#mark-a"/></svg><span class="nm">Yarrowmere</span><span class="th">TH14</span></div>
+          <div class="mini-row"><svg width="14" height="14" style="--mark-bg:var(--cm-surface)" fill="var(--cm-accent-fill)" class="rowmark"><use href="#mark-a"/></svg><span class="nm">Bramblefang</span><span class="th">TH16</span></div>
+          <svg width="90" height="90" class="wm" style="--mark-bg:transparent" fill="var(--cm-accent-fill)"><use href="#mark-a"/></svg>
+        </div>
+      </div>
+      <div class="why">A mark on every row is a bullet point, and a watermark is decoration competing with data. The map's rule: identity layer only, never UI texture.</div>
+    </div>
+
+    <div class="rule no">
+      <header><span class="tick">✕</span> Carrying meaning</header>
+      <div class="demo">
+        <div class="mini">
+          <div class="mini-row"><span class="nm">Quillon</span><svg width="14" height="14" style="--mark-bg:var(--cm-surface)" fill="var(--cm-success-ink)"><use href="#mark-a"/></svg><span class="th">secured</span></div>
+          <div class="mini-row"><span class="nm">Ospreymoor</span><svg width="14" height="14" style="--mark-bg:var(--cm-surface)" fill="var(--cm-danger-ink)"><use href="#mark-a"/></svg><span class="th">at risk</span></div>
+        </div>
+      </div>
+      <div class="why">The moment the mark takes a state colour it becomes a sixth semantic mark, and #19 fixed the set at five. Identity never states an evaluation.</div>
+    </div>
+  </div>
+
+  <h2 class="head">Illustration beyond the mark</h2>
+  <p class="note" style="max-width:62ch">
+    None. There is no illustration style, no spot art, no mascot poses. The mark is one shape at one weight, recoloured
+    but never redrawn — which is also why the empty state above reuses the mark at 56px rather than introducing a scene.
+    A second illustration vocabulary would need a surface that demands it, and neither prototype produced one.
+  </p>
+</div>
+
+</body>
+</html>
