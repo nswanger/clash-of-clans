@@ -152,6 +152,15 @@ The baseline is durable, plan-scoped, **server-side** state, not view state: a h
 
 The vector itself is a working draft, good enough to build against; refining it does not reopen the decision.
 
+**The icon set is locked** ([#40](https://github.com/nswanger/clash-of-clans/issues/40)), in [`prototype/_prototype.js`](prototype/_prototype.js) with its rules in [`components.md`](components.md).
+
+- **Six of the eight icons in the two locked surfaces were silently broken.** Google serves Archivo with `U+2191` and `U+2193` but **not** `U+2192` — up and down arrows, no right arrow — and nothing from Misc Symbols, Braille, or Dingbats. The ellipsis, reorder toggle, drag handle, checkmark, right arrow and star were all rendering in whatever font the platform happened to substitute. This was invisible on the machine they were designed on, which is the same failure mode as #17 finding the app had never loaded a webfont at all.
+- **The star was the worst of them**, and it was found by scanning rather than by listing from memory. It appears in every stat column, and `U+2605` renders as a **colour emoji** on some platforms — a coloured glyph in a numeric column, in a system whose colour rules are otherwise exact.
+- **Eight inline SVG icons in one `<symbol>` sprite.** No library and no icon font: eight is small enough that a library would be almost entirely unused weight, and an icon font adds a network request plus screen readers announcing private-use codepoints.
+- **Sized in em, coloured by `currentColor`.** An icon inherits size and colour from its type context — the one good property the glyphs had, and worth preserving deliberately rather than losing by accident.
+- **The rule is role, not coverage:** if it sits in running text it stays a character; if it is an affordance it becomes an icon. That keeps `·` as punctuation in `.sep` and makes `×` and `›` icons even though Archivo has them, so one alignment model governs.
+- **Icons are flex items, so whitespace beside them collapses.** Any component mixing icons and text in a flex container needs an explicit `gap` — a space in the markup will not survive. The pill was the one that slipped through.
+
 ## Not yet decided
 
 How the web app consumes these tokens — importing this directory directly, promoting it to a workspace package under `packages/`, or copying at build time. That rides with migration mechanics in [#25](https://github.com/nswanger/clash-of-clans/issues/25). Nothing in `apps/web` imports this yet.

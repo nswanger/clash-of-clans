@@ -206,14 +206,31 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
 .row-th { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
 .chev { font-size: var(--cm-text-md); color: var(--cm-fg-muted); }
 
+/* ---------- icons (#40) ----------
+ * Sized in em and coloured by currentColor, so an icon inherits both from its
+ * type context exactly as the Unicode glyphs it replaced did. That inheritance
+ * is the only good property the glyphs had, and it is worth keeping — nothing
+ * needs a per-use size, and an icon inside muted text is muted for free.
+ *
+ * The line: if it sits in running text it stays a character; if it is an
+ * affordance it is an icon. That keeps the middle dot in .sep as punctuation
+ * and makes the rest of the set SVG, coverage notwithstanding.
+ */
+.icon { width: 1em; height: 1em; flex: none; vertical-align: -0.125em; }
+.icon.is-lg { width: 1.15em; height: 1.15em; }
+
 /* availability is displayed on the row, edited in the panel */
 .avail { font-weight: var(--cm-weight-medium); }
 .avail.is-available { color: var(--cm-success-ink); }
 .avail.is-unavailable { color: var(--cm-danger-ink); }
 .avail.is-unknown { color: var(--cm-fg-unknown); }
 
+/* gap, not a space in the markup: an icon is a flex item now, and the
+ * whitespace text node beside it collapses. Anything mixing icons and text in
+ * a flex container needs explicit spacing — this is the one that was caught by
+ * eye rather than by rule. */
 .pill {
-  display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
   border-radius: var(--cm-radius-pill);
   font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
   letter-spacing: var(--cm-tracking-label); text-transform: uppercase; white-space: nowrap;
