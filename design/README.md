@@ -127,6 +127,17 @@ War figures are **all-time**, labelled as such. `regular_war_member_history` has
 
 The baseline is durable, plan-scoped, **server-side** state, not view state: a half-applied change set is a fact about the clan's war rather than about one phone, so a co-leader who applied the swaps does not leave you redoing them. Persisting it is a data change — [#36](https://github.com/nswanger/clash-of-clans/issues/36), tracked outside this map.
 
+**The component inventory and API conventions are locked** ([#23](https://github.com/nswanger/clash-of-clans/issues/23)), in [`components.md`](components.md) — the full list, with each component's variants and states.
+
+- **Three layers, decided by concept rather than by use count.** *System* means the same thing on any page; *editing* belongs to surfaces that change something; *page* is one surface's own vocabulary. The editing layer earned its name by being found three times independently — neither the action bar nor the in-game checklist survived from the lineup to the members roster.
+- **`cm-` prefix on every component class**, matching the tokens. The prototypes use bare names because each is a standalone document; in a shared stylesheet during an incremental migration `.row` collides on contact. This is the one convention that changes rather than ports.
+- **State and variants are both compound `is-*` classes**, and a variant is named for the semantic state it expresses rather than the use that first needed it — `.cm-pill.is-caution`, not `.cm-pill.turn`. Variant names come from #19's five marks, so a variant that cannot be named from that list means the component is being asked to carry a meaning the system does not have.
+- **Classes carry appearance, data attributes carry behaviour.** Styled classes are never queried; `data-close`, `data-check`, `data-search`, `data-handle` are never styled. A restyle cannot break a click handler.
+- **No CSS Modules.** One global component stylesheet ported near-verbatim from `_prototype.css`, with thin React components emitting the classes. Modules would rename every class and break the correspondence between the prototypes and the shipped code — the prototypes are the spec, so a direct port verifies the design by construction.
+- **Utilities are capped at five** (`grow`, `count`, `eyebrow`, `empty`, `sep`). An uncapped utility layer becomes Tailwind by hand, which the map ruled out in charting.
+- **Two rules were written and proved unreachable, and both are deleted rather than kept as gaps.** `.avail.is-available` is dead because rows mark the exception, so the majority state is never rendered — the row-marking rule pruned the component's own API. `.pill.info` is dead because info's one live form is the provenance rail; #19 gave info a fifth mark and the surfaces only ever needed one shape for it.
+- **Two renames**, both where the name recorded a first use rather than a concept: `avail` → `cm-statustext` (the members roster already uses it for "Left 3mo ago"), and `lockchip` → `cm-statuschip`.
+
 ## Not yet decided
 
-How the web app consumes these tokens — importing this directory directly, promoting it to a workspace package under `packages/`, or copying at build time. That is part of [#23](https://github.com/nswanger/clash-of-clans/issues/23), where component API conventions are settled. Nothing in `apps/web` imports this yet.
+How the web app consumes these tokens — importing this directory directly, promoting it to a workspace package under `packages/`, or copying at build time. That rides with migration mechanics in [#25](https://github.com/nswanger/clash-of-clans/issues/25). Nothing in `apps/web` imports this yet.
