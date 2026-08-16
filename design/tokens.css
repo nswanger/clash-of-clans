@@ -181,6 +181,14 @@
    * The colour carries the meaning and is set per use; selection is
    * --cm-accent-edge. Provenance and state colours are #19.
    *
+   * On a row, this slot carries PROVENANCE ONLY (#20). Do not add a second
+   * state colour to it: edit state was tried here as a caution rail and
+   * measured 1.12:1 against the info rail in light and 1.05:1 in dark — two
+   * 3px bars 49deg apart at the same lightness, and blue-against-violet is the
+   * worst pair to hand red-deficient vision. A second meaning on a row needs a
+   * different form, not a different hue in the same slot; edit state uses the
+   * position number.
+   *
    * Two forms, because an inset box-shadow follows the border-radius: on a
    * soft-radius row a left rail drawn that way is eaten by the corners and
    * renders as a crescent. Caught by rendering it.
