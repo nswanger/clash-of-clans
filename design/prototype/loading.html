@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loading — pattern prototype</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<script src="_prototype.js" defer></script>
+<style>
+/* Clan Muster — loading and async boundaries (#43 prototype).
+ *
+ * The map's personality anchor decides most of this: "uncertainty is expressed
+ * structurally, not editorially — an unknown value renders as a muted dash, a
+ * lower-weight cell, an absent bar, never a banner explaining itself." Loading
+ * is the most literal unknown in the app, so it gets no copy at all.
+ *
+ * Everything here is measured against the real row, not an invented one: the
+ * skeleton reuses .row from _prototype.css so its height cannot drift from the
+ * thing it stands in for.
+ */
+.sheet { max-width: var(--cm-shell-lg); margin: 0 auto; padding: var(--cm-space-5) var(--cm-gutter) var(--cm-space-6); }
+.sheet h1 { margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold); }
+.lede { margin: 0 0 var(--cm-space-5); max-width: 60ch; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); line-height: 1.5; }
+h2.head {
+  margin: var(--cm-space-6) 0 var(--cm-space-2); font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.note { margin: var(--cm-space-2) 0 0; max-width: 62ch; font-size: var(--cm-text-xs); color: var(--cm-fg-muted); line-height: 1.5; }
+.pair { display: grid; gap: var(--cm-space-3); grid-template-columns: 1fr; }
+@media (min-width: 720px) { .pair { grid-template-columns: 1fr 1fr; } }
+.card { border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg); background: var(--cm-surface); overflow: hidden; }
+.card > header {
+  padding: var(--cm-space-2) var(--cm-space-3); border-bottom: 1px solid var(--cm-hairline);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+}
+.card > .body { padding: var(--cm-space-3); }
+.demo-actions { display: flex; flex-wrap: wrap; gap: var(--cm-space-2); margin-bottom: var(--cm-space-3); }
+.demo-actions button {
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+
+/* .skel, the shimmer and .row.is-skeleton now live in _prototype.css —
+ * a skeleton means the same thing on any page, so it is system layer (#23). */
+
+/* today's treatment, for comparison only — not part of the system */
+.legacy { padding: var(--cm-space-6) var(--cm-space-3); text-align: center; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
+
+.pending { opacity: .55; }
+.stamp {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--cm-text-xs); color: var(--cm-fg-muted);
+}
+.spin { width: 12px; height: 12px; border-radius: var(--cm-radius-circle);
+  border: 2px solid color-mix(in oklab, var(--cm-fg) 20%, transparent); border-top-color: var(--cm-fg-muted);
+  animation: cm-spin .7s linear infinite; }
+@keyframes cm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <h1>Loading</h1>
+  <p class="lede">
+    A skeleton is a muted placeholder in the exact shape of the content that is arriving — a bar where each name will be,
+    a shorter one where its stat will be. It replaces both the spinner and the word “Loading”, and because it occupies the
+    same space as the real row, nothing moves when the data lands.
+  </p>
+
+  <h2 class="head">Today, and the pattern</h2>
+  <div class="pair">
+    <div class="card">
+      <header>Today</header>
+      <div class="body">
+        <div class="legacy">Loading your war room…</div>
+      </div>
+      <p class="note" style="padding:0 var(--cm-space-3) var(--cm-space-3)">
+        One of six such strings across five files, with no CSS at all. It also announces itself, which the system’s own
+        rule forbids: if the user cannot act on it, it is not a notice.
+      </p>
+    </div>
+    <div class="card">
+      <header>Clan Muster</header>
+      <div class="body"><div class="rows" id="static-skel"></div></div>
+      <p class="note" style="padding:0 var(--cm-space-3) var(--cm-space-3)">
+        Same row, same height, same padding — the skeleton is <code>.row</code> with blocks instead of content, so it
+        cannot drift from the thing it stands in for.
+      </p>
+    </div>
+  </div>
+
+  <h2 class="head">The threshold</h2>
+  <div class="card">
+    <div class="body">
+      <div class="demo-actions">
+        <button type="button" data-load="120">Fast load · 120ms</button>
+        <button type="button" data-load="900">Slow load · 900ms</button>
+      </div>
+      <div class="rows" id="threshold"></div>
+      <p class="sr" role="status" aria-live="polite" id="live"></p>
+    </div>
+  </div>
+  <p class="note">
+    Nothing renders for the first <b>250ms</b>. A fast load therefore shows no skeleton at all — try it — because a
+    placeholder that appears and vanishes inside a tenth of a second is a flash, and reads as breakage rather than
+    progress. Only a wait long enough to notice gets acknowledged, which is the honest rendering of “this was a wait”.
+  </p>
+
+  <h2 class="head">Re-fetching, with content already on screen</h2>
+  <div class="card">
+    <div class="body">
+      <div class="demo-actions">
+        <button type="button" id="refetch">Save</button>
+        <span class="stamp" id="stamp"></span>
+      </div>
+      <div class="rows" id="refetch-rows"></div>
+    </div>
+  </div>
+  <p class="note">
+    The list does not become a skeleton. Replacing populated rows destroys your reading position to tell you something the
+    button already said — so <b>the control that triggered the fetch owns the pending state</b>, and the content stays put.
+    A background refresh gets nothing at all, because the freshness line already reports it.
+  </p>
+
+  <h2 class="head">What carries it for screen readers</h2>
+  <p class="note" style="margin-top:0">
+    No visible copy anywhere, so the announcement is <code>aria-busy</code> on the region plus one visually hidden live
+    region — present in this page, and the reason deleting the six strings costs nothing in accessibility terms.
+  </p>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * Demo wiring. The only load-bearing value here is SKELETON_DELAY.
+ * ------------------------------------------------------------------------- */
+const el = (id) => document.getElementById(id);
+const SKELETON_DELAY = 250;   // ms before a skeleton is allowed to appear
+
+/* Widths vary per row so the placeholder reads as text rather than as a bar
+ * chart. Deterministic, not random — a skeleton that reshuffles on every
+ * render draws the eye to itself. */
+const W = [[62, 34], [48, 30], [71, 38], [55, 26], [66, 34]];
+
+function skeletonRows(n = 5) {
+  return Array.from({ length: n }, (_, i) => {
+    const [name, meta] = W[i % W.length];
+    return `<div class="row has-pos is-skeleton" aria-hidden="true">
+      <span class="skel" style="width:14px"></span>
+      <div class="row-main">
+        <span class="skel" style="width:${name}%"></span>
+        <div class="row-meta"><span class="skel" style="width:${meta}%;height:10px"></span></div>
+      </div>
+      <span class="skel" style="width:30px"></span>
+      <span class="skel" style="width:8px"></span>
+    </div>`;
+  }).join("");
+}
+
+const MEMBERS = [
+  ["Yarrowmere", "TH14 · Member"], ["Bramblefang", "TH16 · Co-leader"],
+  ["Ospreymoor", "TH14 · Member"], ["Quillon", "TH16 · Elder"], ["Ashfall", "TH15 · Leader"],
+];
+const realRows = () => MEMBERS.map(([name, meta], i) =>
+  `<div class="row has-pos"><span class="row-pos">${i + 1}</span>
+    <div class="row-main"><div class="row-name">${name}</div><div class="row-meta">${meta}</div></div>
+    <span class="row-th">TH1${4 + (i % 3)}</span>
+    <span class="chev" aria-hidden="true"><svg class="icon"><use href="#i-chevron"/></svg></span>
+  </div>`).join("");
+
+el("static-skel").innerHTML = skeletonRows(3);
+
+/* The threshold: the skeleton is scheduled, not shown. If the data beats the
+ * timer the timer is cancelled and the skeleton never existed. */
+let timer = null;
+for (const button of document.querySelectorAll("[data-load]")) {
+  button.addEventListener("click", () => {
+    const ms = Number(button.dataset.load);
+    const target = el("threshold");
+    clearTimeout(timer);
+    target.innerHTML = "";
+    target.setAttribute("aria-busy", "true");
+    el("live").textContent = "Loading members";
+    timer = setTimeout(() => { target.innerHTML = skeletonRows(5); }, SKELETON_DELAY);
+    setTimeout(() => {
+      clearTimeout(timer);
+      target.removeAttribute("aria-busy");
+      target.innerHTML = realRows();
+      el("live").textContent = `${MEMBERS.length} members loaded`;
+    }, ms);
+  });
+}
+el("threshold").innerHTML = realRows();
+
+/* Re-fetch: the button goes pending, the rows do not move. */
+el("refetch-rows").innerHTML = realRows();
+el("refetch").addEventListener("click", () => {
+  const button = el("refetch");
+  button.disabled = true;
+  button.textContent = "Saving…";
+  el("stamp").innerHTML = `<span class="spin" aria-hidden="true"></span>`;
+  setTimeout(() => {
+    button.disabled = false;
+    button.textContent = "Save";
+    el("stamp").textContent = "Saved just now";
+  }, 1400);
+});
+</script>
+</body>
+</html>

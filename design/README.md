@@ -161,6 +161,14 @@ The vector itself is a working draft, good enough to build against; refining it 
 - **The rule is role, not coverage:** if it sits in running text it stays a character; if it is an affordance it becomes an icon. That keeps `·` as punctuation in `.sep` and makes `×` and `›` icons even though Archivo has them, so one alignment model governs.
 - **Icons are flex items, so whitespace beside them collapses.** Any component mixing icons and text in a flex container needs an explicit `gap` — a space in the markup will not survive. The pill was the one that slipped through.
 
+**The loading pattern is locked** ([#43](https://github.com/nswanger/clash-of-clans/issues/43)), in [`prototype/loading.html`](prototype/loading.html).
+
+- **Loading has no copy.** The personality anchor decides it: uncertainty is expressed structurally, never editorially, and loading is the most literal unknown in the app. So the six ad-hoc `Loading…` strings across five files are deleted rather than systematized. `aria-busy` plus one visually hidden live region carries the announcement, which is why deleting them costs nothing.
+- **Nothing renders for the first 250ms.** A placeholder that appears and vanishes inside a tenth of a second is a flash, and reads as breakage rather than progress. The skeleton is *scheduled*, not shown — if the data beats the timer, the skeleton never existed. Most loads will therefore show nothing at all.
+- **One primitive, not one per surface.** A skeleton row is `.row` with muted blocks instead of content, so it inherits height, padding, radius and grid from the real row and cannot drift from what it stands in for. Page chrome renders normally, because a skeleton of the chrome is just a slower version of the chrome.
+- **The control that triggered a fetch owns its pending state.** On a re-fetch the list does not become a skeleton — replacing populated rows destroys the reader's position to say what the button already said. Save goes pending; the roster stays put.
+- **Loading is not a brand moment.** A themed animation on every fetch is the Clash-skinned UI the map ruled out. If one is ever built it is scoped to cold app start, and is a separate decision rather than a swap into this component.
+
 **The migration mechanics are locked** ([#25](https://github.com/nswanger/clash-of-clans/issues/25)), in [`migration.md`](migration.md) — the plan someone executes.
 
 - **`design/` becomes a workspace package without moving.** Add `design` to the `pnpm-workspace.yaml` globs and a `package.json` naming it `@cwl/design`. Moving it under `packages/` would be tidier and is not worth breaking every `DesignSync` and artifact path for.
