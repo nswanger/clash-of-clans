@@ -74,6 +74,27 @@ Decorative icons take `aria-hidden="true"`; the accessible name stays on the but
 
 **Icons are flex items, so whitespace beside them collapses.** Any component mixing icons and text in a flex container needs an explicit `gap`; a space in the markup will not survive. `cm-pill` is the one that was caught by eye rather than by rule.
 
+## Loading
+
+Locked by [#43](https://github.com/nswanger/clash-of-clans/issues/43). **Loading has no copy.** The personality anchor governs it — uncertainty is expressed structurally, never editorially — and loading is the most literal unknown in the app, so the six ad-hoc `Loading…` strings are deleted rather than restyled.
+
+| Class | Notes |
+|---|---|
+| `cm-skel` | One muted block. The only primitive. |
+| `cm-row.is-skeleton` | `cm-row` with blocks instead of content — inherits height, padding, radius and grid from the real row, so it cannot drift from what it stands in for. |
+
+The tint is `color-mix(in oklab, var(--cm-fg) 13%, transparent)` rather than a new token, so it inverts with the theme for free; a fixed grey is invisible in one theme and glaring in the other. The shimmer sits on top of a shape that already communicates, so it is the first thing `prefers-reduced-motion` removes.
+
+**Three rules:**
+
+1. **Nothing renders for the first 250ms.** A placeholder that appears and vanishes inside a tenth of a second is a flash, and reads as breakage rather than progress. Fast loads therefore show nothing at all, which is the honest rendering of "this was not a wait." The skeleton is *scheduled*, not shown — if the data beats the timer, the timer is cancelled and the skeleton never existed.
+2. **One primitive, not one per surface.** The row is the dominant shape, so a skeleton row covers the list, the panel, and most of a route. Page chrome — topbar, segmented strip, section heads — renders normally, because a skeleton of the chrome is just a slower version of the chrome.
+3. **The control that triggered a fetch owns its pending state.** On a re-fetch with content already on screen, the list does not become a skeleton: replacing populated rows destroys the reader's position to say what the button already said. Save goes pending; the roster stays put. A background refresh gets nothing, because the freshness line already reports it.
+
+Announcement is `aria-busy` on the region plus one visually hidden live region. That is why deleting the visible strings costs nothing in accessibility terms.
+
+**Loading is not a brand moment.** Identity is the mark only, never UI texture (#24), and a themed animation on every list fetch is the Clash-skinned UI the map ruled out. If one is ever built it is scoped to cold app start — the one place it would actually be seen, given most loads finish under the threshold — and it is a separate decision, not a swap into this component.
+
 ## System layer
 
 ### Shell and header

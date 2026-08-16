@@ -219,6 +219,37 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
 .icon { width: 1em; height: 1em; flex: none; vertical-align: -0.125em; }
 .icon.is-lg { width: 1.15em; height: 1.15em; }
 
+/* ---------- loading (#43) ----------
+ * Uncertainty is structural, never editorial — so loading has no copy at all,
+ * and "Loading…" is deleted rather than restyled. A skeleton is one primitive:
+ * a muted block. The skeleton ROW is just .row with blocks instead of content,
+ * so it inherits height, padding, radius and grid from the real thing and
+ * cannot drift from what it stands in for.
+ *
+ * The tint is a color-mix against --cm-fg rather than a new token, so it
+ * inverts with the theme for free; a fixed grey is invisible in one theme and
+ * glaring in the other.
+ *
+ * Nothing renders for the first 250ms (see _prototype.js). A placeholder that
+ * appears and vanishes inside a tenth of a second is a flash, and reads as
+ * breakage rather than progress.
+ */
+.skel {
+  position: relative; overflow: hidden; display: block;
+  height: 12px; border-radius: var(--cm-radius-sm);
+  background: color-mix(in oklab, var(--cm-fg) 13%, transparent);
+}
+.skel::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--cm-fg) 9%, transparent), transparent);
+  animation: cm-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes cm-shimmer { to { transform: translateX(100%); } }
+/* the shimmer sits on top of a shape that already communicates, so it goes first */
+@media (prefers-reduced-motion: reduce) { .skel::after { animation: none; } }
+.row.is-skeleton { pointer-events: none; }
+.row.is-skeleton .row-meta { margin-top: 5px; }
+
 /* availability is displayed on the row, edited in the panel */
 .avail { font-weight: var(--cm-weight-medium); }
 .avail.is-available { color: var(--cm-success-ink); }
