@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-e2e",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "VITE_E2E_MODE=true pnpm --filter @cwl/web exec vite --host 127.0.0.1 --port 5183 --base /"
+      ],
+      "port": 5183,
+      "url": "http://127.0.0.1:5183"
+    }
+  ]
+}

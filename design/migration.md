@@ -86,6 +86,22 @@ The remaining routes — `overview`, `season`, `dashboard`, `access` — brought
 
 **Settle this before starting wave 3**, in its own session. Deciding what the app should contain is a different question from deciding what it should look like, and answering it inside a styling wave is how a restyle silently becomes a redesign.
 
+### The app chrome — in no wave, and now visibly so
+
+**The primary nav and the auth shells belong to no wave and to no component.** Both live in `app.tsx`:
+
+- **`.app-shell > nav`** — five links and the display name, on a white bar with its own hover and border rules in `styles.css`.
+- **The three auth shells** — loading, signed-out and access-denied, all on `.access-shell`. Wave 3 lists `access`, but that is `#/access`, the access-management page. The sign-in screen is a different surface that happens to share a class.
+
+It slipped for a legible reason rather than by oversight: the waves are organised by route, and neither of these is one. [`components.md`](components.md) has no navigation component either — its "Navigation and notice" section is the segmented strip and the notice region, which are in-page controls. **Nor is there a prototype.** Each prototype is a standalone document with a `topbar` and no app chrome at all; the only `<nav>` in either is the lineup's day strip, which is a `cm-segmented`.
+
+**Wave 1 turned this from a gap into a defect.** The element base now paints the whole app on `--cm-bg` in the reader's theme, and the nav does not participate: it is a white bar above a dark page, on every route, and it stays wrong until someone fixes it — including on the CWL workspace the moment wave 2 lands.
+
+That makes it the one piece of conformance work with a reason to move early, and the one with the least to go on. Two questions, both open:
+
+- **When.** Fold it into wave 3 with the other routes, or pull it forward as its own commit before wave 2, so the workspace rebuild is reviewed against chrome that already matches it.
+- **What.** There is nothing to port. Conforming the nav means designing one, which is exactly the case `components.md` calls "a finding worth recording rather than a licence to invent" — so it wants a real decision about what app-level navigation is in this system, not a `cm-`-prefixed restatement of the current bar.
+
 ## Rules
 
 **A surface migrates all at once, never rule by rule**, and its old CSS is deleted in the same commit. Collision between the two systems is impossible by construction — every Clan Muster class is `cm-`-prefixed — so the only real hazard runs the other way: an old rule still matching a *rebuilt* element because the rebuild kept an old class name. Deleting the old block in the same commit means there is never a window where both could apply.
