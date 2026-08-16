@@ -399,11 +399,11 @@ function rowHtml(m, selected) {
     </span>
     <span class="row-stats wide-only">
       <span class="row-th stat">${m.warAttacksMade} / ${m.warAssignedAttacks}</span>
-      <span class="row-th stat">${m.warStars}★</span>
+      <span class="row-th stat">${m.warStars}<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></span>
       <span class="row-th stat">${m.isCurrentMember ? days(m.tenureDays) : "—"}</span>
     </span>
     <span class="row-stats"><span class="row-th">TH${m.townHallLevel}</span></span>
-    <span class="chev" aria-hidden="true">›</span>
+    <span class="chev" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></span>
   </button>`;
 }
 
@@ -430,7 +430,7 @@ function memberPanelHtml(m, wide) {
         <p class="panel-evidence">${roleLabel(m.role)} · TH${m.townHallLevel} ·
           ${m.isCurrentMember ? `in the clan ${days(m.tenureDays)}` : `left ${days(m.departedDaysAgo)} ago`}</p>
       </div>
-      ${wide ? "" : '<button class="iconbutton" type="button" data-close aria-label="Close">×</button>'}
+      ${wide ? "" : '<button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>'}
     </div>
     <div class="panel-body">
       <p class="panel-label">${activityLabel(a.status)} · ${label}</p>
@@ -473,7 +473,7 @@ function filterPanelHtml() {
     <div class="panel-head">
       <div class="grow"><h2>Filters</h2>
         <p class="panel-evidence">${visible().length} of ${ROSTER.length} observed members</p></div>
-      <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+      <button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="panel-body">
       ${group("Roster", "scope", [["current", "Current"], ["former", "Former"], ["all", "All observed"]])}
@@ -493,7 +493,7 @@ function wallHtml() {
   return `<div class="panel" role="dialog" aria-label="Today's member card">
     <div class="panel-head"><div class="grow"><h2>${esc(m.name)}</h2>
       <p class="panel-evidence">Today's card, unchanged — one of fifty in the list</p></div>
-      <button class="iconbutton" type="button" data-close aria-label="Close">×</button></div>
+      <button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
     <div class="panel-body">
       <dl class="facts" style="grid-template-columns:1fr">
         <div><dt>Role</dt><dd>${roleLabel(m.role)}</dd></div>

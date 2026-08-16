@@ -11,6 +11,49 @@
 (function () {
   "use strict";
 
+  /* ---- icon sprite ---------------------------------------------------------
+   * Injected here rather than pasted into each page, for the same reason the
+   * CSS is shared: if an icon could not be defined once, that would be a
+   * finding about the system rather than a formatting preference.
+   *
+   * These were Unicode glyphs until #40 measured the font. Google serves
+   * Archivo with U+2191 and U+2193 but not U+2192 — up and down arrows, no
+   * right arrow — and nothing from Misc Symbols, Braille, or Dingbats. Six of
+   * the eight were rendering in whatever the platform happened to substitute,
+   * and U+2605 renders as a COLOUR EMOJI on some platforms, in a data column.
+   *
+   * Drawn on a 24 grid, sized in em, coloured by currentColor — so an icon
+   * still inherits size and colour from its type context, which is the one
+   * good property the text glyphs had.
+   */
+  const SPRITE = `
+  <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <path d="M6 6 18 18M18 6 6 18"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 5 16 12 9 19"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></symbol>
+  <symbol id="i-reorder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 20V4M4 8l4-4 4 4M16 4v16M12 16l4 4 4-4"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/>
+    <circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/>
+    <circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 12.5 10 17.5 19 6.5"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 1.5 14.47 8.6 21.99 8.76 15.99 13.3 18.17 20.49 12 16.2 5.83 20.49 8.01 13.3 2.01 8.76 9.53 8.6Z"/></symbol>`;
+
+  const sprite = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  sprite.setAttribute("aria-hidden", "true");
+  sprite.setAttribute("width", "0");
+  sprite.setAttribute("height", "0");
+  sprite.style.position = "absolute";
+  sprite.innerHTML = SPRITE;
+  document.body.prepend(sprite);
+
   const isSheet = () => !window.matchMedia("(min-width: 720px)").matches;
   const overlay = () => document.querySelector("[data-overlay]");
 

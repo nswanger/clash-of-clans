@@ -209,7 +209,7 @@
     <div class="topbar-side">
       <span class="lockchip" id="lockchip">Unlocked</span>
       <span class="daymenu-wrap">
-        <button class="iconbutton" type="button" id="daymenu" aria-label="Day options" aria-haspopup="menu" aria-expanded="false">⋯</button>
+        <button class="iconbutton" type="button" id="daymenu" aria-label="Day options" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
         <div id="daymenuslot"></div>
       </span>
     </div>
@@ -415,7 +415,7 @@ const revisionConflict = () => state.listRev !== SAVED_REV && state.applied.leng
 
 /* Candidate ranking. Availability dominates — an unavailable member is not a
  * candidate at all — and rotation need outranks raw strength, because swapping
- * in someone already at 8★ does nothing for bonus fairness. Ranking by rating
+ * in someone already at 8<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg> does nothing for bonus fairness. Ranking by rating
  * alone floats the secured members to the top, which is exactly backwards. */
 const availRank = (m) => m.availability === "available" ? 0 : m.availability === "unknown" ? 1 : 2;
 const rotationRank = (m) => needsTurn(m) ? 0 : isSecured(m) ? 2 : 1;
@@ -445,7 +445,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 function metaFor(m) {
   const bits = [];
   if (m.availability !== "available") bits.push(`<span class="avail is-${m.availability}">${availLabel(m.availability)}</span>`);
-  if (isSecured(m)) bits.push(`<span class="pill ok">8★ secured</span>`);
+  if (isSecured(m)) bits.push(`<span class="pill ok"><span>8<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></span>secured</span>`);
   else if (needsTurn(m)) bits.push(`<span class="pill turn">Needs a turn</span>`);
   if (isObserved(m) && m.currentWarAssignedAttacks > 0) {
     bits.push(`<span>${m.currentWarAttacksMade}/${m.currentWarAssignedAttacks} attacks</span>`);
@@ -462,10 +462,10 @@ function rowHtml(m, { out = false, edited = false, pos = null } = {}) {
       ${meta ? `<span class="row-meta">${meta}</span>` : ""}
     </span>
     <span class="row-stats">
-      <span class="row-stars">${m.stars}★</span>
+      <span class="row-stars">${m.stars}<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></span>
       <span class="row-th">TH${m.townHallLevel}</span>
     </span>
-    <span class="chev" aria-hidden="true">›</span>
+    <span class="chev" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></span>
   </button>`;
 }
 
@@ -483,7 +483,7 @@ function reorderRowHtml(m, i) {
     <span class="row-name">${esc(m.name)}</span>
     <span class="moved-from">${moved && was >= 0 ? `was ${was + 1}` : ""}</span>
     <span class="row-th">TH${m.townHallLevel}</span>
-    <span class="handle" data-handle aria-label="Reorder ${esc(m.name)}">⠿</span>
+    <span class="handle" data-handle aria-label="Reorder ${esc(m.name)}"><svg class="icon" aria-hidden="true"><use href="#i-grip"/></svg></span>
   </div>`;
 }
 
@@ -536,19 +536,19 @@ function renderLineup() {
 
   el("headactions").innerHTML = state.reordering
     ? `<button class="donebutton" type="button" id="donereorder">Done</button>`
-    : `<button class="iconbutton small" type="button" id="startreorder" aria-label="Reorder lineup">⇅</button>
-       <button class="benchbutton" type="button" id="openbench">Bench ${ROSTER.length - planned.length} <span aria-hidden="true">›</span></button>`;
+    : `<button class="iconbutton small" type="button" id="startreorder" aria-label="Reorder lineup"><svg class="icon" aria-hidden="true"><use href="#i-reorder"/></svg></button>
+       <button class="benchbutton" type="button" id="openbench">Bench ${ROSTER.length - planned.length} <span aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></span></button>`;
 }
 
 function checkRow(item, isDone) {
   const name = (t) => esc(BY_TAG.get(t).name);
   const body = item.out && item.in
-    ? `<span class="out">${name(item.out)}</span><span class="arrow">→</span><span class="in">${name(item.in)}</span>`
+    ? `<span class="out">${name(item.out)}</span><span class="arrow"><svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></span><span class="in">${name(item.in)}</span>`
     : item.out
       ? `<span class="out">Remove ${name(item.out)}</span>`
       : `<span class="in">Add ${name(item.in)}</span>`;
   return `<button class="check${isDone ? " is-done" : ""}" type="button" data-check="${item.key}">
-    <span class="box" aria-hidden="true">✓</span>
+    <span class="box" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
     <span class="swap">${body}</span>
     <span class="undo">${isDone ? "Undo" : ""}</span>
   </button>`;
@@ -563,7 +563,7 @@ function changesPanelHtml() {
         <p class="panel-evidence">${todo.length
           ? `${todo.length} left · tap each one as you make it in Clash`
           : `All ${done.length} made · this clears itself when collection sees the war`}</p></div>
-      <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+      <button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="panel-body">
       ${todo.length ? `<div class="checkgroup"><p>To do</p>${todo.map((i) => checkRow(i, false)).join("")}</div>` : ""}
@@ -585,13 +585,13 @@ function panelHtml() {
         <div class="grow">
           <h2>${esc(m.name)}</h2>
           <p class="panel-evidence">
-            ${roleLabel(m.role)} · TH${m.townHallLevel} · <b>${m.stars}★</b> across ${m.cwlWarsParticipated} CWL war${m.cwlWarsParticipated === 1 ? "" : "s"}<br>
+            ${roleLabel(m.role)} · TH${m.townHallLevel} · <b>${m.stars}<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></b> across ${m.cwlWarsParticipated} CWL war${m.cwlWarsParticipated === 1 ? "" : "s"}<br>
             ${m.overallRating === null ? "No CWL rating yet" : `<b>${m.overallRating}</b> CWL rating`} ·
             ${m.regularActivityScore === null ? "No regular-war evidence" : `<b>${m.regularActivityScore}%</b> regular activity over ${m.regularWarsParticipated} wars`}
             ${isObserved(m) && m.currentWarAssignedAttacks > 0 ? `<br><b>${m.currentWarAttacksMade} / ${m.currentWarAssignedAttacks}</b> attacks observed this war` : ""}
           </p>
         </div>
-        <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+        <button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
       </div>
       <div class="panel-body">
         <p class="panel-label">Availability</p>
@@ -615,7 +615,7 @@ function panelHtml() {
     <div class="panel-head">
       <div class="grow"><h2>Bench</h2>
         <p class="panel-evidence">${list.length} of ${ROSTER.length - state.draft.length} shown · ranked by rotation need, then availability</p></div>
-      <button class="iconbutton" type="button" data-close aria-label="Close">×</button>
+      <button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="panel-body">
       <input class="search" type="search" placeholder="Find a member" value="${esc(state.search)}" data-search>
@@ -659,7 +659,8 @@ function renderActionBar() {
     : todo === 0
       ? `All ${done} made in game`
       : `${todo} to make in game${done ? ` · ${done} done` : ""}`;
-  el("changescaret").textContent = quiet ? "" : "›";
+  // innerHTML, not textContent — an icon is an element now, not a character
+  el("changescaret").innerHTML = quiet ? "" : '<svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>';
   btn.setAttribute("aria-expanded", String(state.panel?.mode === "changes"));
   el("save").disabled = unsaved === 0 || state.locked;
   el("save").textContent = unsaved === 0 ? "Saved" : `Save ${unsaved}`;
@@ -671,7 +672,7 @@ function renderRail() {
     .slice(0, 8)
     .map((m, i) => `<li><span class="rank">${i + 1}</span>
       <span>${esc(m.name)}</span>
-      <span class="${isSecured(m) ? "pill ok" : "row-th"}">${isSecured(m) ? "Qualified" : `${m.stars}★`}</span></li>`).join("");
+      <span class="${isSecured(m) ? "pill ok" : "row-th"}">${isSecured(m) ? "Qualified" : `${m.stars}<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg>`}</span></li>`).join("");
   el("historylist").innerHTML = [
     ["Plan saved", "Nick · rev 12", "Added Quillon · Removed Cairnwick"],
     ["Observed lineup refreshed", "System · 2h ago", ""],

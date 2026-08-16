@@ -42,6 +42,38 @@ Capped at five. Additions need justification, because an uncapped utility layer 
 | `cm-empty` | Centred muted text where a list would be |
 | `cm-sep` | An inline separator in a meta line — text, not a border |
 
+## Icons
+
+Eight, drawn on a 24 grid and shipped as one inline `<symbol>` sprite. No icon library, no icon font: eight is small enough that a library would be almost entirely unused weight, and an icon font adds a second network request plus screen readers announcing private-use codepoints.
+
+`cm-icon` is a system-layer component, not a token — it has a variant, and tokens do not.
+
+```css
+.cm-icon { width: 1em; height: 1em; flex: none; vertical-align: -0.125em; }
+.cm-icon.is-lg { width: 1.15em; height: 1.15em; }
+```
+
+**Sized in em and coloured by `currentColor`**, so an icon inherits both from its type context — the one good property the Unicode glyphs it replaced had. Nothing needs a per-use size, and an icon inside muted text is muted for free.
+
+| id | Use |
+|---|---|
+| `i-close` | Dismiss a panel |
+| `i-chevron` | Row affordance, bench trigger, action-bar disclosure |
+| `i-more` | Overflow menu |
+| `i-reorder` | Enter reorder mode |
+| `i-grip` | Drag handle |
+| `i-check` | Checklist item done |
+| `i-arrow-right` | Swap direction in the checklist |
+| `i-star` | CWL stars, as a unit suffix on a figure |
+
+**The rule: if it sits in running text it stays a character; if it is an affordance it becomes an icon.** That keeps the middle dot in `cm-sep` — punctuation in a sentence, and `U+00B7` is in the font — while everything else becomes SVG regardless of coverage, so one alignment model governs.
+
+Decorative icons take `aria-hidden="true"`; the accessible name stays on the button.
+
+**Why this exists:** these were Unicode glyphs until [#40](https://github.com/nswanger/clash-of-clans/issues/40) measured the font. Google serves Archivo with `U+2191` and `U+2193` but **not** `U+2192` — up and down arrows, no right arrow — and nothing from Misc Symbols, Braille, or Dingbats. Six of the eight were rendering in whatever the platform happened to substitute, and `U+2605` renders as a **colour emoji** on some platforms, inside a data column.
+
+**Icons are flex items, so whitespace beside them collapses.** Any component mixing icons and text in a flex container needs an explicit `gap`; a space in the markup will not survive. `cm-pill` is the one that was caught by eye rather than by rule.
+
 ## System layer
 
 ### Shell and header
