@@ -115,6 +115,10 @@ The app collapses to three routes: **CWL**, **Members**, **Admin**. No deadline,
 
 The new work in this wave is the **review phase** — bonus medals, role changes, follow-ups — which lands inside the CWL route rather than as a fourth tab, because it and the lineup workspace are complementary in time and can never both want to be on screen. ADR 0002 carries the reasoning and the phase marker.
 
+> **Blocked on [#54](https://github.com/nswanger/clash-of-clans/issues/54) — design the review surface.** It has no prototype, no spec and no component-inventory entry, and it is the first surface in this migration without one: [#20](https://github.com/nswanger/clash-of-clans/issues/20)/[#21](https://github.com/nswanger/clash-of-clans/issues/21) produced `lineup-adjust.html` and [#22](https://github.com/nswanger/clash-of-clans/issues/22) produced `members-roster.html` before either wave began. **The deletions and the rename do not depend on it** and can land first; only the review phase waits.
+>
+> The bonus-count question that looked like it might be a collection gap is **settled and does not block**: checked against stored `raw_snapshots`, neither CWL payload carries any bonus, medal or reward field, so the count cannot be shown today. It is derivable — `/clans/{tag}` returns `warLeague`, which the collector already fetches and discards — but only with a static league-to-count table, which is game data rather than API data. The surface should rank without a hard cutoff, which ADR 0001 already implies and which stays correct either way; a count is additive later, not a restructure.
+
 **Regular-war data gets no surface.** It is an input to the CWL and role decisions rather than a subject of its own, and the roster already covers two of its three views. The war-by-war record is drill-down about one member, so it belongs in the member detail panel if anywhere, and only once a real need appears.
 
 The prediction this section carried — that two of the four routes might not warrant migrating — held, and undershot. Three do not. It was right about the reason: this map decided *how* a surface moves onto the system, never *which surfaces deserve to exist*, and conformance quietly assumes the page should exist in roughly its current form.
@@ -124,6 +128,8 @@ The prediction this section carried — that two of the four routes might not wa
 ### Wave 4 — the resting phase
 
 Deferred deliberately, not left over. After review has been available for a while the CWL route should rest rather than keep presenting a finished season as though something were outstanding; the marker is days since the final war's `end_time`, and it becomes the default phase position while lineup and review stay reachable.
+
+> **Blocked on [#55](https://github.com/nswanger/clash-of-clans/issues/55) — design the empty state.** Possibly cheaply: `cm-empty` already exists as a utility, so the first question is whether a page-scale resting state is simply that at a larger scale. If it is, #55 closes with a note and this wave is trivial.
 
 It waits because it depends on nothing else in wave 3, and because it is the one piece here that wants a design decision rather than a port: it is an **empty state**, and [`components.md`](components.md) currently lists one under what is deliberately not a component, on the grounds that inventing it would guess ahead of a surface that needs it. This is that surface. It is not the loading pattern — skeletons assert that data is arriving, and nothing is arriving for weeks — and it is not the happy-path banner [#19](https://github.com/nswanger/clash-of-clans/issues/19) bans, provided it reads as absence rather than reassurance. See [ADR 0002](../docs/adr/0002-app-surfaces-and-cwl-phase.md).
 
