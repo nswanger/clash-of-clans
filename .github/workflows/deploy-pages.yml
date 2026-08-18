@@ -51,6 +51,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The half-finished rename is the one failure mode the test suite
+      # structurally cannot see: no test queries by class name, which is exactly
+      # what makes a restyle invisible to it (#25).
+      - name: Assert the Clan Muster migration left no legacy prefix
+        shell: bash
+        run: |
+          legacy_prefix="cwl-$(printf 'proto')-"
+          if grep -rqF "${legacy_prefix}" apps/web/src; then
+            echo "::error::${legacy_prefix} survives in apps/web/src; the wave-2 rename is incomplete."
+            grep -rnF "${legacy_prefix}" apps/web/src
+            exit 1
+          fi
+
       - name: Typecheck
         run: pnpm typecheck
 

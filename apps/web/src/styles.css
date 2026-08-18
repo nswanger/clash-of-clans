@@ -148,29 +148,13 @@ body { min-width: 320px; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
-/* The dropdown filter control. It was written for the members filter row, which
- * has gone; the CWL workspace renders four of them and is wave 2's, so the
- * component and its rules stay until that surface moves. Note the two glyphs
- * `filter-menu.tsx` assigns as text — `⌄` and `✓` — are exactly the latent break
- * #40 describes, and this is the last place in the app that still has one. */
-.filter-menu { position: relative; display: grid; min-width: 0; gap: 7px; }
-.filter-menu-label { color: #54524f; font-size: 12px; font-weight: 650; }
-.filter-menu-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 42px; padding: 0 11px 0 13px; border: 1px solid transparent; border-radius: 999px; color: #4c4945; background: #f4f2ef; font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; }
-.filter-menu-trigger:hover { background: #eeece8; }
-.filter-menu-trigger.is-active { color: #005bab; background: #edf6ff; }
-.filter-menu-trigger:focus-visible, .filter-menu-trigger[aria-expanded="true"] { outline: 3px solid rgb(0 117 222 / 16%); outline-offset: 1px; border-color: #78aede; background: #fff; }
-.filter-menu-caret { color: #8d8984; font-size: 16px; line-height: 1; transform: translateY(-2px); transition: transform 120ms ease; }
-.filter-menu-caret.is-open { transform: translateY(1px) rotate(180deg); }
-.filter-menu-popover { position: absolute; top: calc(100% + 7px); left: 0; z-index: 30; display: grid; min-width: 100%; padding: 6px; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; box-shadow: 0 10px 24px rgb(23 22 21 / 10%), 0 2px 6px rgb(23 22 21 / 5%); }
-.filter-menu-option { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 36px; padding: 0 9px; border: 0; border-radius: 7px; color: #31302e; background: #fff; font: inherit; font-size: 12px; text-align: left; cursor: pointer; white-space: nowrap; }
-.filter-menu-option:hover, .filter-menu-option.selected { color: #005bab; background: #edf6ff; }
-.filter-menu-option-check { width: 14px; color: #0075de; font-size: 13px; font-weight: 800; text-align: center; }
-
 /* What is left of the members block after the roster rebuilt onto Clan Muster
  * (#25, wave 1). Every rule the roster carried is gone with the markup that
  * matched it — cards, facts grid, evidence panel, status pills and the filter
- * row. The `filter-menu` rules above outlived it: the CWL workspace renders the
- * same control.
+ * row. The `filter-menu` rules outlived it into wave 2, where the CWL workspace
+ * stopped rendering the control: the prototype replaces a four-control filter
+ * row with one search input and ranked candidates, so the component, its rules
+ * and the app's last two `textContent` glyphs went with that surface.
  *
  * These five stay because `#/overview` still uses them, and overview is wave 3
  * with an open question over it: #25 leaves undecided whether the route should

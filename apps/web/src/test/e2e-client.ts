@@ -194,8 +194,58 @@ export function createE2EClient(): any {
         recordMutation(`rpc:${name}`, args);
         return { data: plan, error: null };
       }
+      /* The applied-lineup baseline (#36): what the game is known to hold, as a
+       * base member set plus the ordered acts a leader confirmed over it. The
+       * fixture replays them the way the SQL function does, because the whole
+       * point of the checklist is that the replay is what survives a reload. */
+      if (name.endsWith("_cwl_applied_lineup") || name.includes("cwl_applied_lineup_change")) {
+        const day = Number(args.requested_war_day);
+        const plans = (tableData.cwlLineupPlans ?? {}) as Record<string, any>;
+        const baselines = (tableData.cwlAppliedBaselines ?? {}) as Record<string, any>;
+        if (!baselines[String(day)]) {
+          baselines[String(day)] = {
+            warDay: day, revision: 1, baseSource: "plan",
+            basePlayerTags: [...(plans[String(day)]?.playerTags ?? [])],
+            appliedChanges: [],
+          };
+          tableData.cwlAppliedBaselines = baselines;
+        }
+        const baseline = baselines[String(day)];
+        if (name === "record_cwl_applied_lineup_change") {
+          baseline.appliedChanges = [...baseline.appliedChanges, {
+            changeSequence: baseline.appliedChanges.length + 1,
+            removedPlayerTag: args.removed_player_tag ?? null,
+            addedPlayerTag: args.added_player_tag ?? null,
+            appliedAt: "2026-07-12T18:30:00.000Z",
+          }];
+          baseline.revision += 1;
+        } else if (name === "undo_cwl_applied_lineup_change") {
+          baseline.appliedChanges = baseline.appliedChanges.filter((change: any) => change.changeSequence !== args.requested_change_sequence);
+          baseline.revision += 1;
+        } else if (name === "clear_cwl_applied_lineup_changes") {
+          baseline.basePlayerTags = replayBaseline(baseline);
+          baseline.appliedChanges = [];
+          baseline.baseSource = "confirmed";
+          baseline.revision += 1;
+        }
+        persistFixture?.();
+        recordMutation(`rpc:${name}`, args);
+        return { data: { ...baseline, playerTags: replayBaseline(baseline) }, error: null };
+      }
       recordMutation(`rpc:${name}`, args);
       return { data: null, error: null };
     },
   };
+}
+
+/* Replay tolerates halves it cannot carry out, exactly as the SQL does: any act
+ * can be undone, not only the most recent, so a later change may name a member
+ * an undone change had moved. */
+function replayBaseline(baseline: { basePlayerTags: string[]; appliedChanges: Array<{ removedPlayerTag: string | null; addedPlayerTag: string | null }> }): string[] {
+  let tags = [...baseline.basePlayerTags];
+  for (const change of baseline.appliedChanges) {
+    if (change.removedPlayerTag) tags = tags.filter((tag) => tag !== change.removedPlayerTag);
+    if (change.addedPlayerTag && !tags.includes(change.addedPlayerTag)) tags.push(change.addedPlayerTag);
+  }
+  return [...tags].sort();
 }

@@ -102,9 +102,14 @@ export interface CwlLineupWarDay {
   updatedAt: string | null;
 }
 
+/* No `mapPosition`, though `cwl_war_members` carries it. #25 gave wave 2 the
+ * choice of using it as the in-game order or dropping it; it cannot be the
+ * former. Reorder mode exists to set the order BEFORE the war starts, and a map
+ * position only exists after the game has assigned one — so the field can never
+ * be there when the surface that would want it is in use. Collection still
+ * records it; nothing on this surface reads it. */
 export interface CwlLineupObservedMember {
   playerTag: string;
-  mapPosition: number;
   assignedAttacks: number;
 }
 
@@ -117,9 +122,30 @@ export interface CwlLineupHistoryEvent {
   eventData: Record<string, unknown>;
 }
 
-export interface CwlLineupRecommendation {
-  id: string;
-  changes: Array<{ outPlayerTag: string; inPlayerTag: string; outPlayerName?: string; inPlayerName?: string; explanation: string }>;
+/* One membership change a leader confirmed making in the game (#36). A swap is
+ * a single record carrying both halves, matching the single check control the
+ * checklist gives it. */
+export interface CwlAppliedLineupChange {
+  changeSequence: number;
+  removedPlayerTag: string | null;
+  addedPlayerTag: string | null;
+  appliedAt: string;
+}
+
+/* What the game is known to hold for one war day: a base member set plus the
+ * ordered acts confirmed over it. `playerTags` is the server's replay of the
+ * two, which is the baseline the checklist subtracts from the saved plan.
+ *
+ * `revision` advances on every baseline mutation. It is NOT the plan's revision
+ * and must never be compared to it — this record is of physical acts, so it
+ * stays true when the plan changes underneath it. */
+export interface CwlAppliedLineupBaseline {
+  warDay: number;
+  revision: number;
+  baseSource: "plan" | "observed" | "confirmed";
+  basePlayerTags: string[];
+  appliedChanges: CwlAppliedLineupChange[];
+  playerTags: string[];
 }
 
 export interface CwlLineupWorkspaceSnapshot {
@@ -131,7 +157,7 @@ export interface CwlLineupWorkspaceSnapshot {
   plan: CwlDailyLineupPlan;
   members: CwlLineupMember[];
   observed: CwlLineupObservedMember[];
-  recommendation: CwlLineupRecommendation | null;
+  appliedBaseline: CwlAppliedLineupBaseline;
   history: CwlLineupHistoryEvent[];
   observedUpdatedAt: string | null;
   warDays: CwlLineupWarDay[];
@@ -188,25 +214,27 @@ export function normalizeClanRole(value: unknown): CwlMemberRole {
   return "unknown";
 }
 
-function recommendationFromRow(value: unknown): CwlLineupRecommendation | null {
+function appliedBaselineFromRpc(value: unknown): CwlAppliedLineupBaseline {
   const row = record(value);
-  if (typeof row.id !== "string") return null;
-  const output = record(row.output);
-  const changes = Array.isArray(output.changes) ? output.changes.flatMap((change) => {
-    const item = record(change);
-    if (typeof item.outPlayerTag !== "string" || typeof item.inPlayerTag !== "string") return [];
-    const reasons = Array.isArray(item.reasons)
-      ? item.reasons.map((reason) => record(reason).explanation).filter((explanation): explanation is string => typeof explanation === "string")
-      : [];
-    return [{
-      outPlayerTag: item.outPlayerTag,
-      inPlayerTag: item.inPlayerTag,
-      ...(typeof item.outPlayerName === "string" ? { outPlayerName: item.outPlayerName } : {}),
-      ...(typeof item.inPlayerName === "string" ? { inPlayerName: item.inPlayerName } : {}),
-      explanation: reasons.join("; "),
-    }];
-  }) : [];
-  return { id: row.id, changes };
+  const tags = (input: unknown) => Array.isArray(input) ? input.filter((tag): tag is string => typeof tag === "string") : [];
+  const source = row.baseSource;
+  return {
+    warDay: typeof row.warDay === "number" ? row.warDay : 0,
+    revision: typeof row.revision === "number" ? row.revision : 0,
+    baseSource: source === "observed" || source === "confirmed" ? source : "plan",
+    basePlayerTags: tags(row.basePlayerTags),
+    appliedChanges: Array.isArray(row.appliedChanges) ? row.appliedChanges.flatMap((change) => {
+      const item = record(change);
+      if (typeof item.changeSequence !== "number") return [];
+      return [{
+        changeSequence: item.changeSequence,
+        removedPlayerTag: typeof item.removedPlayerTag === "string" ? item.removedPlayerTag : null,
+        addedPlayerTag: typeof item.addedPlayerTag === "string" ? item.addedPlayerTag : null,
+        appliedAt: typeof item.appliedAt === "string" ? item.appliedAt : "",
+      } satisfies CwlAppliedLineupChange];
+    }) : [],
+    playerTags: tags(row.playerTags),
+  };
 }
 
 function historyLabel(eventType: string): string {
@@ -259,7 +287,19 @@ export async function loadCwlLineupWorkspace(
   ensureSuccess(planResult, "Unable to initialize the lineup day");
   const plan = planFromRpc(planResult.data);
 
-  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, ratingResult, activityResult, warResult, warDaysResult, recommendationResult, auditResult, collectionResult] = await Promise.all([
+  /* Seeded after the plan, not beside it: with no observed war roster the
+   * baseline is seeded from the plan, so it has to exist first. Seeding is
+   * once-only — a second call returns the baseline it already has, which is
+   * what keeps a leader's part-done checklist across a reload. */
+  const baselineResult = await client.rpc("ensure_cwl_applied_lineup", {
+    requested_clan_tag: clanTag,
+    requested_season_id: seasonId,
+    requested_war_day: warDay,
+  });
+  ensureSuccess(baselineResult, "Unable to load what the game is known to hold");
+  const appliedBaseline = appliedBaselineFromRpc(baselineResult.data);
+
+  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, ratingResult, activityResult, warResult, warDaysResult, auditResult, collectionResult] = await Promise.all([
     client.from("cwl_seasons").select("clan_tag,season_id,war_size").eq("clan_tag", clanTag).eq("season_id", seasonId).single(),
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
     client.from("member_availability").select("player_tag,status,recorded_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
@@ -270,7 +310,6 @@ export async function loadCwlLineupWorkspace(
     client.from("regular_war_member_activity").select("player_tag,wars_participated,assigned_attacks,attacks_made,stars,last_observed_at,activity_score,performance_score,stars_per_attack,incomplete_wars").eq("clan_tag", clanTag),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
-    client.from("recommendations").select("id,output,proposed_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("status", "proposed").order("proposed_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("audit_events").select("id,event_type,event_data,actor_id,occurred_at").eq("entity_type", "cwl_daily_lineup_plan").eq("entity_id", `${clanTag}:${seasonId}:${warDay}`).order("occurred_at", { ascending: false }).limit(25),
     client.from("collection_runs").select("status,last_fresh_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
@@ -285,14 +324,13 @@ export async function loadCwlLineupWorkspace(
     [activityResult, "Unable to load regular-war activity"],
     [warResult, "Unable to load observed war data"],
     [warDaysResult, "Unable to load CWL war states"],
-    [recommendationResult, "Unable to load recommendations"],
     [auditResult, "Unable to load lineup history"],
   ] as Array<[Result, string]>) ensureSuccess(result, context);
 
   const war = record(warResult.data);
   const observedResult = war.war_tag
     ? await Promise.all([
-        client.from("cwl_war_members").select("player_tag,map_position,assigned_attacks").eq("war_tag", war.war_tag).order("map_position"),
+        client.from("cwl_war_members").select("player_tag,assigned_attacks").eq("war_tag", war.war_tag).order("player_tag"),
         client.from("cwl_attacks").select("attacker_tag,stars").eq("war_tag", war.war_tag),
       ])
     : [{ data: [], error: null }, { data: [], error: null }];
@@ -349,9 +387,8 @@ export async function loadCwlLineupWorkspace(
     stars_per_attack: number | null;
     incomplete_wars: number;
   }>(activityResult.data).map((row) => [row.player_tag, row]));
-  const observed = rows<{ player_tag: string; map_position: number; assigned_attacks: number }>(observedResult[0].data).map((row) => ({
+  const observed = rows<{ player_tag: string; assigned_attacks: number }>(observedResult[0].data).map((row) => ({
     playerTag: row.player_tag,
-    mapPosition: row.map_position,
     assignedAttacks: row.assigned_attacks,
   }));
   const attackEvidenceMembers = rows<{ player_tag: string; assigned_attacks: number }>(attackEvidenceResult[0].data);
@@ -448,7 +485,7 @@ export async function loadCwlLineupWorkspace(
     plan,
     members,
     observed,
-    recommendation: recommendationFromRow(recommendationResult.data),
+    appliedBaseline,
     history: history.slice(0, 25),
     observedUpdatedAt: typeof war.updated_at === "string" ? war.updated_at : null,
     warDays,
@@ -492,6 +529,53 @@ export async function reinheritCwlLineupPlan(client: any, value: { clanTag: stri
   });
   ensureSuccess(result, "Unable to re-inherit the lineup plan");
   return planFromRpc(result.data);
+}
+
+/* The three checklist mutations. Each returns the whole baseline rather than an
+ * acknowledgement, because the client's next question is always "what is left
+ * to do", and that is a replay the server already performs. */
+export async function recordCwlAppliedLineupChange(client: any, value: {
+  clanTag: string; seasonId: string; warDay: number; removedPlayerTag: string | null; addedPlayerTag: string | null;
+}): Promise<CwlAppliedLineupBaseline> {
+  const result = await client.rpc("record_cwl_applied_lineup_change", {
+    requested_clan_tag: value.clanTag,
+    requested_season_id: value.seasonId,
+    requested_war_day: value.warDay,
+    removed_player_tag: value.removedPlayerTag,
+    added_player_tag: value.addedPlayerTag,
+  });
+  ensureSuccess(result, "Unable to record the change you made in game");
+  return appliedBaselineFromRpc(result.data);
+}
+
+/* Any recorded act can be undone, not only the most recent one — so this takes
+ * a sequence rather than popping. Undoing makes the instruction reappear. */
+export async function undoCwlAppliedLineupChange(client: any, value: {
+  clanTag: string; seasonId: string; warDay: number; changeSequence: number;
+}): Promise<CwlAppliedLineupBaseline> {
+  const result = await client.rpc("undo_cwl_applied_lineup_change", {
+    requested_clan_tag: value.clanTag,
+    requested_season_id: value.seasonId,
+    requested_war_day: value.warDay,
+    requested_change_sequence: value.changeSequence,
+  });
+  ensureSuccess(result, "Unable to undo that change");
+  return appliedBaselineFromRpc(result.data);
+}
+
+/* Folds the confirmed acts into the base set: same baseline, no history. This
+ * is the leader saying "the game and the plan agree now" without waiting for
+ * collection to observe the war and say it for them. */
+export async function clearCwlAppliedLineupChanges(client: any, value: {
+  clanTag: string; seasonId: string; warDay: number;
+}): Promise<CwlAppliedLineupBaseline> {
+  const result = await client.rpc("clear_cwl_applied_lineup_changes", {
+    requested_clan_tag: value.clanTag,
+    requested_season_id: value.seasonId,
+    requested_war_day: value.warDay,
+  });
+  ensureSuccess(result, "Unable to clear the checklist");
+  return appliedBaselineFromRpc(result.data);
 }
 
 function ensureSuccess(result: Result, context: string): void {

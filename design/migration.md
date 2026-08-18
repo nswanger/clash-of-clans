@@ -78,13 +78,26 @@ Two things the prototype did not have to decide. The entry class is stamped in a
 
 Dismissal still hands back to the caller rather than removing anything itself, as it did in the prototype through `[data-close]`. Here it is `onClose`, called after the sheet has slid out, so a gesture that animates on the way in does not vanish on the way out.
 
-### Wave 2 — the CWL lineup workspace
+### Wave 2 — the CWL lineup workspace — **landed**
 
-The one with the deadline. Spec: [`prototype/lineup-adjust.html`](prototype/lineup-adjust.html) · [published](https://claude.ai/code/artifact/4678e567-87c1-403a-a84c-1b7ae5f62434)
+The one with the deadline, migrated 2026-08-18 — twelve days before the 2026-08-30 season, so the "not during an active season" rule is satisfied with room rather than by a hair.
 
-The `cwl-proto-*` rename lands **with** this rebuild, never as its own commit — see the rules below.
+Spec: [`prototype/lineup-adjust.html`](prototype/lineup-adjust.html) · [published](https://claude.ai/code/artifact/4678e567-87c1-403a-a84c-1b7ae5f62434)
 
-Note that the prototype covers behaviour the live workspace does not have yet: the swap panel, reorder mode, and the in-game checklist ([#21](https://github.com/nswanger/clash-of-clans/issues/21)). The checklist needs [#36](https://github.com/nswanger/clash-of-clans/issues/36) to persist its baseline; without it the surface can still ship, with the checklist held in page state and lost on reload. That is a decision for the build, not for this map.
+The prototype-prefixed rename landed **with** the rebuild, as the rules require, and the completeness grep is now a CI step in `deploy-pages.yml` rather than a note here.
+
+Three things the live workspace did not have arrived with it — the swap panel, reorder mode, and the in-game checklist ([#21](https://github.com/nswanger/clash-of-clans/issues/21)). **[#36](https://github.com/nswanger/clash-of-clans/issues/36) closed before this wave started**, so the caveat this section used to carry — that the checklist might ship in page state and be lost on reload — never applied. The baseline persists server-side, and this wave is what gave `cwl_applied_lineup_baselines` its first reader.
+
+#### What landed, and where it differs from the plan above
+
+- **The rotation queue is gone, and that is the wave's one real capability change.** The prototype has no proposal panel: rotation need is a *ranking* term in the swap and bench lists, above CWL rating and below availability, so someone owed a turn surfaces at the moment you are choosing a replacement rather than in a queue beside the lineup. Ranking by rating alone floats the already-secured members to the top, which is backwards for bonus fairness — that inversion is the reason the term sits where it does. What leaves with the panel is preview/revert, per-change Apply, and the workspace's own read of the `recommendations` table. **The recommendation pipeline itself is untouched and still has a consumer**: the daily dashboard renders it, through its own loader. This was dropped on the prototype's authority, the same way wave 1 dropped the Town Hall filter — but it is a larger call than that one, and it is recorded here rather than buried in a diff.
+- **The page prefix is `cwl-`, not `lineup-`.** `.lineup-actions` is already the dashboard's in `styles.css` — the identical collision that made the members roster take `members-` instead of the prototype's bare names. The route is `#/cwl-lineup`, so `cwl-` names the surface either way.
+- **`filter-menu.tsx` is gone**, one wave after #25 predicted it would stay. The reasoning there was sound and the premise expired: it survived wave 1 because the CWL workspace rendered four of them, and the prototype replaces that four-control filter row with one search input and ranked candidates. It took the app's last two `textContent` glyphs — `⌄` and `✓` — with it, which closes [#40](https://github.com/nswanger/clash-of-clans/issues/40)'s grep for good.
+- **`mapPosition` is dropped rather than used.** #25 offered both. It cannot be the in-game order the surface wants: reorder mode exists to set order *before* the war starts, and a map position only exists *after* the game has assigned one, so the field can never be present when the mode that would want it is in use. Collection still records it; nothing on this surface reads it.
+- **`needsBonusTurn` lost its `observed` term.** The old predicate also required that a member not be in the observed war. The prototype asks only whether someone is owed a turn — whether they are in *this* day's observed war is a fact the row's provenance rail already carries, and folding it into the predicate made an available member with no assignments read as not needing a turn purely because a different day had started.
+- **The three unprefixed selectors are gone.** `.audit-dot`, `.availability-unavailable` and `.availability-unknown` were global on every route because `cwl-lineup-workspace.css` is imported from `app-routes.tsx`. They left with the file, which is what the standing "assume it is global" warning below was waiting for.
+- **The old workspace's tests were rewritten, and had to be.** They asserted on rotation-queue predicates that no longer exist. What replaced them tests the two things #21 turns on and no screenshot can show: that the checklist is `saved plan − baseline` rather than `draft − saved`, so it *appears* on Save instead of evaporating; and that a move counts once, against the plan, while a swap counts once, against the game. Every other route's tests are untouched and pass — that is the guarantee, and it held.
+- **Verified in the preview against the spec**, at 1280px and 375px: the three-column desktop layout, the docked bench, the bench-as-sheet with its grabber and entry animation, a swap, a save, and a full check-off cycle through the persisted baseline.
 
 ### Wave 3 — conformance
 
@@ -108,11 +121,11 @@ The remaining routes — `overview`, `season`, `dashboard`, `access` — brought
 
 It slipped for a legible reason rather than by oversight: the waves are organised by route, and neither of these is one. [`components.md`](components.md) has no navigation component either — its "Navigation and notice" section is the segmented strip and the notice region, which are in-page controls. **Nor is there a prototype.** Each prototype is a standalone document with a `topbar` and no app chrome at all; the only `<nav>` in either is the lineup's day strip, which is a `cm-segmented`.
 
-**Wave 1 turned this from a gap into a defect.** The element base now paints the whole app on `--cm-bg` in the reader's theme, and the nav does not participate: it is a white bar above a dark page, on every route, and it stays wrong until someone fixes it — including on the CWL workspace the moment wave 2 lands.
+**Waves 1 and 2 turned this from a gap into a defect.** The element base now paints the whole app on `--cm-bg` in the reader's theme, and the nav does not participate: it is a white bar above a dark page, on every route, and it stays wrong until someone fixes it — including on the CWL workspace the moment wave 2 lands.
 
 That makes it the one piece of conformance work with a reason to move early, and the one with the least to go on. Two questions, both open:
 
-- **When.** Fold it into wave 3 with the other routes, or pull it forward as its own commit before wave 2, so the workspace rebuild is reviewed against chrome that already matches it.
+- **When.** ~~Fold it into wave 3, or pull it forward before wave 2?~~ **Decided: wave 3.** Wave 2 landed against the unmigrated bar deliberately, rather than answer "what is app-level navigation in this system" under a deadline. The nav is now a white bar above a dark page on every route including the workspace, and it stays that way until wave 3.
 - **What.** There is nothing to port. Conforming the nav means designing one, which is exactly the case `components.md` calls "a finding worth recording rather than a licence to invent" — so it wants a real decision about what app-level navigation is in this system, not a `cm-`-prefixed restatement of the current bar.
 
 ## Rules
@@ -127,7 +140,7 @@ That prefix is not hygiene. `styles.css` already defines `.eyebrow`, and so does
 
 **Do not migrate the CWL surface during an active CWL season.** This replaces a feature flag. A flag would mean shipping both stylesheets and both component trees on a static Pages deploy with no server, to guard a risk that is really about timing.
 
-**Watch `cwl-lineup-workspace.css`.** It is imported in `app-routes.tsx`, so it loads on every route regardless of which one renders, and three of its selectors are unprefixed: `.audit-dot`, `.availability-unavailable`, `.availability-unknown`. It disappears in wave 2; until then, assume it is global.
+~~**Watch `cwl-lineup-workspace.css`.**~~ Settled in wave 2. The file was imported in `app-routes.tsx`, so it loaded on every route regardless of which one rendered, and three of its selectors were unprefixed: `.audit-dot`, `.availability-unavailable`, `.availability-unknown`. The rebuilt page layer is imported from the page itself and every class in it is `cwl-`-prefixed.
 
 **Every glyph assigned through `textContent` is a latent break.** An icon is an element now, not a character ([#40](https://github.com/nswanger/clash-of-clans/issues/40)). The prototype hit this exactly once, in the action bar's disclosure; `apps/web` should be grepped for the same pattern during each wave.
 
@@ -139,11 +152,14 @@ That prefix is not hygiene. `styles.css` already defines `.eyebrow`, and so does
 
 **Appearance: manual comparison against the published prototypes.** No visual-regression tooling. For a six-route personal-scale app it is more machinery than the risk warrants, and the prototypes are an exact, versioned spec already.
 
-**Completeness: one CI grep.** Assert that no `cwl-proto-` string survives once wave 2 lands. This catches the half-finished rename, which is the one failure mode the test suite structurally cannot see.
+**Completeness: one CI grep.** Landed in wave 2 as a `deploy-pages.yml` step ahead of the typecheck: it fails the build if the old prototype prefix survives anywhere in `apps/web/src`. This catches the half-finished rename, which is the one failure mode the test suite structurally cannot see — no test queries by class name, which is exactly what makes a restyle invisible to it.
+
+The step assembles the prefix at runtime rather than writing it out, so the check does not match itself. Anything documenting the old prefix has to do the same; the page stylesheet's header comment says so where a future reader will hit it.
 
 ## Dead code to remove on the way
 
 - **`apps/web/src/cwl-prototype/`** — empty and unreferenced since 2026-08-01. Delete it in wave 0.
 - ~~**`baseline1d` / `baseline30d`, `previousClanRank`, `warStars` (the profile counter), `lastObservedPresentOn`**~~ — gone in wave 1, along with `baseline7d`, `activityWindow()`, and the six counters that turned out to have no other reader: `trophies`, `leagueId`, `attackWins`, `defenseWins`, `clanCapitalContributions`, `clanGamesPoints`. `loadMemberRoster` names its sixteen columns now instead of selecting `*`.
-- **`mapPosition`** — fetched and discarded by the CWL workspace, which reads `observed` only as a boolean set ([#21](https://github.com/nswanger/clash-of-clans/issues/21)). Wave 2 should either use it as the in-game order or stop selecting it.
+- ~~**`mapPosition`**~~ — gone in wave 2, dropped rather than used: reorder mode sets order before the war starts and a map position only exists after it. Collection still records it.
 - **The 14 status treatments in `styles.css`** — reduced to two that can ever fire ([#19](https://github.com/nswanger/clash-of-clans/issues/19)). They leave with the surfaces that carry them.
+- ~~**`filter-menu.tsx` and its rules**~~ — gone in wave 2 with the four-control filter row the prototype replaces, taking the app's last two `textContent` glyphs.

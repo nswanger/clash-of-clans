@@ -1,159 +1,136 @@
-.cwl-proto-shell {
-  width: min(1500px, calc(100% - 48px));
-  margin: 34px auto 100px;
-  color: #171615;
+/* CWL lineup workspace — page layer.
+ *
+ * Ported from the <style> block of design/prototype/lineup-adjust.html, which
+ * is the spec (#20, #21). Everything here is what only this surface uses;
+ * everything it stands on is `cm-`-prefixed and comes from @cwl/design. The
+ * boundary is components.md's own list: bench trigger, bench column, day menu,
+ * the desktop rail and its cards, `moved-from`, head actions.
+ *
+ * This file replaces 159 lines of the old prototype-prefixed block — 57 classes
+ * with no custom properties, three of them unprefixed and therefore global on
+ * every route (`.audit-dot`, `.availability-unavailable`,
+ * `.availability-unknown`). #25 flagged those as the standing hazard until this
+ * wave; they leave with it. The old prefix is not written out anywhere in this
+ * file on purpose: #25 makes "no such string survives" a CI grep, and a comment
+ * mentioning it would fail the check it is describing.
+ *
+ * PREFIX. Page classes are `cwl-`, not `lineup-`: `.lineup-actions` is already
+ * the dashboard's in styles.css, which is exactly the collision that made the
+ * members roster take `members-` rather than the prototype's bare names. The
+ * route is `#/cwl-lineup`, so `cwl-` names the surface either way.
+ *
+ * SPECIFICITY. Page rules that override a component carry an ancestor. The
+ * prototype's page rules win ties by source order, because `_prototype.css` is
+ * a <link> above the page's <style>; a bundler orders by import graph instead
+ * and this file — imported from the page, which main.tsx imports first — lands
+ * BEFORE the component layer. A tie therefore goes to the component. Only the
+ * columns grid actually needs this, and it is written `.cwl-workspace .cwl-*`
+ * rather than left to chance.
+ */
+
+/* ---------- head actions ---------- */
+.cwl-headactions { display: flex; align-items: center; gap: var(--cm-space-2); }
+.cwl-donebutton {
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  border: 0; border-radius: var(--cm-radius-md);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-family: inherit; font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+  cursor: pointer;
 }
 
-.cwl-proto-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 32px;
-  margin: 24px 0 20px;
+/* ---------- bench trigger (mobile only) ----------
+ * In the section head, not below fifteen rows: adding to a short lineup must
+ * not require scrolling past the lineup first.
+ */
+.cwl-benchbutton {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); color: var(--cm-fg);
+  font-family: inherit; font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+  cursor: pointer;
 }
 
-.cwl-proto-header h1 { margin: 6px 0 8px; font-size: clamp(34px, 5vw, 52px); letter-spacing: -2px; }
-.cwl-proto-header p:not(.eyebrow) { max-width: 690px; margin: 0; color: #6f6e6b; line-height: 1.5; }
-.cwl-proto-header-actions { display: flex; align-items: flex-start; gap: 12px; }
-.cwl-proto-lock { display: grid; gap: 3px; min-width: 118px; padding: 9px 11px; border: 1px solid #ded3ae; border-radius: 8px; color: #72500f; background: #fffaf0; font-size: 12px; font-weight: 700; }
-.cwl-proto-lock small { color: #6f5c38; font-size: 10px; font-weight: 500; }
-.cwl-proto-lock.is-locked { border-color: #efb5a9; color: #8b301f; background: #fff3ef; }
-.cwl-proto-secondary-button, .cwl-proto-status-actions button, .cwl-proto-status > button { min-height: 40px; padding: 0 13px; border: 1px solid #c9c8c5; border-radius: 6px; color: #174e78; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
-.cwl-proto-secondary-button:hover, .cwl-proto-status-actions button:hover, .cwl-proto-status > button:hover { border-color: #78aede; background: #f2f8fd; }
-.cwl-proto-secondary-button:disabled, .cwl-proto-status button:disabled { color: #aaa7a2; cursor: not-allowed; }
-.cwl-proto-day-strip { display: grid; grid-template-columns: repeat(7, 1fr); overflow: hidden; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; }
-.cwl-proto-day-strip button { display: grid; gap: 4px; min-height: 62px; padding: 12px 14px; border: 0; border-right: 1px solid #e6e6e6; color: #6f6e6b; background: #fff; text-align: left; cursor: pointer; }
-.cwl-proto-day-strip button:last-child { border-right: 0; }
-.cwl-proto-day-strip button.selected { color: #005bab; background: #edf6ff; box-shadow: inset 0 -3px #0075de; }
-.cwl-proto-day-strip span { font-size: 13px; font-weight: 750; }
-.cwl-proto-day-strip small { font-size: 10px; }
-.cwl-proto-inline-notice { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin: 14px 0; padding: 11px 14px; border: 1px solid #d8e7f5; border-radius: 8px; color: #365b78; background: #f5faff; font-size: 12px; line-height: 1.45; }
-.cwl-proto-inline-notice button { flex: 0 0 auto; border: 0; color: #006fcc; background: transparent; font-size: 12px; font-weight: 700; cursor: pointer; }
-.cwl-proto-inline-notice button:disabled { color: #8c9cac; cursor: not-allowed; }
-.cwl-proto-freshness { margin: 8px 0 0; color: #6f6e6b; font-size: 11px; }
-.cwl-proto-status { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0; padding: 12px 14px; border-left: 4px solid #2a9d99; border-radius: 6px; color: #245c5a; background: #eefaf8; font-size: 12px; }
-.cwl-proto-status.is-stale { border-left-color: #dd5b00; color: #793400; background: #fff4ed; }
-.cwl-proto-status strong, .cwl-proto-status p { display: block; }
-.cwl-proto-status p { margin: 3px 0 0; color: inherit; opacity: .82; }
-.cwl-proto-status-actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.cwl-proto-status-actions button:first-child { color: #fff; border-color: #0075de; background: #0075de; }
-.cwl-proto-count { color: #6f6e6b; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.cwl-proto-rotation-attention { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0; padding: 12px 14px; border: 1px solid #e7c875; border-left: 4px solid #d89b13; border-radius: 6px; color: #6a4b08; background: #fff9e9; font-size: 12px; }
-.cwl-proto-rotation-attention strong, .cwl-proto-rotation-attention p { display: block; }
-.cwl-proto-rotation-attention p { margin: 3px 0 0; color: inherit; opacity: .82; }
-.cwl-proto-rotation-attention button { min-height: 38px; padding: 0 12px; border: 1px solid #c68b0a; border-radius: 6px; color: #694800; background: #fff; font-size: 11px; font-weight: 750; cursor: pointer; }
-.cwl-proto-rotation-attention button:hover { background: #fff4cf; }
-.cwl-proto-rotation-attention button:disabled { color: #a39e98; border-color: #d7d2c7; cursor: not-allowed; }
-.cwl-proto-command-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, .75fr); gap: 18px; }
-.cwl-proto-plan-board, .cwl-proto-right-rail { display: grid; align-content: start; gap: 18px; min-width: 0; }
-.cwl-proto-panel { min-width: 0; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; }
-.cwl-proto-panel-heading { display: flex; align-items: start; justify-content: space-between; gap: 14px; padding: 17px 18px 14px; border-bottom: 1px solid #e6e6e6; }
-.cwl-proto-panel-heading h2 { margin: 4px 0 0; font-size: 17px; letter-spacing: -.35px; }
-.cwl-proto-slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 14px; }
-.cwl-proto-slot { display: grid; grid-template-columns: 23px minmax(0, 1fr) auto 22px; align-items: center; gap: 6px; min-height: 58px; padding: 7px 8px; border: 1px solid #e6e6e6; border-radius: 7px; background: #fff; }
-.cwl-proto-slot:hover, .cwl-proto-pool-member:hover { border-color: #78aede; background: #f7fbff; }
-.cwl-proto-slot.observed { box-shadow: inset 3px 0 #2a9d99; }
-.cwl-proto-slot-number { color: #a39e98; font-size: 11px; font-weight: 700; }
-.cwl-proto-slot > button { width: 22px; height: 22px; border: 0; border-radius: 50%; color: #8d8984; background: #f1f1ef; cursor: pointer; }
-.cwl-proto-member-badge { display: grid; min-width: 0; gap: 2px; }
-.cwl-proto-member-badge strong, .cwl-proto-member-badge small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cwl-proto-member-badge strong { font-size: 12px; }
-.cwl-proto-member-badge small { color: #6f6e6b; font-size: 9px; }
-.cwl-proto-slot-meta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; }
-.cwl-proto-slot-state { color: #6f6e6b; font-size: 9px; }
-.cwl-proto-rotation-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 0 6px; border-radius: 999px; font-size: 9px; font-weight: 800; white-space: nowrap; }
-.cwl-proto-rotation-badge.is-secured { color: #11603b; background: #e5f5ec; }
-.cwl-proto-rotation-badge.needs-turn { color: #3f2a72; background: #eee8fb; }
-.cwl-proto-availability-menu { position: relative; display: inline-flex; }
-.cwl-proto-availability-control { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; font-size: 10px; font-weight: 800; cursor: pointer; }
-.cwl-proto-availability-control.availability-available { color: #11603b; background: #e5f5ec; }
-.cwl-proto-availability-control.availability-unknown { color: #675115; background: #f8f1d9; }
-.cwl-proto-availability-control.availability-unavailable { color: #793400; background: #fbede4; }
-.cwl-proto-availability-control[aria-expanded="true"] { outline: 3px solid rgb(0 117 222 / 18%); outline-offset: 2px; }
-.cwl-proto-availability-popover { position: absolute; top: calc(100% + 7px); right: 0; z-index: 20; display: grid; min-width: 170px; padding: 6px; border: 1px solid #d3d3d3; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
-.cwl-proto-availability-menu-label { padding: 5px 8px 6px; color: #777571; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.cwl-proto-availability-option { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 38px; padding: 0 8px; border: 0; border-radius: 5px; color: #31302e; background: #fff; font-size: 12px; text-align: left; cursor: pointer; }
-.cwl-proto-availability-option:hover, .cwl-proto-availability-option.selected { background: #f1f6fa; }
-.cwl-proto-availability-option small { color: #6f6e6b; font-size: 10px; }
-.cwl-proto-availability-option-symbol { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 10px; font-weight: 800; }
-.cwl-proto-availability-option.availability-available .cwl-proto-availability-option-symbol { color: #11603b; background: #e5f5ec; }
-.cwl-proto-availability-option.availability-unknown .cwl-proto-availability-option-symbol { color: #675115; background: #f8f1d9; }
-.cwl-proto-availability-option.availability-unavailable .cwl-proto-availability-option-symbol { color: #793400; background: #fbede4; }
-.cwl-proto-pool-panel { padding-bottom: 14px; }
-.cwl-proto-panel-heading-actions { display: flex; align-items: center; gap: 10px; }
-.cwl-proto-panel-heading-actions a { color: #0075de; font-size: 11px; font-weight: 700; text-decoration: none; }
-.cwl-proto-help, .cwl-proto-panel-lede { margin: 12px 18px; color: #6f6e6b; font-size: 12px; line-height: 1.5; }
-.cwl-proto-roster-filters { display: grid; grid-template-columns: minmax(150px, 1.4fr) repeat(3, minmax(110px, 1fr)); gap: 10px; margin: 0 14px 12px; padding: 12px; border: 1px solid #e0dfdc; border-radius: 8px; background: #fff; }
-.cwl-proto-roster-filters label, .cwl-proto-roster-filters .filter-menu { display: grid; gap: 7px; color: #54524f; font-size: 11px; font-weight: 650; }
-.cwl-proto-roster-filters .filter-menu-label { color: inherit; font-size: inherit; font-weight: inherit; }
-.cwl-proto-roster-filters input { width: 100%; min-height: 42px; padding: 0 13px; border: 1px solid transparent; border-radius: 999px; color: #4c4945; background: #f4f2ef; font: inherit; font-size: 13px; font-weight: 500; }
-.cwl-proto-roster-filters input::placeholder { color: #8d8984; }
-.cwl-proto-roster-filters input:hover { background: #eeece8; }
-.cwl-proto-roster-filters input:focus { outline: 3px solid rgb(0 117 222 / 16%); outline-offset: 1px; border-color: #78aede; background: #fff; }
-.cwl-proto-pool-list { display: grid; gap: 6px; padding: 0 14px; }
-.cwl-proto-pool-empty { margin: 0; padding: 22px 8px; color: #6f6e6b; font-size: 12px; text-align: center; }
-.cwl-proto-pool-member { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 9px; padding: 8px; border: 1px solid #e6e6e6; border-radius: 7px; background: #fff; cursor: grab; }
-.cwl-proto-pool-member strong, .cwl-proto-pool-member small { display: block; }
-.cwl-proto-pool-member strong { font-size: 12px; }
-.cwl-proto-pool-member small { margin-top: 2px; color: #6f6e6b; font-size: 10px; }
-.cwl-proto-pool-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #391c57; background: #d6b6f6; font-size: 12px; font-weight: 800; }
-.cwl-proto-pool-status { display: flex; align-items: center; gap: 7px; }
-.cwl-proto-pool-action { padding: 0; border: 0; color: #005fae; background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; }
-.cwl-proto-pool-action:disabled { color: #a39e98; cursor: not-allowed; }
-.availability-unknown .cwl-proto-pool-avatar { color: #675115; background: #f8f1d9; }
-.availability-unavailable .cwl-proto-pool-avatar { color: #793400; background: #fbede4; }
-.cwl-proto-recommendation { padding-bottom: 18px; }
-.cwl-proto-confidence { padding: 4px 7px; border-radius: 999px; color: #11603b; background: #e5f5ec; font-size: 10px; font-weight: 700; }
-.cwl-proto-recommendation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 0 18px 8px; padding: 12px; border: 1px solid #d8e7f5; border-radius: 8px; background: #f5faff; }
-.cwl-proto-arrow { color: #0075de; font-size: 20px; }
-.cwl-proto-primary-button { width: calc(100% - 36px); min-height: 42px; margin: 0 18px; border: 1px solid #0075de; border-radius: 6px; color: #fff; background: #0075de; font-size: 12px; font-weight: 700; cursor: pointer; }
-.cwl-proto-primary-button:disabled { color: #8c9cac; border-color: #d5d9dc; background: #eef1f3; cursor: not-allowed; }
-.cwl-proto-row-action, .cwl-proto-revert-button { min-height: 34px; padding: 0 10px; border: 1px solid #78aede; border-radius: 6px; color: #174e78; background: #fff; font-size: 10px; font-weight: 750; cursor: pointer; }
-.cwl-proto-row-action:hover, .cwl-proto-revert-button:hover { background: #edf6ff; }
-.cwl-proto-row-action:disabled { color: #6f6e6b; border-color: #d6d3ce; background: #f1f1ef; cursor: default; }
-.cwl-proto-revert-button { width: calc(100% - 36px); margin: 8px 18px 0; border-color: #c68b0a; color: #694800; }
-.cwl-proto-revert-button:hover { background: #fff4cf; }
-.cwl-proto-context-panel { padding-bottom: 16px; }
-.cwl-proto-audit-list { display: grid; gap: 12px; margin: 0 18px; padding: 0; list-style: none; }
-.cwl-proto-audit-list li { display: flex; gap: 9px; }
-.audit-dot { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: #a39e98; }
-.audit-dot.lock { background: #dd5b00; }.audit-dot.save { background: #0075de; }.audit-dot.observe { background: #2a9d99; }
-.cwl-proto-audit-list strong, .cwl-proto-audit-list small { display: block; }
-.cwl-proto-audit-list strong { font-size: 11px; }.cwl-proto-audit-list small { margin-top: 2px; color: #6f6e6b; font-size: 10px; }
-.cwl-proto-history-button { width: calc(100% - 36px); min-height: 38px; margin: 16px 18px 0; border: 1px solid #d3d3d3; border-radius: 6px; color: #174e78; background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
-.cwl-proto-footnote { margin: 18px 0 0; color: #6f6e6b; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
-.cwl-proto-bonus-list { display: grid; gap: 8px; margin: 0 18px; padding: 0; list-style: none; }
-.cwl-proto-bonus-list li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #ece9e2; }
-.cwl-proto-bonus-list li:last-child { border-bottom: 0; }
-.cwl-proto-bonus-rank { color: #9a968f; font-size: 10px; font-variant-numeric: tabular-nums; }
-.cwl-proto-bonus-list strong { color: #20201e; font-size: 12px; }
-.cwl-proto-bonus-list small { display: block; margin-top: 2px; color: #77746e; font-size: 10px; }
-.cwl-proto-bonus-status { white-space: nowrap; }
-.cwl-proto-bonus-list li.is-qualified .cwl-proto-bonus-status { color: #11603b; }
+/* ---------- day menu ----------
+ * Day-scoped actions live in the day strip's context, not above it. #19 deleted
+ * the permanent documentation bar that carried Re-inherit; the action is
+ * rehomed here, alongside the day lock, because both act on the day rather than
+ * on the lineup.
+ */
+.cwl-daymenu-wrap { position: relative; }
+.cwl-daymenu {
+  position: absolute; right: 0; top: calc(var(--cm-tap-min) + var(--cm-space-1)); z-index: 20;
+  min-width: 210px; padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.cwl-daymenu button {
+  display: block; width: 100%; text-align: left;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-md); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.cwl-daymenu button:disabled { color: var(--cm-fg-muted); cursor: not-allowed; }
 
-@media (max-width: 1100px) {
-  .cwl-proto-command-grid { grid-template-columns: 1fr; }
-  .cwl-proto-right-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cwl-proto-right-rail > :first-child { grid-column: 1 / -1; }
+/* ---------- reorder's own vocabulary ----------
+ * components.md puts `moved-from` in the page layer even though _prototype.css
+ * carries it: layer follows concept, and "was 4" is a sentence about reorder
+ * mode rather than a thing any other surface could mean.
+ */
+.cwl-moved-from {
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-medium);
+  color: var(--cm-caution-ink); white-space: nowrap;
 }
 
-@media (max-width: 800px) {
-  .cwl-proto-shell { width: min(100% - 24px, 680px); margin-top: 18px; }
-  .cwl-proto-header { align-items: stretch; flex-direction: column; }
-  .cwl-proto-header-actions { align-items: stretch; }
-  .cwl-proto-header-actions > * { flex: 1; }
-  .cwl-proto-day-strip { overflow-x: auto; grid-template-columns: repeat(7, minmax(100px, 1fr)); }
-  .cwl-proto-inline-notice { align-items: stretch; flex-direction: column; }
-  .cwl-proto-rotation-attention { align-items: stretch; flex-direction: column; }
-  .cwl-proto-rotation-attention button { width: 100%; }
-  .cwl-proto-slot-grid { grid-template-columns: 1fr; }
-  .cwl-proto-right-rail { grid-template-columns: 1fr; }
-  .cwl-proto-panel-heading-actions { align-items: flex-end; flex-direction: column; gap: 6px; }
-  .cwl-proto-roster-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* ---------- checklist tail ---------- */
+.cwl-checkdone {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  padding: var(--cm-space-3) 0; font-size: var(--cm-text-sm); color: var(--cm-fg-muted);
 }
 
-@media (max-width: 480px) {
-  .cwl-proto-header-actions { flex-direction: column; }
-  .cwl-proto-roster-filters { grid-template-columns: 1fr; }
-  .cwl-proto-recommendation-row { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
-  .cwl-proto-row-action { grid-column: 1 / -1; width: 100%; }
+/* ---------- the desktop-only rail ---------- */
+.cwl-rail { display: none; }
+.cwl-railcard {
+  padding: var(--cm-space-4);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg); background: var(--cm-surface);
+}
+.cwl-railcard + .cwl-railcard { margin-top: var(--cm-space-4); }
+.cwl-railcard h2 {
+  margin: 0 0 var(--cm-space-3); font-size: var(--cm-text-md); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.cwl-railcard ol { margin: 0; padding: 0; list-style: none; }
+.cwl-railcard li {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: var(--cm-space-2);
+  align-items: center; padding: var(--cm-space-2) 0; font-size: var(--cm-text-sm);
+}
+.cwl-railcard li + li { border-top: 1px solid var(--cm-hairline); }
+.cwl-rank { color: var(--cm-fg-muted); font-size: var(--cm-text-xs); }
+
+/* The one live region the surface announces through. Loading has no copy (#43),
+ * so nothing here is visible — this exists purely so a save, a lock change or a
+ * failed availability write reaches a screen reader. */
+.cwl-visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* ================= 720px: the bench stops being a sheet ================= */
+@media (min-width: 720px) {
+  .cwl-benchbutton { display: none; }
+  .cwl-bench-column { display: block; }
+}
+@media (max-width: 719.98px) {
+  /* The docked bench is not rendered below 720px — this is belt and braces for
+     the frame between a viewport change and React re-rendering off it. */
+  .cwl-bench-column { display: none; }
+}
+
+/* ================= 1120px: the desktop-only rail appears =================
+ * The one page rule that overrides a component, hence the ancestor: .cm-columns
+ * sets two tracks at 720px and this file loses a tie against it.
+ */
+@media (min-width: 1120px) {
+  .cwl-workspace .cwl-columns { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px) minmax(280px, 320px); }
+  .cwl-rail { display: block; }
 }

@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  filterAvailableRotationChanges,
-  hasRegularWarEvidence,
-  hasRecentRegularWarEvidence,
-  isAvailableRotationCandidate,
+  hasRevisionConflict,
   isBonusSecured,
-  isRotationChangeApplied,
+  membershipDiff,
   needsBonusTurn,
-  sortRegularActivity,
+  pendingChecklist,
+  rankCandidates,
   sortBonusPriority,
+  unsavedChangeCount,
 } from "./cwl-lineup-workspace.js";
 import type { CwlLineupMember } from "../data/operations.js";
 
@@ -42,69 +41,133 @@ function member(overrides: Partial<CwlLineupMember> = {}): CwlLineupMember {
   };
 }
 
-describe("CWL rotation signals", () => {
+describe("bonus signals", () => {
   it("treats eight stars as secured bonus eligibility", () => {
     expect(isBonusSecured(member({ stars: 7 }))).toBe(false);
     expect(isBonusSecured(member({ stars: 8 }))).toBe(true);
   });
 
-  it("ranks qualified contributors before below-target members", () => {
-    const qualified = member({ name: "Qualified", stars: 8, cwlWarsParticipated: 3 });
-    const belowTarget = member({ name: "Below target", stars: 7, cwlWarsParticipated: 1 });
-    expect(sortBonusPriority(qualified, belowTarget)).toBeLessThan(0);
-  });
-
-  it("uses total stars before stars per war within the same qualification group", () => {
-    const broaderContributor = member({ name: "Broader contributor", stars: 16, cwlWarsParticipated: 4 });
-    const efficientContributor = member({ name: "Efficient contributor", stars: 8, cwlWarsParticipated: 1 });
-    expect(sortBonusPriority(broaderContributor, efficientContributor)).toBeLessThan(0);
-  });
-
-  it("marks only available, unassigned, non-observed members as needing a turn", () => {
+  it("marks only available, unassigned, under-target members as needing a turn", () => {
     expect(needsBonusTurn(member({ availability: "available" }))).toBe(true);
     expect(needsBonusTurn(member({ availability: "unknown" }))).toBe(false);
     expect(needsBonusTurn(member({ availability: "available", assignedAttacks: 1 }))).toBe(false);
-    expect(needsBonusTurn(member({ availability: "available", observed: true }))).toBe(false);
     expect(needsBonusTurn(member({ availability: "available", stars: 8 }))).toBe(false);
   });
 
-  it("allows only available under-target members into rotation recommendations", () => {
-    const changes = [
-      { outPlayerTag: "#OUT", inPlayerTag: "#AVAILABLE", explanation: "" },
-      { outPlayerTag: "#OUT", inPlayerTag: "#UNKNOWN", explanation: "" },
-      { outPlayerTag: "#OUT", inPlayerTag: "#UNAVAILABLE", explanation: "" },
-      { outPlayerTag: "#OUT", inPlayerTag: "#SECURED", explanation: "" },
-      { outPlayerTag: "#OUT", inPlayerTag: "#OBSERVED", explanation: "" },
-    ];
-    const members = [
-      member({ playerTag: "#AVAILABLE", availability: "available", stars: 4 }),
-      member({ playerTag: "#UNKNOWN", availability: "unknown", stars: 4 }),
-      member({ playerTag: "#UNAVAILABLE", availability: "unavailable", stars: 4 }),
-      member({ playerTag: "#SECURED", availability: "available", stars: 8 }),
-      member({ playerTag: "#OBSERVED", availability: "available", stars: 4, observed: true }),
-    ];
+  it("ranks qualified contributors before below-target members, by total stars", () => {
+    const qualified = member({ name: "Qualified", stars: 8, cwlWarsParticipated: 3 });
+    const belowTarget = member({ name: "Below target", stars: 7, cwlWarsParticipated: 1 });
+    expect(sortBonusPriority(qualified, belowTarget)).toBeLessThan(0);
 
-    expect(filterAvailableRotationChanges(changes, members)).toEqual([changes[0]]);
-    expect(isAvailableRotationCandidate(members[0]!)).toBe(true);
+    const broader = member({ name: "Broader", stars: 16, cwlWarsParticipated: 4 });
+    const efficient = member({ name: "Efficient", stars: 8, cwlWarsParticipated: 1 });
+    expect(sortBonusPriority(broader, efficient)).toBeLessThan(0);
+  });
+});
+
+describe("candidate ranking", () => {
+  const roster = [
+    member({ playerTag: "#SECURED", name: "Secured", availability: "available", stars: 9, overallRating: 95 }),
+    member({ playerTag: "#TURN", name: "Owed a turn", availability: "available", stars: 2, overallRating: 40 }),
+    member({ playerTag: "#SOLID", name: "Solid", availability: "available", stars: 3, assignedAttacks: 4, overallRating: 88 }),
+    member({ playerTag: "#UNKNOWN", name: "Unknown", availability: "unknown", stars: 1, overallRating: 99 }),
+    member({ playerTag: "#OUT", name: "Unavailable", availability: "unavailable", stars: 0, overallRating: 99 }),
+  ];
+
+  it("puts rotation need above raw strength, and availability above both", () => {
+    /* Ranking by rating alone floats the secured members to the top, which is
+     * exactly backwards for bonus fairness — that is the whole point of the
+     * rotation term sitting above rating. */
+    expect(rankCandidates(roster, [], "").map((candidate) => candidate.playerTag))
+      .toEqual(["#TURN", "#SOLID", "#SECURED", "#UNKNOWN", "#OUT"]);
   });
 
-  it("recognizes a locally applied swap without implying it was saved", () => {
-    const change = { outPlayerTag: "#OUT", inPlayerTag: "#IN", explanation: "" };
-    expect(isRotationChangeApplied(["#OUT"], change)).toBe(false);
-    expect(isRotationChangeApplied(["#IN"], change)).toBe(true);
+  it("never offers someone already in the lineup", () => {
+    expect(rankCandidates(roster, ["#TURN"], "").map((candidate) => candidate.playerTag)).not.toContain("#TURN");
   });
 
-  it("separates regular-war activity from CWL rating and ranks observed evidence", () => {
-    const active = member({ name: "Active", regularWarsParticipated: 3, regularActivityScore: 100, regularPerformanceScore: 80 });
-    const inactive = member({ name: "Inactive", overallRating: 100 });
-    expect(hasRegularWarEvidence(active)).toBe(true);
-    expect(hasRegularWarEvidence(inactive)).toBe(false);
-    expect(sortRegularActivity(active, inactive)).toBeLessThan(0);
+  it("searches by name without disturbing the ranking", () => {
+    expect(rankCandidates(roster, [], "un").map((candidate) => candidate.playerTag)).toEqual(["#UNKNOWN", "#OUT"]);
+  });
+});
+
+describe("membership diff", () => {
+  it("pairs a removal with an addition into one swap, because that is one act in the game", () => {
+    expect(membershipDiff(["#A", "#B"], ["#A", "#C"]))
+      .toEqual({ swaps: [{ out: "#B", in: "#C" }], added: [], removed: [] });
   });
 
-  it("can identify evidence observed in the prior 90 days without treating older evidence as current", () => {
-    const now = new Date("2026-08-09T00:00:00.000Z");
-    expect(hasRecentRegularWarEvidence(member({ regularWarsParticipated: 1, regularLastObservedAt: "2026-07-01T00:00:00.000Z" }), now)).toBe(true);
-    expect(hasRecentRegularWarEvidence(member({ regularWarsParticipated: 1, regularLastObservedAt: "2026-04-01T00:00:00.000Z" }), now)).toBe(false);
+  it("reports unpaired halves separately", () => {
+    expect(membershipDiff(["#A", "#B"], ["#A"])).toEqual({ swaps: [], added: [], removed: ["#B"] });
+    expect(membershipDiff(["#A"], ["#A", "#B"])).toEqual({ swaps: [], added: ["#B"], removed: [] });
+  });
+
+  it("sees no membership change in a pure reorder", () => {
+    expect(membershipDiff(["#A", "#B"], ["#B", "#A"])).toEqual({ swaps: [], added: [], removed: [] });
+  });
+});
+
+describe("the in-game checklist", () => {
+  it("is the saved plan minus the baseline, not the draft minus the saved plan", () => {
+    /* #21's finding: merging the two baselines is what made the checklist
+     * evaporate on Save — the exact moment you switch to Clash to act on it. */
+    const baseline = ["#A", "#B"];
+    const saved = ["#A", "#C"];
+    expect(pendingChecklist(baseline, saved)).toEqual([{ key: "swap:#B>#C", out: "#B", in: "#C" }]);
+  });
+
+  it("survives a save, because saving moves the plan and not the game", () => {
+    const baseline = ["#A", "#B"];
+    expect(pendingChecklist(baseline, ["#A", "#C"])).toHaveLength(1);
+    // the leader saves again, swapping a second member; the game still holds the baseline
+    expect(pendingChecklist(baseline, ["#D", "#C"])).toHaveLength(2);
+  });
+
+  it("empties once the baseline has caught up with the plan", () => {
+    expect(pendingChecklist(["#A", "#C"], ["#A", "#C"])).toEqual([]);
+  });
+
+  it("leads with removals, because the game refuses an add before a remove at war size", () => {
+    const items = pendingChecklist(["#A", "#B"], ["#A", "#C", "#D"]);
+    expect(items.map((item) => item.key)).toEqual(["swap:#B>#C", "add:#D"]);
+    expect(items.findIndex((item) => item.out)).toBeLessThan(items.findIndex((item) => !item.out));
+  });
+
+  it("says nothing about order, because the game orders by base weight", () => {
+    expect(pendingChecklist(["#A", "#B"], ["#B", "#A"])).toEqual([]);
+  });
+});
+
+describe("the unsaved count", () => {
+  const none = new Set<string>();
+
+  it("counts a swap once, not as a removal plus an addition", () => {
+    expect(unsavedChangeCount(["#A", "#B"], ["#A", "#C"], none)).toBe(1);
+  });
+
+  it("counts a move, because plan order is a hand-kept mirror of in-game order", () => {
+    expect(unsavedChangeCount(["#A", "#B"], ["#B", "#A"], new Set(["#A"]))).toBe(1);
+  });
+
+  it("does not count a member as both swapped in and moved", () => {
+    expect(unsavedChangeCount(["#A", "#B"], ["#A", "#C"], new Set(["#C"]))).toBe(1);
+  });
+
+  it("is zero when nothing was touched", () => {
+    expect(unsavedChangeCount(["#A", "#B"], ["#A", "#B"], none)).toBe(0);
+  });
+});
+
+describe("the revision conflict", () => {
+  it("fires only when the plan moved under a checklist that is part-way through", () => {
+    expect(hasRevisionConflict(12, 13, 2)).toBe(true);
+  });
+
+  it("stays quiet for an untouched checklist, which just recomputes", () => {
+    expect(hasRevisionConflict(12, 13, 0)).toBe(false);
+  });
+
+  it("stays quiet while the plan has not moved", () => {
+    expect(hasRevisionConflict(12, 12, 2)).toBe(false);
   });
 });
