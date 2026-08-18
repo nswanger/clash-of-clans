@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../design/icon.js";
+import { Sheet } from "../design/sheet.js";
 import {
   activityStatus,
   loadMemberRoster,
@@ -93,6 +94,10 @@ export function MembersPage({ client, clanTag }: MemberPageProps) {
   const filterCount = (scope !== "current" ? 1 : 0) + (role !== "all" ? 1 : 0)
     + (activity !== "all" ? 1 : 0) + (sort !== "rank" ? 1 : 0);
 
+  /* The same string each panel gives its own `aria-label`. The prototype read
+   * it back out of the DOM because it had no other handle on what the sheet was
+   * showing; here it is state, so it is passed. */
+  const sheetLabel = active?.mode === "filters" ? "Filters" : selected?.name ?? "";
   const panelBody = active?.mode === "filters"
     ? <FilterPanel
         counts={`${visible.length} of ${members.length} observed members`}
@@ -202,10 +207,7 @@ export function MembersPage({ client, clanTag }: MemberPageProps) {
       </div>
     </main>
     {!wide && panelBody
-      ? <div data-overlay>
-          <button className="cm-scrim" type="button" aria-label="Close" onClick={() => setPanel(null)} />
-          {panelBody}
-        </div>
+      ? <Sheet label={sheetLabel} onClose={() => setPanel(null)}>{panelBody}</Sheet>
       : null}
   </>;
 }

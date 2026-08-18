@@ -65,6 +65,19 @@ The same rule settles a name collision the surface will otherwise trip on. The p
 - **`filter-menu.tsx` stays.** It looks like the roster's own control and its CSS sat inside the members block, but the CWL workspace renders four of them. It is wave 2's, and it carries the app's last two `textContent` glyphs — `⌄` and `✓`.
 - **The shared sheet behaviour layer was not ported.** `_prototype.js` applies `is-entering` / `is-settling` and runs drag-to-dismiss by watching the DOM for overlays; in React that is an effect, not a MutationObserver, and rewriting it inside a surface rebuild is the second cause in one diff the icon sprite was split out to avoid. The sheet works without it — scrim, Escape, and the close control all dismiss — it simply does not animate or drag. Wave 2 needs it too, so it wants its own commit first.
 
+### The sheet behaviour layer — landed between wave 1 and wave 2
+
+`Sheet` in `apps/web/src/design/sheet.tsx`, beside the icon sprite and split out for the same reason. The members roster is its first caller; the lineup workspace is the second, which is why it lands before wave 2 rather than inside it.
+
+The gesture is unchanged from the prototype — same dismiss fraction, same fling velocity, same sampling window, same head-only drag surface. What the port replaces is the trigger. Two of the prototype's mechanisms exist only because it had no state to read:
+
+- **The MutationObserver becomes a mounting.** React knows when a sheet opens, so the overlay is keyed by what it shows and a new sheet is a new node. That is also what stops the entry animation replaying: the prototype compared `aria-label` against the last one it saw because `innerHTML` re-rendering made every change look like an insertion, and a keyed subtree expresses the same rule structurally.
+- **The `aria-label` sniff becomes a prop.** `label` names what the sheet is showing. Callers pass the string they already give the panel's `aria-label`; it is read as identity here, not as an accessible name.
+
+Two things the prototype did not have to decide. The entry class is stamped in a layout effect rather than a passive one, because a passive effect shows one frame of the sheet already at rest. And it is **removed** on `animationend` — the prototype leaves it on, which is harmless there but not here, since a finished animation still beats the inline transform a drag sets and the first grab after opening would do nothing.
+
+Dismissal still hands back to the caller rather than removing anything itself, as it did in the prototype through `[data-close]`. Here it is `onClose`, called after the sheet has slid out, so a gesture that animates on the way in does not vanish on the way out.
+
 ### Wave 2 — the CWL lineup workspace
 
 The one with the deadline. Spec: [`prototype/lineup-adjust.html`](prototype/lineup-adjust.html) · [published](https://claude.ai/code/artifact/4678e567-87c1-403a-a84c-1b7ae5f62434)
