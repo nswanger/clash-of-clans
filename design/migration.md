@@ -101,16 +101,31 @@ Three things the live workspace did not have arrived with it — the swap panel,
 
 ### Wave 3 — conformance
 
-The remaining routes — `overview`, `season`, `dashboard`, `access` — brought onto the system. No deadline, and no prototype: by this point the component inventory should carry them, and anything that needs a new component is a finding worth recording rather than a licence to invent one.
+**Settled before this wave started, as required — see [ADR 0002](../docs/adr/0002-app-surfaces-and-cwl-phase.md).** Three of the four routes this wave was written to conform are deleted instead, so what remains is much smaller than the heading implies.
 
-**Two of the four may not warrant migrating at all, and that question is not answered here.** This map decided *how* a surface moves onto the system, never *which surfaces deserve to exist* — page rebuilds are explicitly out of its scope. Conformance assumes the page should exist in roughly its current form, and for two routes that assumption does not hold:
+The app collapses to three routes: **CWL**, **Members**, **Admin**. No deadline, and no prototype: by this point the component inventory should carry them, and anything that needs a new component is a finding worth recording rather than a licence to invent one.
 
-- **`overview`** is four summary metrics plus a callout linking to `#/members`. The members roster designed in [#22](https://github.com/nswanger/clash-of-clans/issues/22) carries a summary strip with the *same four metrics* — current members, activity observed over 7 days, building history, former members. Conforming it as-is would ship two pages showing identical numbers, one of which exists only to link to the other. The likely answer is deletion with `#/overview` redirecting to `#/members`, but that is a product call.
-- **`season`** is an inline stub in `app-routes.tsx`: a heading and one sentence saying verified group standings are not available in the normalized data yet. There is nothing to conform.
+| Route | Wave 3 does |
+|---|---|
+| `#/overview` | **Delete**, redirect to `#/members`. Four metrics under labels identical to the roster's summary strip, off the same source, plus a link to the roster. |
+| `#/season` | **Delete.** The stub's blocker is real and unfixable from the current schema — only `opponent_tag` is collected, and there is no league-group standings data. |
+| `#/dashboard` | **Delete.** Its roster and summary duplicate the other two routes; its recommendations and lineup history describe only the current cycle and are judged not worth a surface; its collection health moves to Admin. |
+| `#/access` | **Widen into Admin** and conform. Gains collection health, which is where "is this data trustworthy" belongs beside "who can see it". Closes [#9](https://github.com/nswanger/clash-of-clans/issues/9), whose whole complaint is that normalization errors are recorded and never surfaced. |
+| `#/cwl-lineup` | **Becomes `#/cwl`** and gains the phase control. It is no longer only a lineup. |
 
-`dashboard` and `access` are real surfaces and conform normally.
+The new work in this wave is the **review phase** — bonus medals, role changes, follow-ups — which lands inside the CWL route rather than as a fourth tab, because it and the lineup workspace are complementary in time and can never both want to be on screen. ADR 0002 carries the reasoning and the phase marker.
 
-**Settle this before starting wave 3**, in its own session. Deciding what the app should contain is a different question from deciding what it should look like, and answering it inside a styling wave is how a restyle silently becomes a redesign.
+**Regular-war data gets no surface.** It is an input to the CWL and role decisions rather than a subject of its own, and the roster already covers two of its three views. The war-by-war record is drill-down about one member, so it belongs in the member detail panel if anywhere, and only once a real need appears.
+
+The prediction this section carried — that two of the four routes might not warrant migrating — held, and undershot. Three do not. It was right about the reason: this map decided *how* a surface moves onto the system, never *which surfaces deserve to exist*, and conformance quietly assumes the page should exist in roughly its current form.
+
+**The rule that produced the answer was "one route per question a leader actually asks."** Under it, a page whose content is a view that happens to exist is not a page. That is what caught `overview` (duplicate numbers), `season` (no data, and none coming), `dashboard` (a grab bag around one genuinely useful signal), and — prospectively — a regular-war page, which was considered and rejected on the same test before it was ever built.
+
+### Wave 4 — the resting phase
+
+Deferred deliberately, not left over. After review has been available for a while the CWL route should rest rather than keep presenting a finished season as though something were outstanding; the marker is days since the final war's `end_time`, and it becomes the default phase position while lineup and review stay reachable.
+
+It waits because it depends on nothing else in wave 3, and because it is the one piece here that wants a design decision rather than a port: it is an **empty state**, and [`components.md`](components.md) currently lists one under what is deliberately not a component, on the grounds that inventing it would guess ahead of a surface that needs it. This is that surface. It is not the loading pattern — skeletons assert that data is arriving, and nothing is arriving for weeks — and it is not the happy-path banner [#19](https://github.com/nswanger/clash-of-clans/issues/19) bans, provided it reads as absence rather than reassurance. See [ADR 0002](../docs/adr/0002-app-surfaces-and-cwl-phase.md).
 
 ### The app chrome — in no wave, and now visibly so
 
@@ -125,7 +140,7 @@ It slipped for a legible reason rather than by oversight: the waves are organise
 
 That makes it the one piece of conformance work with a reason to move early, and the one with the least to go on. Two questions, both open:
 
-- **When.** ~~Fold it into wave 3, or pull it forward before wave 2?~~ **Decided: wave 3.** Wave 2 landed against the unmigrated bar deliberately, rather than answer "what is app-level navigation in this system" under a deadline. The nav is now a white bar above a dark page on every route including the workspace, and it stays that way until wave 3.
+- **When.** ~~Fold it into wave 3, or pull it forward before wave 2?~~ **Decided: wave 3.** Wave 2 landed against the unmigrated bar deliberately, rather than answer "what is app-level navigation in this system" under a deadline. The nav is now a white bar above a dark page on every route including the workspace, and it stays that way until wave 3. ADR 0002 makes the job smaller than it looked: the bar carries five links today and will carry three.
 - **What.** There is nothing to port. Conforming the nav means designing one, which is exactly the case `components.md` calls "a finding worth recording rather than a licence to invent" — so it wants a real decision about what app-level navigation is in this system, not a `cm-`-prefixed restatement of the current bar.
 
 ## Rules
