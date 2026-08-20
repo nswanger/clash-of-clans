@@ -114,6 +114,8 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | Class | Variants / states | Notes |
 |---|---|---|
 | `cm-segmented` | `aria-current="true"` on the active button | The CWL day strip and the activity-window selector are the same component (#22). Horizontally scrollable, scrollbar hidden. |
+
+**There is no navigation component**, and that is a gap rather than a decision: both entries above are in-page controls, and nothing here means "move between routes". The app's primary nav belongs to no wave and no prototype — [#58](https://github.com/nswanger/clash-of-clans/issues/58) is where it gets designed.
 | `cm-notice` | — | **Danger only.** One region per screen, and only collection health or a save conflict may fill it (#19). It has no success, caution or info variant by design. |
 
 ### Section and list
@@ -171,6 +173,8 @@ Where a docked panel has no other occupant it opens on the first row by default 
 |---|---|---|
 | `cm-ghost` | `:disabled` | The secondary button. |
 | `cm-search` | — | A single search input. It replaced a four-control filter row (#20); ranking does the work sorting used to. |
+
+**There is no primary/filled button either.** It exists twice as page-layer vocabulary — the lineup's `.donebutton` and the action bar's Save — and never as a system component, because neither prototype needed one outside an editing surface. `.primary-button` in `apps/web` survives wave 3 on the sign-in screen and in Admin, so one is needed; it is scoped to [#58](https://github.com/nswanger/clash-of-clans/issues/58) with the chrome that first requires it.
 
 ## Editing layer
 
