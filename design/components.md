@@ -70,6 +70,8 @@ Eight, drawn on a 24 grid and shipped as one inline `<symbol>` sprite. No icon l
 
 **The rule: if it sits in running text it stays a character; if it is an affordance it becomes an icon.** That keeps the middle dot in `cm-sep` — punctuation in a sentence, and `U+00B7` is in the font — while everything else becomes SVG regardless of coverage, so one alignment model governs.
 
+**Still eight after #58, and that is the second real test the set has had.** The prototype drew three route icons and the chrome ships without them: `cm-routemenu` is three text rows, and its current item is marked by ink and weight like every other current state in the system. The label is the affordance in a menu, so an icon beside it is decoration, and decoration is not what earns a place in a capped set. A bottom tab set would have needed all three — a 38% increase in the icon set to serve one variant — which is a cost that belonged in the comparison rather than in a later diff.
+
 Decorative icons take `aria-hidden="true"`; the accessible name stays on the button.
 
 **Why this exists:** these were Unicode glyphs until [#40](https://github.com/nswanger/clash-of-clans/issues/40) measured the font. Google serves Archivo with `U+2191` and `U+2193` but **not** `U+2192` — up and down arrows, no right arrow — and nothing from Misc Symbols, Braille, or Dingbats. Six of the eight were rendering in whatever the platform happened to substitute, and `U+2605` renders as a **colour emoji** on some platforms, inside a data column.
@@ -108,14 +110,24 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | `cm-topbar-side` | — | The right-hand slot. |
 | `cm-statuschip` | `is-on` | Renamed from `lockchip`, which named its first use rather than the concept. #54 is the second use — "bonuses administered" — which is what makes the rename right rather than speculative. |
 | `cm-iconbutton` | `is-small` | 44px by default; `is-small` is still 44px of tap target. |
+| `cm-mark` | — | The app mark at 24px, first slot in `cm-topbar`. Once per screen (#24). |
+| `cm-account` | — | The display name as a control. The initial travels, not the name — the name is the widest unbounded string in the chrome and the one piece nobody reads twice; it stays the button's accessible name. Opens sign-out, which the app had no route to at all (#58). |
+
+`cm-topbar` carries four slots after #58: the mark, the route control, the flexible middle, and `cm-topbar-side`. It is the app's only bar.
 
 ### Navigation and notice
 
 | Class | Variants / states | Notes |
 |---|---|---|
 | `cm-segmented` | `aria-current="true"` on the active button | The CWL day strip and the activity-window selector are the same component (#22). Horizontally scrollable, scrollbar hidden. |
+| `cm-routebutton` | `aria-expanded` | **The primary nav.** The page's own `h1` is the route control: pressing the page name discloses the routes. Lives in `cm-topbar`, so it adds no band of chrome. |
+| `cm-routemenu` | `aria-current="page"` on the active route | The three routes. Overlay, `cm-shadow-overlay`, 44px rows. |
 
-**There is no navigation component**, and that is a gap rather than a decision: both entries above are in-page controls, and nothing here means "move between routes". The app's primary nav belongs to no wave and no prototype — [#58](https://github.com/nswanger/clash-of-clans/issues/58) is where it gets designed.
+**The primary nav is the page name** ([#58](https://github.com/nswanger/clash-of-clans/issues/58)). There is no nav bar and no tab bar: after ADR 0002 there are three destinations, one of them role-conditional and one visited monthly, and a permanently-rendered nav pays rent on a decision a leader makes rarely. `cm-topbar` already sits on every surface, so folding the route control into it costs nothing — which is what the two rejected alternatives could not do. A bottom tab set needs a slim app bar above it for the mark *and* contends for the bottom edge that `cm-actionbar` already owns on the default route; a top rail measurably does not fit at 375px once the mark, the product name, three links and the account control are on one line.
+
+**The route menu is system layer, where the day and season menus are page layer.** Same shape, different scope: those are one surface's own overflow of actions, and this is the app's only way between routes.
+
+**Navigation is deliberately not a `cm-segmented`.** That strip already carries the CWL phase one level down (ADR 0002), and a second one above it is two headers wearing a component.
 | `cm-notice` | — | **Danger only.** One region per screen, and only collection health or a save conflict may fill it (#19). It has no success, caution or info variant by design. |
 
 ### Section and list
@@ -171,10 +183,13 @@ Where a docked panel has no other occupant it opens on the first row by default 
 
 | Class | Variants / states | Notes |
 |---|---|---|
+| `cm-button` | `is-block`, `:disabled` | The primary/filled button. |
 | `cm-ghost` | `:disabled` | The secondary button. |
 | `cm-search` | — | A single search input. It replaced a four-control filter row (#20); ranking does the work sorting used to. |
 
-**There is no primary/filled button either.** It exists twice as page-layer vocabulary — the lineup's `.donebutton` and the action bar's Save — and never as a system component, because neither prototype needed one outside an editing surface. `.primary-button` in `apps/web` survives wave 3 on the sign-in screen and in Admin, so one is needed; it is scoped to [#58](https://github.com/nswanger/clash-of-clans/issues/58) with the chrome that first requires it.
+**The filled button is `cm-button`** ([#58](https://github.com/nswanger/clash-of-clans/issues/58)). It existed twice as page-layer vocabulary — the lineup's `.donebutton` and the action bar's Save — and never as a system component, because neither prototype needed one outside an editing surface. The sign-in screen is the case that forced it: the only control on the only surface that has one control.
+
+**It is the accent's one large surface in the app.** Gold fills and does not write (#16), so `--cm-on-accent` is the only ink permitted on it, and that rule is what keeps a filled button from appearing anywhere a ghost would do. It takes `--cm-radius-md` and the 44px floor like every other control; nothing about being primary earns an exception to either. The old `.primary-button` blue (`#0075de`) leaves with it — the system has no blue accent, so the sign-in button was never a restyle.
 
 ## Editing layer
 
@@ -202,6 +217,8 @@ Not components. Listed so the boundary is legible.
 **Members:** metric tile, list header, facts grid, evidence list, freshness line, filter choices, window row.
 
 **Review:** season menu, war-day record, coverage caveat, list header, facts grid, freshness line.
+
+**Auth:** the shell that carries the three session states. One surface, three states, and the only place the mark appears large; it is page layer because exactly one route renders it.
 
 The season menu is the lineup's day menu at a different scope, and stays page layer for the same reason: both are one surface's own overflow of actions, not a control the system offers. Seasons are deliberately **not** a `cm-segmented` — the strip on that route already carries the phase (ADR 0002), and seasons accumulate without bound while war days and activity windows are fixed small sets.
 

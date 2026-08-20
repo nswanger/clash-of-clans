@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>App chrome — nav and auth shells prototype</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<script src="_prototype.js" defer></script>
+<style>
+/* Clan Muster — app chrome (#58 prototype).
+ *
+ * RESOLVED: variant B, the one bar, is the chosen chrome. The other two are
+ * kept because a rejected alternative is evidence — each one lost on a
+ * measurement this file still renders, and deleting them would leave the
+ * decision looking like taste.
+ *
+ * THREE VARIANTS of primary navigation, switchable from the harness or with
+ * the left/right arrow keys, plus the three auth shells. Nothing here is a
+ * port: the app chrome belonged to no wave and no prototype, and the component
+ * inventory had no navigation component and no filled button. Both are
+ * designed here rather than invented under implementation pressure in wave 3.
+ *
+ * The variants are judged against real page bodies rather than in a vacuum,
+ * because the whole question is what a nav costs the surface underneath it.
+ * Two hosts, and the second is not optional:
+ *
+ *   - MEMBERS, a read-mostly list. The easy case; every variant survives it.
+ *   - CWL LINEUP in edit, which carries `.actionbar` fixed to the bottom with
+ *     `env(safe-area-inset-bottom)`. This is the case that discriminates. The
+ *     editing layer already owns the bottom of the screen on the app's default
+ *     route, so a bottom tab set is not choosing an empty slot — it is
+ *     choosing a contested one.
+ *
+ * Three destinations after ADR 0002 — CWL, Members, Admin — and Admin is
+ * role-conditional, so a leader who is not an admin sees TWO. Every variant is
+ * drawn at both counts (the harness toggles the role) because a nav that only
+ * looks right at three is designed for a user most of the clan is not.
+ *
+ * Synthetic data throughout. Real player tags must not enter this public repo.
+ */
+
+/* ===================================================================
+ * SHARED — things every variant needs, and the two the inventory lacks
+ * =================================================================== */
+
+/* ---------- the filled button ----------
+ * `components.md` records that there is no primary/filled button in the
+ * system: the controls are `ghost` and `search`, and the filled form exists
+ * only as page-layer vocabulary in two prototypes. The sign-in screen needs
+ * one and so does Admin, so it is designed here rather than restated a third
+ * time.
+ *
+ * Gold FILLS and does not write (#16), so this is the accent's one large
+ * surface in the app — `--cm-on-accent` is the only ink permitted on it. It
+ * takes `--cm-radius-md` like every other control, and the 44px floor like
+ * every other tap target (#17); nothing about being primary earns it an
+ * exception to either.
+ */
+.button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  border: 1px solid transparent; border-radius: var(--cm-radius-md);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+}
+.button:hover { background: var(--cm-accent-fill-hover); }
+.button:disabled { opacity: .5; }
+.button.is-block { width: 100%; }
+
+/* ---------- the account control ----------
+ * Today the display name is a bare <span> in the bar: no affordance, and no
+ * way to sign out anywhere in the app. It becomes a control in every variant,
+ * because the thing it is missing is not styling.
+ *
+ * The initial rather than the name is what travels: the name is the widest
+ * unbounded string in the chrome and it is the one piece of it nobody reads
+ * twice. It is still the accessible name of the button.
+ */
+.account {
+  flex: none; display: inline-grid; place-items: center;
+  width: var(--cm-tap-min); height: var(--cm-tap-min);
+  border: none; background: none; border-radius: var(--cm-radius-circle);
+}
+.account span {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: var(--cm-radius-circle);
+  background: var(--cm-surface-sunken); border: 1px solid var(--cm-hairline);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
+  color: var(--cm-fg-muted);
+}
+.account:hover span { color: var(--cm-fg-strong); }
+
+/* ---------- the mark ----------
+ * #24 permits identity in exactly one place in normal use: "top bar, at
+ * 20-24px, once per screen, beside the product name". The app has no such bar
+ * and the page topbars carry the PAGE name, so that placement exists nowhere
+ * today — which is why the mark is unused outside the favicon. Each variant
+ * answers where it goes, and the chosen one answers "nowhere it can be beside
+ * a product name" — a finding rather than an oversight, and the reason #24 is
+ * amended: the mark stands alone, because the only bar in the app names the
+ * page. The rule that was load-bearing is untouched — once per screen, top
+ * bar, never on rows or as texture.
+ *
+ * The shield (mark-c) rather than the bare head, on #24's own rule: the
+ * container is what survives shrinking, and 24px is inside the 16-32px band
+ * the shield was drawn for.
+ */
+.mark { flex: none; display: block; width: 24px; height: 24px; }
+
+.wordmark {
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-body); color: var(--cm-fg-strong);
+  white-space: nowrap;
+}
+
+/* ===================================================================
+ * VARIANT A — bottom tabs
+ * ===================================================================
+ * The phone-native answer, and the one with the strongest prior: this is a
+ * tool used one-handed beside the game, switching apps mid-task, so the
+ * thumb-reachable edge is the valuable one.
+ *
+ * A slim top bar still exists, because the mark has to go somewhere and #24
+ * only sanctions the top. So this variant costs THREE bands of chrome on an
+ * editing surface — app bar, page topbar, tabs — plus the action bar it has
+ * to stack with. Turn on the CWL host to see it.
+ */
+.v-a .appbar {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  height: 52px; padding: 0 var(--cm-gutter);
+  border-bottom: 1px solid var(--cm-hairline);
+  background: var(--cm-surface);
+}
+.v-a .appbar .account { margin-right: -10px; }
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--cm-hairline);
+  background: var(--cm-surface);
+}
+.tabbar a {
+  display: grid; place-items: center; gap: 2px;
+  min-height: var(--cm-tap-min); padding: 6px 0 8px;
+  text-decoration: none; color: var(--cm-fg-muted);
+  font-size: var(--cm-text-label); font-weight: var(--cm-weight-medium);
+}
+.tabbar a .icon { width: 20px; height: 20px; }
+/* Current is marked by ink and weight, not by a filled pill: gold fills but
+ * does not write, so a gold label would break #16, and a gold pill behind a
+ * 12px label is the accent's largest surface on the screen for the least
+ * important reason. */
+.tabbar a[aria-current="page"] { color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold); }
+/* The one accent: a 3px edge marker on the top edge, which is #18's marker in
+ * its bar form rather than a new device. */
+.tabbar a[aria-current="page"]::before {
+  content: ""; position: absolute; margin-top: -6px;
+  width: 28px; height: var(--cm-marker-width);
+  border-radius: var(--cm-radius-pill); background: var(--cm-accent-edge);
+}
+.v-a .shell { padding-bottom: calc(var(--cm-space-7) + 64px + env(safe-area-inset-bottom)); }
+/* When an editing surface is up, the action bar has to clear the tabs. This is
+ * the collision, drawn honestly rather than hidden: two fixed bars stacked,
+ * 108px of permanent chrome at the bottom of a 390px-wide phone. */
+.v-a.host-cwl .actionbar { bottom: calc(64px + env(safe-area-inset-bottom)); }
+.v-a.host-cwl .shell { padding-bottom: calc(var(--cm-space-7) + 128px); }
+
+/* ===================================================================
+ * VARIANT B — one bar (route switching folded into the page topbar)
+ * ===================================================================
+ * The only variant that adds NO band of chrome at all. There is no app bar:
+ * the page topbar the system already has grows a mark on the left and an
+ * account control on the right, and the page's own <h1> becomes the route
+ * control — press the page name, get the three routes.
+ *
+ * The argument is that with three destinations, one of which is conditional
+ * and one of which (Admin) is visited monthly, a permanently-rendered nav is
+ * paying rent on a decision the leader makes rarely. The default route is CWL
+ * and the other real route is Members; that is not a set that needs to be on
+ * screen at all times.
+ *
+ * The cost is real and it is discoverability: navigation is behind a tap, and
+ * the affordance is a chevron next to a heading — a pattern that reads as a
+ * dropdown to people who have seen it before and as decoration to people who
+ * have not. This variant is the strongest claim in the set and the most
+ * falsifiable one.
+ *
+ * It also declines #24's placement. There is no product name in the bar to sit
+ * beside — the bar carries the PAGE name — so the mark stands alone. Either
+ * #24 gets amended to permit that, or this variant is wrong about the mark.
+ */
+/* The shared `.topbar` is `align-items: flex-start` with `space-between`,
+ * which is right when its right-hand slot is a chip and wrong here: the mark
+ * and the account control are both 24-44px objects that want to centre on the
+ * heading block, and the middle must take the slack rather than the gaps. */
+.v-b .topbar { align-items: center; justify-content: flex-start; gap: var(--cm-space-3); }
+.v-b .topbar .grow { flex: 1; min-width: 0; }
+.v-b .topbar .account { margin-right: -10px; }
+.v-b .routebutton {
+  display: inline-flex; align-items: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0; border: none; background: none;
+  text-align: left; color: inherit;
+}
+.v-b .routebutton .eyebrow { margin-bottom: 0; }
+.v-b .routebutton h1 {
+  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl);
+}
+/* The sprite's chevron points right (it is the row's affordance), so the
+ * disclosure form rotates it down and up rather than flipping it end for end —
+ * 180deg points it back at the page name, which reads as "go back". */
+.v-b .routebutton .chev { display: inline-flex; color: var(--cm-fg-muted); transform: rotate(90deg); }
+.v-b .routebutton[aria-expanded="true"] .chev { transform: rotate(-90deg); }
+
+/* The route menu is the page layer's menu shape at app scope — the lineup's
+ * day menu and the review season menu are the same object. It is deliberately
+ * NOT a `segmented`: that strip already carries the CWL phase one level down
+ * (ADR 0002), and two segmented strips in one header is the "two headers"
+ * problem wearing a component. */
+.routemenu {
+  position: absolute; z-index: 40; margin-top: 4px; min-width: 200px;
+  padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.routemenu a {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border-radius: var(--cm-radius-sm);
+  text-decoration: none; color: var(--cm-fg);
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.routemenu a:hover { background: var(--cm-surface-sunken); }
+.routemenu a[aria-current="page"] { color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold); }
+.routemenu a .icon { color: var(--cm-fg-muted); }
+.routemenu a[aria-current="page"] .icon { color: var(--cm-accent-ink); }
+.routemenu [hidden] { display: none; }
+
+/* ===================================================================
+ * VARIANT C — top rail
+ * ===================================================================
+ * The closest thing to what is there today, conformed rather than reimagined:
+ * a horizontal link row, but on `--cm-bg` in the reader's theme instead of a
+ * white bar above a dark page, with the mark and the product name where #24
+ * asks for them.
+ *
+ * It is in the set because "design one" is not the same as "make it different"
+ * — a rail is a defensible answer for three destinations on desktop, where
+ * Nick does bulk availability and bonus allocation and the thumb argument does
+ * not apply.
+ *
+ * What it costs is two headers on a phone, which is exactly the thing #58 was
+ * opened to notice. The rail names the product and the topbar names the page,
+ * so they are not redundant — but they are 100px of chrome before any data,
+ * and the rail's links are at the far end of the screen from the thumb.
+ */
+.v-c .rail {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  height: 52px; padding: 0 var(--cm-gutter);
+  border-bottom: 1px solid var(--cm-hairline);
+  background: var(--cm-bg);
+}
+.v-c .rail nav { display: flex; align-items: center; gap: 2px; margin-left: var(--cm-space-4); overflow-x: auto; scrollbar-width: none; }
+.v-c .rail nav::-webkit-scrollbar { display: none; }
+.v-c .rail nav a {
+  position: relative; display: inline-flex; align-items: center;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  text-decoration: none; white-space: nowrap;
+  color: var(--cm-fg-muted); font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.v-c .rail nav a:hover { color: var(--cm-fg-strong); }
+.v-c .rail nav a[aria-current="page"] { color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold); }
+/* #18's edge marker again, in the same bar form variant A uses at the bottom.
+ * If two variants both reach for it, the marker is the system's answer to
+ * "which one of these is current" and belongs in the inventory as such. */
+.v-c .rail nav a[aria-current="page"]::after {
+  content: ""; position: absolute; left: var(--cm-space-3); right: var(--cm-space-3); bottom: 0;
+  height: var(--cm-marker-width); border-radius: var(--cm-radius-pill);
+  background: var(--cm-accent-edge);
+}
+.v-c .rail .account { margin-left: auto; margin-right: -10px; }
+/* Above 720px the rail is the only chrome that gets better rather than worse:
+ * the links sit beside the product name with room to spare. */
+@media (min-width: 720px) {
+  .v-c .rail { padding: 0 var(--cm-space-5); }
+}
+
+/* ===================================================================
+ * AUTH SHELLS — one surface, three states
+ * ===================================================================
+ * Today these are three near-identical blocks on `.access-shell` with
+ * hardcoded #fff and #e6e6e6. They are one surface, and the differences
+ * between the states are the point:
+ *
+ *   - LOADING has no copy. #43 deleted the app's six loading strings on the
+ *     grounds that loading is the most literal unknown in the app and a banner
+ *     that explains itself is what the personality anchor forbids. "Loading
+ *     your war room..." is the last one, and it goes the same way. The mark
+ *     alone, and below the 250ms threshold not even that.
+ *   - SIGNED OUT is the only state with a control, so it is the only one that
+ *     needs the filled button.
+ *   - ACCESS DENIED is a real message with a real cause. It reads as absence,
+ *     not apology: no banner, no danger colour. Nothing has gone wrong — this
+ *     account simply is not on the list, which is the system working.
+ *
+ * The mark is large here (72px, cabossed head rather than the shield) because
+ * this is the one screen with room and no page name to compete with. #24
+ * permits the mark in muted empty states, and a sign-in screen is the first
+ * one the app has.
+ */
+.authshell {
+  min-height: 100vh; min-height: 100dvh;
+  display: grid; align-content: center; justify-items: center; gap: var(--cm-space-3);
+  max-width: 320px; margin: 0 auto; padding: var(--cm-space-6) var(--cm-gutter);
+  text-align: center;
+}
+.authshell .bigmark { width: 72px; height: 72px; opacity: .9; }
+.authshell h1 {
+  margin: 0; font-size: var(--cm-text-lg); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.authshell p { margin: 0; font-size: var(--cm-text-sm); line-height: 1.45; color: var(--cm-fg-muted); }
+.authshell .button { margin-top: var(--cm-space-2); }
+/* Loading is the mark and nothing else — no spinner, no skeleton, no string.
+ * A skeleton asserts that data is arriving into a shape, and at this point the
+ * app does not yet know whether the reader is allowed a shape at all. */
+.authshell.is-loading { gap: 0; }
+.authshell.is-loading .bigmark { opacity: .28; }
+
+/* ===================================================================
+ * HOST PAGE BODIES — enough real surface to judge chrome against
+ * =================================================================== */
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-2); margin-bottom: var(--cm-space-4); }
+.metric {
+  min-width: 0; padding: var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg); background: var(--cm-surface);
+}
+.metric strong {
+  display: block; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.metric span { display: block; margin-top: 2px; font-size: var(--cm-text-xs); line-height: 1.3; color: var(--cm-fg-muted); }
+
+.daystrip { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-bottom: var(--cm-space-3); }
+.daystrip::-webkit-scrollbar { display: none; }
+.daystrip button {
+  flex: none; min-height: 36px; padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-pill);
+  background: var(--cm-surface); color: var(--cm-fg-muted);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-medium);
+}
+.daystrip button[aria-current="true"] { background: var(--cm-n-900); color: var(--cm-n-50); border-color: var(--cm-n-900); }
+
+/* The editing layer's action bar, reproduced only as far as the collision
+ * needs it. Its real definition is the lineup prototype's. */
+.actionbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  padding: var(--cm-space-2) var(--cm-gutter);
+  padding-bottom: calc(var(--cm-space-2) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--cm-hairline); background: var(--cm-surface);
+}
+.actionbar .changes {
+  flex: 1; display: inline-flex; align-items: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
+  background: var(--cm-surface); font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.actionbar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cm-caution-ink); }
+
+/* ---------- prototype-only annotation ---------- */
+.note {
+  margin: var(--cm-space-4) 0 0; padding: var(--cm-space-3);
+  border-left: 3px solid var(--cm-n-700); border-radius: 0 var(--cm-radius-sm) var(--cm-radius-sm) 0;
+  background: var(--cm-surface-sunken);
+  font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted);
+}
+.note strong { color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- The mark, lifted from identity.html unchanged so the two cannot drift.
+       Head cabossed for the large placement, the same head knocked out of a
+       shield for the 24px one. -->
+  <path id="head-cabossed" d="M24 13 L18 6 L16 13 L4 2 L10 17 L5 23 L12 29 L15 38 L24 46 L33 38 L36 29 L43 23 L38 17 L44 2 L32 13 L30 6 Z"/>
+  <g id="head-cabossed-cuts">
+    <path d="M11 21 L20 25 L12 25.5 Z"/>
+    <path d="M37 21 L28 25 L36 25.5 Z"/>
+    <path d="M20 34 L28 34 L24 39 Z"/>
+  </g>
+  <symbol id="mark-head" viewBox="0 0 48 48">
+    <use href="#head-cabossed"/>
+    <use href="#head-cabossed-cuts" fill="var(--mark-bg,#fff)"/>
+  </symbol>
+  <symbol id="mark-shield" viewBox="0 0 48 48">
+    <path d="M24 2 L44 8 L44 24 C44 37 35 43.5 24 47 C13 43.5 4 37 4 24 L4 8 Z"/>
+    <g transform="translate(10.5 9.5) scale(0.56)">
+      <use href="#head-cabossed" fill="var(--mark-bg,#fff)"/>
+    </g>
+  </symbol>
+
+  <!-- Route icons. NOTE: variant A needs these and the other two do not, which
+       is itself a finding — a bottom tab set without icons is a row of naked
+       words, and the icon set is capped at eight by #40. Three more icons is a
+       38% increase in the set to serve one variant. Drawn in the same 24-grid,
+       2px-stroke vocabulary so the cost is at least measurable. -->
+  <!-- Crossed swords: two blades and two crossguards, nothing else. The first
+       draft drew a single sword with a shaped blade and at 20px it read as the
+       numeral 22 — the same class of failure #40 found when it measured the
+       Unicode glyphs. Symmetry is what makes it survive: an X is legible at any
+       size, and the crossguards are what stop it being a plain X. -->
+  <symbol id="i-swords" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 4.5 L16 16"/><path d="M19.5 4.5 L8 16"/>
+    <path d="M5.5 15 L9 18.5"/><path d="M18.5 15 L15 18.5"/>
+  </symbol>
+  <symbol id="i-people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M17.4 14.9c1.7.7 2.8 2.3 3.1 4.6"/>
+  </symbol>
+  <!-- Sliders rather than a shield for Admin. A shield is the mark's own
+       silhouette (#24), and putting it in a tab three inches below the mark
+       makes the identity look like a piece of UI vocabulary — which is exactly
+       the "identity as texture" #24 forbids. -->
+  <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 8h5"/><path d="M13 8h7"/><circle cx="11" cy="8" r="2.2"/>
+    <path d="M4 16h11"/><path d="M19 16h1"/><circle cx="17" cy="16" r="2.2"/>
+  </symbol>
+</svg>
+
+<div class="harness">
+  <span>Variant</span>
+  <button type="button" data-variant="a" aria-pressed="false">A · Bottom tabs</button>
+  <button type="button" data-variant="b" aria-pressed="false">B · One bar ✓</button>
+  <button type="button" data-variant="c" aria-pressed="false">C · Top rail</button>
+  <span style="margin-left:var(--cm-space-4)">Host</span>
+  <button type="button" data-host="members" aria-pressed="false">Members</button>
+  <button type="button" data-host="cwl" aria-pressed="false">CWL · editing</button>
+  <button type="button" data-host="auth" aria-pressed="false">Auth shells</button>
+  <span style="margin-left:var(--cm-space-4)">Role</span>
+  <button type="button" data-role="toggle" aria-pressed="false">Admin</button>
+</div>
+
+<div id="app"></div>
+
+<script>
+/* ------------------------------------------------------------------
+ * Prototype wiring. Variant and host are in the URL so a screenshot is
+ * reproducible and a link is a specific claim rather than "open it and
+ * click around".
+ * ------------------------------------------------------------------ */
+const params = new URLSearchParams(location.search);
+let variant = params.get("variant") || "b";
+let host = params.get("host") || "members";
+let admin = params.get("role") === "admin";
+
+const VARIANTS = ["a", "b", "c"];
+const VARIANT_NAMES = { a: "Bottom tabs", b: "One bar", c: "Top rail" };
+
+/* Three routes after ADR 0002. Admin is role-conditional, so the nav is a
+ * two-item set for most of the people who will use it. */
+function routes() {
+  const all = [
+    { key: "cwl", label: "CWL", href: "#/cwl", icon: "i-swords", eyebrow: "Season 2026-08 · Day 3", title: "Lineup" },
+    { key: "members", label: "Members", href: "#/members", icon: "i-people", eyebrow: "Year-round clan", title: "Members" },
+    { key: "admin", label: "Admin", href: "#/admin", icon: "i-sliders", eyebrow: "Operations", title: "Admin", adminOnly: true },
+  ];
+  return all.filter((r) => !r.adminOnly || admin);
+}
+
+function currentRoute() {
+  const key = host === "cwl" ? "cwl" : "members";
+  return routes().find((r) => r.key === key) || routes()[0];
+}
+
+const MEMBERS = [
+  ["Ravenholt", "TH16", "3 of 4 wars", "observed"],
+  ["Sablewing", "TH15", "1 of 4 wars", "none"],
+  ["Kestrelmoor", "TH16", "4 of 4 wars", "observed"],
+  ["Ironbough", "TH14", "No war logged", "unknown"],
+  ["Marrowfen", "TH15", "2 of 4 wars", "observed"],
+  ["Duskhollow", "TH16", "0 of 4 wars", "none"],
+  ["Thornbrook", "TH13", "3 of 4 wars", "observed"],
+  ["Emberlyn", "TH15", "No war logged", "unknown"],
+];
+
+function markup(id, cls, style = "") {
+  return `<svg class="${cls}" style="${style}" aria-hidden="true"><use href="#${id}"/></svg>`;
+}
+
+function icon(id) {
+  return `<svg class="icon" aria-hidden="true"><use href="#${id}"/></svg>`;
+}
+
+function accountButton() {
+  return `<button class="account" type="button" aria-label="Nick — account and sign out"><span>N</span></button>`;
+}
+
+/* ---------- host bodies ---------- */
+
+function membersBody() {
+  const rows = MEMBERS.map((m) => `
+    <button class="row ${m[3] === "observed" ? "is-observed" : ""}" type="button">
+      <span class="row-main">
+        <span class="row-name">${m[0]}</span>
+        <span class="row-meta">${m[1]} <span class="sep">·</span> ${m[2]}</span>
+      </span>
+      <span class="chev" aria-hidden="true">${icon("i-chevron")}</span>
+    </button>`).join("");
+  return `
+    <div class="summary">
+      <div class="metric"><strong>44</strong><span>Members</span></div>
+      <div class="metric"><strong>31</strong><span>War activity observed</span></div>
+      <div class="metric"><strong>9</strong><span>No war activity observed</span></div>
+      <div class="metric"><strong>4</strong><span>Building history</span></div>
+    </div>
+    <input class="search" type="search" placeholder="Find a member" aria-label="Find a member">
+    <div class="rows" style="margin-top:var(--cm-space-3)">${rows}</div>`;
+}
+
+function cwlBody() {
+  const rows = MEMBERS.slice(0, 6).map((m, i) => `
+    <button class="row has-pos" type="button">
+      <span class="row-pos${i === 2 ? " is-edited" : ""}">${i + 1}</span>
+      <span class="row-main">
+        <span class="row-name">${m[0]}</span>
+        <span class="row-meta">${m[1]}${i === 2 ? ' <span class="sep">·</span> swapped in' : ""}</span>
+      </span>
+      <span class="chev" aria-hidden="true">${icon("i-chevron")}</span>
+    </button>`).join("");
+  return `
+    <div class="daystrip" role="group" aria-label="War day">
+      <button type="button">Day 1</button><button type="button">Day 2</button>
+      <button type="button" aria-current="true">Day 3</button><button type="button">Day 4</button>
+      <button type="button">Day 5</button><button type="button">Day 6</button><button type="button">Day 7</button>
+    </div>
+    <div class="rows">${rows}</div>
+    <div class="actionbar">
+      <button class="changes" type="button"><span class="dot"></span> 1 change to make in game</button>
+      <button class="button" type="button">Save</button>
+    </div>`;
+}
+
+function authBody() {
+  return `
+    <div style="display:grid;gap:var(--cm-space-6);padding:var(--cm-space-5) 0">
+      <section>
+        <p class="note"><strong>Loading.</strong> No copy at all. #43 deleted the app's six loading strings; "Loading your war room…" is the last of them and goes the same way. Below the 250ms threshold this renders nothing.</p>
+        <div class="authshell is-loading" style="min-height:220px">
+          ${markup("mark-head", "bigmark", "--mark-bg:var(--cm-bg);fill:var(--cm-fg-unknown)")}
+        </div>
+      </section>
+      <section>
+        <p class="note"><strong>Signed out.</strong> The only state with a control, so the only one that needs the filled button the inventory does not have.</p>
+        <div class="authshell" style="min-height:280px">
+          ${markup("mark-head", "bigmark", "--mark-bg:var(--cm-bg);fill:var(--cm-accent-fill)")}
+          <h1>Clan Muster</h1>
+          <p>Sign in with the Discord account connected to your invitation.</p>
+          <button class="button is-block" type="button">Continue with Discord</button>
+        </div>
+      </section>
+      <section>
+        <p class="note"><strong>Access denied.</strong> Reads as absence, not apology. No danger colour and no notice — nothing has gone wrong, this account is simply not on the list.</p>
+        <div class="authshell" style="min-height:260px">
+          ${markup("mark-head", "bigmark", "--mark-bg:var(--cm-bg);fill:var(--cm-fg-unknown)")}
+          <h1>Not on the roster</h1>
+          <p>This Discord account has no leader invitation for the clan. Ask a leader to add you, then sign in again.</p>
+          <button class="ghost" type="button">Sign out</button>
+        </div>
+      </section>
+    </div>`;
+}
+
+/* ---------- variant chrome ---------- */
+
+function chromeA(route, body) {
+  const tabs = routes().map((r) => `
+    <a href="${r.href}" ${r.key === route.key ? 'aria-current="page"' : ""}>
+      ${icon(r.icon)}<span>${r.label}</span>
+    </a>`).join("");
+  return `
+    <header class="appbar">
+      ${markup("mark-shield", "mark", "--mark-bg:var(--cm-surface);fill:var(--cm-accent-fill)")}
+      <span class="wordmark">Clan Muster</span>
+      <span style="margin-left:auto"></span>
+      ${accountButton()}
+    </header>
+    <div class="shell">
+      <header class="topbar">
+        <div><p class="eyebrow">${route.eyebrow}</p><h1>${route.title}</h1></div>
+      </header>
+      ${body}
+    </div>
+    <nav class="tabbar" aria-label="Primary">${tabs}</nav>`;
+}
+
+function chromeB(route, body) {
+  /* No icons here, where the first draft had them. The label is the affordance
+   * in a menu, so an icon beside it is decoration — and #40 caps the set at
+   * eight, so decoration is not what earns a place. Current is marked by ink
+   * and weight, which is how every other current state in the system reads.
+   * Variant A keeps its icons: a tab bar without them is a row of naked words,
+   * and that cost belonged in the comparison. */
+  const items = routes().map((r) => `
+    <a href="${r.href}" ${r.key === route.key ? 'aria-current="page"' : ""}>
+      <span>${r.label}</span>
+    </a>`).join("");
+  return `
+    <div class="shell">
+      <header class="topbar">
+        ${markup("mark-shield", "mark", "--mark-bg:var(--cm-bg);fill:var(--cm-accent-fill)")}
+        <div class="grow" style="position:relative">
+          <button class="routebutton" type="button" id="routetrigger" aria-haspopup="menu" aria-expanded="false">
+            <span>
+              <p class="eyebrow">${route.eyebrow}</p>
+              <h1>${route.title}</h1>
+            </span>
+            <span class="chev" aria-hidden="true">${icon("i-chevron")}</span>
+          </button>
+          <div class="routemenu" id="routemenu" role="menu" hidden>${items}</div>
+        </div>
+        ${accountButton()}
+      </header>
+      ${body}
+    </div>`;
+}
+
+function chromeC(route, body) {
+  const links = routes().map((r) => `
+    <a href="${r.href}" ${r.key === route.key ? 'aria-current="page"' : ""}>${r.label}</a>`).join("");
+  return `
+    <header class="rail">
+      ${markup("mark-shield", "mark", "--mark-bg:var(--cm-bg);fill:var(--cm-accent-fill)")}
+      <span class="wordmark">Clan Muster</span>
+      <nav aria-label="Primary">${links}</nav>
+      ${accountButton()}
+    </header>
+    <div class="shell">
+      <header class="topbar">
+        <div><p class="eyebrow">${route.eyebrow}</p><h1>${route.title}</h1></div>
+      </header>
+      ${body}
+    </div>`;
+}
+
+const NOTES = {
+  a: `<strong>A · Bottom tabs.</strong> Thumb-reachable on the surface the app opens to, and the only variant where switching route costs one tap from anywhere. It pays for that with a third band of chrome and a contested bottom edge — switch the host to <em>CWL · editing</em> and the action bar has to sit on top of the tabs. It is also the only variant that needs new icons: three more against a set #40 capped at eight.`,
+  b: `<strong>B · One bar — CHOSEN (#58).</strong> Adds no chrome at all — the page topbar the system already has does the work, with the page name as the route control. The bet is that with two or three destinations, one visited monthly, a permanently-rendered nav is paying rent on a rare decision. The cost is discoverability: navigation is behind a tap on a heading — weighed and accepted. It has no product name for the mark to sit beside, so #24's placement rule is amended in <code>README.md</code>: the mark stands alone at 24px, and the product name survives only on the auth shell, the one surface with no page name to carry.`,
+  c: `<strong>C · Top rail.</strong> Today's bar, conformed: on <code>--cm-bg</code> in the reader's theme, mark and product name where #24 asks for them, the edge marker for current. Best of the three on desktop, where the bulk-editing sessions happen. On a phone it is two headers and the links sit as far from the thumb as the screen allows — and at 375px with Admin showing it <em>does not fit</em>: the product name, three links and the account control overflow, so the last link clips and the nav has to scroll. That is not a bug to tidy away, it is the measurement. The rail can carry the mark and the product name, or three routes, but not both on the narrow phone this tool is used on.`,
+};
+
+function render() {
+  const route = currentRoute();
+  const app = document.getElementById("app");
+  document.body.className = "";
+
+  if (host === "auth") {
+    app.className = "";
+    app.innerHTML = authBody();
+  } else {
+    const body = host === "cwl" ? cwlBody() : membersBody();
+    app.className = `v-${variant} host-${host}`;
+    app.innerHTML = ({ a: chromeA, b: chromeB, c: chromeC })[variant](route, body)
+      + `<div class="shell"><p class="note">${NOTES[variant]}</p></div>`;
+  }
+
+  // Variant B's route menu.
+  const trigger = document.getElementById("routetrigger");
+  if (trigger) {
+    const menu = document.getElementById("routemenu");
+    trigger.addEventListener("click", () => {
+      const open = trigger.getAttribute("aria-expanded") === "true";
+      trigger.setAttribute("aria-expanded", String(!open));
+      menu.hidden = open;
+    });
+  }
+
+  for (const b of document.querySelectorAll("[data-variant]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.variant === variant));
+  }
+  for (const b of document.querySelectorAll("[data-host]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.host === host));
+  }
+  document.querySelector("[data-role]").setAttribute("aria-pressed", String(admin));
+
+  const url = new URL(location.href);
+  url.searchParams.set("variant", variant);
+  url.searchParams.set("host", host);
+  if (admin) url.searchParams.set("role", "admin"); else url.searchParams.delete("role");
+  history.replaceState(null, "", url);
+  document.title = `${variant.toUpperCase()} · ${VARIANT_NAMES[variant]} — app chrome prototype`;
+}
+
+document.querySelector(".harness").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.variant) variant = b.dataset.variant;
+  if (b.dataset.host) host = b.dataset.host;
+  if (b.dataset.role) admin = !admin;
+  render();
+});
+
+// Left/right cycle variants, so a phone-sized window can be flipped through
+// without reaching for the harness.
+addEventListener("keydown", (e) => {
+  if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const i = VARIANTS.indexOf(variant);
+  variant = VARIANTS[(i + (e.key === "ArrowRight" ? 1 : VARIANTS.length - 1)) % VARIANTS.length];
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
