@@ -85,6 +85,22 @@ Do not disable JWT verification. Verify an anonymous request returns `401`, an a
 
 Supabase documents the provider callback in [Login with Discord](https://supabase.com/docs/guides/auth/social-login/auth-discord) and the allow-list pattern syntax in [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
 
+## Apply migrations before the frontend that needs them
+
+**Pages deploys itself; the database does not.** `deploy-pages.yml` builds and publishes `apps/web` on every push to `main`, and nothing in it touches Supabase — migrations are applied by hand with `supabase db push`. A commit that merges a migration *and* a surface reading it therefore ships the surface immediately and the schema never, and the frontend fails at runtime against a column the database does not have.
+
+This is the same rule the [UnRaid runbook](unraid.md) already states for the collector, and it binds for the same reason: the artifact and the schema deploy through different paths, so the schema has to go first.
+
+Before merging a PR that reads new schema — a new column, view, or function — confirm the migration is already applied:
+
+```sh
+supabase migration list
+```
+
+Every local entry must have a matching remote entry. A row with an empty `remote` is unapplied, and any frontend code that reads it will break the moment it deploys. Push it first, following the validate-and-dry-run procedure above.
+
+**Observed 2026-08-20.** `202608200001_cwl_bonus_administration.sql` merged with [#61](https://github.com/nswanger/clash-of-clans/issues/61) and was never pushed. The Clan Muster migration's wave 3 then shipped the review phase, whose loader selects `cwl_seasons.bonuses_administered_at`, and the CWL route's review phase failed to load in production. The migration file being present in the repository was mistaken for the column being present in the database; `supabase migration list` is what distinguishes them. A durable check is tracked in [#65](https://github.com/nswanger/clash-of-clans/issues/65).
+
 ## Configure GitHub Pages
 
 In **GitHub > Settings > Pages**, choose **GitHub Actions** as the source. Add these under **Settings > Secrets and variables > Actions > Variables**:
