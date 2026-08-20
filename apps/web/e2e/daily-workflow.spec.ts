@@ -7,8 +7,8 @@
  * no longer exists rather than a regression to fix. The pipeline behind them is
  * untouched and is still covered by tests/e2e/cwl-acceptance.spec.ts.
  *
- * TWO TESTS BELOW ARE `test.fixme`, AND THEY WERE ALREADY FAILING BEFORE THIS
- * WAVE. They assert on the pre-wave-2 lineup workspace — the rotation queue, the
+ * TWO TESTS BELOW ARE `test.fixme`, TRACKED IN #63, AND THEY WERE ALREADY
+ * FAILING BEFORE THIS WAVE. They assert on the pre-wave-2 lineup workspace — the rotation queue, the
  * substitute pool, the four-control filter row and the `menuitemradio` menus —
  * all of which #25 wave 2 replaced with the swap panel, ranked candidates and a
  * single search input. Wave 2 rewrote the workspace's unit tests and did not
@@ -118,7 +118,8 @@ test("redeems an invitation and restores a hash route without leaking the token"
   await expect.poll(() => page.evaluate(() => localStorage.getItem("e2e:last-mutation"))).toContain("redeem_invitation");
 });
 
-/* STALE SINCE WAVE 2 — see the file header. Both assert on the rotation queue,
+/* STALE SINCE WAVE 2, TRACKED IN #63 — see the file header. Both assert on the
+ * rotation queue,
  * the substitute pool and the `menuitemradio` filter menus, none of which exist
  * since #25 wave 2 rebuilt the workspace on Clan Muster. */
 test.fixme("operates the production CWL lineup workspace through the planning seam", async ({ page }) => {
