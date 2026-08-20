@@ -52,13 +52,16 @@ export function CwlRoutePage({ client, clanTag, hash }: { client: any; clanTag: 
 
   const phase: CwlPhase = requested
     ?? (snapshot ? defaultCwlPhase(snapshot.seasonId, snapshot.warDays.map((day) => day.state), new Date()) : "lineup");
-  const lineupDayLabel = `Day ${snapshot ? currentLineupDay(snapshot.warDays) : 1}`;
+  /* Resolved once, here, and handed to both the strip's sub-label and the
+     workspace itself — so the label names the day the workspace will actually
+     open on rather than a second opinion about it. */
+  const lineupDay = snapshot ? currentLineupDay(snapshot.warDays) : 1;
   /* The phase travels as a query parameter (ADR 0002), so a phase is linkable
      and the back button walks the phases the leader actually visited. */
   const onPhase = (next: CwlPhase) => { window.location.hash = hashForPhase(next); };
 
   if (phase === "review") {
-    return <CwlReviewPage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} lineupDayLabel={lineupDayLabel} />;
+    return <CwlReviewPage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} lineupDayLabel={`Day ${lineupDay}`} />;
   }
-  return <CwlLineupWorkspacePage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} />;
+  return <CwlLineupWorkspacePage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} initialDay={lineupDay} />;
 }

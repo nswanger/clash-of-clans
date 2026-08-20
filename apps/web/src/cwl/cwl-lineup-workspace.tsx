@@ -461,7 +461,7 @@ function useWide(): boolean {
   return wide;
 }
 
-export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
+export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initialDay }: {
   client: any;
   clanTag: string;
   /* The phase this route is in, and how to leave it (ADR 0002). Wave 3 turned
@@ -469,9 +469,15 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
      moved. */
   phase: CwlPhase;
   onPhase: (next: CwlPhase) => void;
+  /* The day to open on, resolved ONCE by the route from the war states it
+     already loaded. It used to be derived here too, from a second query with the
+     same rule — which made the phase strip's "Lineup · Day 3" a promise a
+     different derivation was free to break. One rule, one place, and one fewer
+     round trip. */
+  initialDay: number;
 }) {
   const wide = useWide();
-  const [day, setDay] = useState<number>();
+  const [day, setDay] = useState<number>(initialDay);
   const [snapshot, setSnapshot] = useState<CwlLineupWorkspaceSnapshot>();
   const [draft, setDraft] = useState<string[]>([]);
   /* Which members were actually dragged. Moving one row past another changes
@@ -495,7 +501,6 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
     setError(undefined);
     try {
       const next = await loadCurrentCwlLineupWorkspace(client, clanTag, day);
-      if (day === undefined) setDay(next.plan.warDay);
       setSnapshot(next);
       setDraft(next.plan.playerTags);
       setBaseline(next.appliedBaseline);
@@ -687,7 +692,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
    * does not either — which is the whole finding of #21: the work to do in
    * Clash appears here rather than vanishing. */
   const save = async () => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       const plan = await saveCwlLineupPlan(client, {
         clanTag, seasonId: snapshot.season.seasonId, warDay: day,
@@ -706,7 +711,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
   };
 
   const toggleLock = async () => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     setDayMenuOpen(false);
     try {
       const plan = await setCwlLineupPlanLock(client, {
@@ -723,7 +728,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
   };
 
   const reinherit = async () => {
-    if (!snapshot || day === undefined || day <= 1 || locked) return;
+    if (!snapshot || day <= 1 || locked) return;
     setDayMenuOpen(false);
     try {
       const plan = await reinheritCwlLineupPlan(client, {
@@ -742,7 +747,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
   };
 
   const checkOff = async (item: ChecklistItem) => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       setBaseline(await recordCwlAppliedLineupChange(client, {
         clanTag, seasonId: snapshot.season.seasonId, warDay: day,
@@ -752,14 +757,14 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
   };
 
   const undoCheck = async (changeSequence: number) => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       setBaseline(await undoCwlAppliedLineupChange(client, { clanTag, seasonId: snapshot.season.seasonId, warDay: day, changeSequence }));
     } catch (reason) { setStatus(errorText(reason, "Unable to undo that change.")); }
   };
 
   const clearChecklist = async () => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       setBaseline(await clearCwlAppliedLineupChanges(client, { clanTag, seasonId: snapshot.season.seasonId, warDay: day }));
       setPanel(null);
@@ -783,7 +788,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
       <div className="cm-notice" role="alert"><div className="cm-grow"><strong>Lineup workspace unavailable</strong><p>{error}</p></div></div>
     </main>;
   }
-  if (!snapshot || day === undefined) return null;
+  if (!snapshot) return null;
 
   const warSize = snapshot.season.warSize;
   const warStates = new Map(snapshot.warDays.map((war) => [war.warDay, war.state]));

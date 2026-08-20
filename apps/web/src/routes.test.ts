@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redirectForPath, routeForPath } from "./routes.js";
+import { ROUTES, redirectForPath, routeForPath } from "./routes.js";
 
 describe("routeForPath", () => {
   it("dispatches the three routes ADR 0002 left standing", () => {
@@ -48,5 +48,27 @@ describe("redirectForPath", () => {
     expect(redirectForPath("#/cwl")).toBeUndefined();
     expect(redirectForPath("#/members")).toBeUndefined();
     expect(redirectForPath("#/admin")).toBeUndefined();
+  });
+
+  /* The invariant, not an example — because the failure mode is silent and total.
+     `AppRoutes` renders nothing while a redirect is pending and relies on
+     `location.replace` firing a `hashchange` to move on. A redirect pointing at
+     its own source fires no event, so the app would render a blank page forever;
+     a chain would bounce. Neither is reachable from the current map, and this is
+     what keeps it that way when someone adds the fourth route.
+
+     It is the same defect the phase control had — a navigation write that lands
+     on the value already in the bar does nothing — caught at the map instead of
+     in the browser. */
+  it("never redirects a path to itself or to another redirect source", () => {
+    for (const route of ROUTES) {
+      const target = redirectForPath(route.href);
+      expect(target, `${route.href} is a live route and must not redirect`).toBeUndefined();
+    }
+    for (const source of ["#/overview", "#/cwl-lineup", "#/access"]) {
+      const target = redirectForPath(source)!;
+      expect(target, `${source} must not redirect to itself`).not.toBe(source);
+      expect(redirectForPath(target), `${source} must not redirect into another redirect`).toBeUndefined();
+    }
   });
 });
