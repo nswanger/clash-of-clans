@@ -14,6 +14,7 @@ import {
   revokeInvitation,
   saveCwlLineupPlan,
   saveAvailability,
+  setCwlBonusesAdministered,
   setCwlLineupPlanLock,
 } from "./operations.js";
 
@@ -187,5 +188,39 @@ describe("Supabase operations", () => {
     expect(snapshot.plan.warDay).toBe(2);
     expect(snapshot.members[0]).toMatchObject({ currentWarAssignedAttacks: 1, currentWarAttacksMade: 1, attackEvidenceWarDay: 1 });
     expect(client.rpc).toHaveBeenCalledWith("ensure_cwl_daily_lineup_plan", expect.objectContaining({ requested_war_day: 2 }));
+  });
+  it("records whether the CWL bonuses were handed out, and carries null through as not yet", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { clanTag: "#CLAN", seasonId: "2026-08", bonusesAdministeredAt: null },
+      error: null,
+    });
+    await expect(setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: false }))
+      .resolves.toEqual({ clanTag: "#CLAN", seasonId: "2026-08", bonusesAdministeredAt: null });
+    expect(rpc).toHaveBeenCalledWith("set_cwl_bonuses_administered", {
+      requested_clan_tag: "#CLAN",
+      requested_season_id: "2026-08",
+      administered: false,
+    });
+  });
+
+  it("returns the instant the bonuses were handed out when the season is marked", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { clanTag: "#CLAN", seasonId: "2026-08", bonusesAdministeredAt: "2026-08-20T12:00:00.000Z" },
+      error: null,
+    });
+    const result = await setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: true });
+    expect(result.bonusesAdministeredAt).toBe("2026-08-20T12:00:00.000Z");
+  });
+
+  it("rejects a bonus administration response with no season identity", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { bonusesAdministeredAt: null }, error: null });
+    await expect(setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: true }))
+      .rejects.toThrow("Bonus administration returned an invalid response.");
+  });
+
+  it("surfaces a failed bonus administration rather than reporting success", async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: { message: "Leader access required" } });
+    await expect(setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: true }))
+      .rejects.toThrow("Unable to record whether the bonuses were handed out: Leader access required");
   });
 });
