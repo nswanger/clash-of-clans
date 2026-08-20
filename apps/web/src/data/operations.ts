@@ -142,7 +142,7 @@ export async function loadCollectionHealth(client: any): Promise<CollectionHealt
  * mark the exception, never the rule (#19) — a green "collection is fine" panel
  * is the happy-path banner the whole design budget exists to remove. `running`
  * is not a fault: it is a run that has not finished. */
-export function isCollectionUnhealthy(health: CollectionHealth): boolean {
+export function isCollectionUnhealthy(health: Pick<CollectionHealth, "status">): boolean {
   if (health.status === null) return true;
   return health.status !== "healthy" && health.status !== "running";
 }
@@ -150,6 +150,18 @@ export function isCollectionUnhealthy(health: CollectionHealth): boolean {
 export type CwlAvailability = "available" | "unavailable" | "unknown";
 export type CwlMemberRole = "leader" | "coLeader" | "elder" | "member" | "unknown";
 export type CwlWarState = "preparation" | "inWar" | "warEnded" | "unknown";
+
+/* A CWL season is seven war days. It is a property of the game rather than of
+ * our data — a group of eight clans plays seven rounds — and it is a constant
+ * because the API's `rounds` array is not collected: the collector reads the
+ * league group for its member list and its war tags, never its round count.
+ *
+ * It has to be a constant rather than a count of the `cwl_wars` rows, which is
+ * the whole point of naming it. A war day that was never collected leaves no
+ * row at all, so counting rows makes logged equal total and the review phase's
+ * coverage caveat silently never fires — on precisely the season it exists to
+ * warn about. */
+export const CWL_WAR_DAYS = 7;
 
 export interface CwlDailyLineupPlan {
   clanTag: string;
@@ -267,11 +279,14 @@ export interface CwlBonusAdministration {
  * decision has to be made BEFORE either phase's own data is fetched — the
  * workspace snapshot is the lineup phase's data, and fetching it to discover
  * that the season is over is the stale-lineup defect the phase model fixes. */
+/* Deliberately no `bonusesAdministeredAt`. It is wave 4's resting marker and
+ * nothing in wave 3 reads it here — the review phase loads it with the rest of
+ * the season, where the control that writes it lives. Fetching it a wave early
+ * would be a field kept warm for a caller that does not exist. */
 export interface CwlSeasonPhaseSnapshot {
   clanTag: string;
   seasonId: string;
   warDays: Array<{ warDay: number; state: CwlWarState }>;
-  bonusesAdministeredAt: string | null;
 }
 
 /* One member's record on one ENDED war day. A war day that never reached
@@ -602,7 +617,7 @@ export async function loadCwlLineupWorkspace(
     updated_at: string | null;
   }>(warDaysResult.data).flatMap((row) => typeof row.war_day === "number" ? [{
     warDay: row.war_day,
-    state: row.state === "preparation" || row.state === "inWar" || row.state === "warEnded" ? row.state : "unknown",
+    state: warState(row.state),
     preparationStartTime: row.preparation_start_time,
     startTime: row.start_time,
     endTime: row.end_time,
@@ -666,7 +681,7 @@ export async function loadCwlLineupWorkspace(
  * only fetches what it reads. */
 export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<CwlSeasonPhaseSnapshot> {
   const seasonResult = await client.from("cwl_seasons")
-    .select("clan_tag,season_id,bonuses_administered_at")
+    .select("clan_tag,season_id")
     .eq("clan_tag", clanTag)
     .order("season_id", { ascending: false })
     .limit(1)
@@ -688,7 +703,6 @@ export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<
     seasonId,
     warDays: rows<{ war_day: number; state: string }>(warsResult.data)
       .flatMap((row) => typeof row.war_day === "number" ? [{ warDay: row.war_day, state: warState(row.state) }] : []),
-    bonusesAdministeredAt: typeof season.bonuses_administered_at === "string" ? season.bonuses_administered_at : null,
   };
 }
 
@@ -814,7 +828,12 @@ export async function loadCwlReviewSeason(client: any, clanTag: string): Promise
     members,
     earlierSeasonIds: seasonRows.slice(1).map((row) => row.season_id),
     loggedWarDays: loggedDays.length,
-    totalWarDays: warRows.length,
+    /* The season's own length, NOT a count of the `cwl_wars` rows. A war day we
+       never collected leaves no row, so counting rows would make logged equal
+       total and the coverage caveat would go quiet on exactly the season it
+       exists to warn about. `Math.max` rather than the bare constant so a group
+       that somehow ran longer still reports honestly. */
+    totalWarDays: Math.max(CWL_WAR_DAYS, warRows.length),
     freshness: {
       lastRefreshedAt: typeof collection.last_fresh_at === "string" ? collection.last_fresh_at : null,
       collectionStatus: typeof collection.status === "string" ? collection.status : null,

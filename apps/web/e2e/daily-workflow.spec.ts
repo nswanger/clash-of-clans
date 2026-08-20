@@ -95,7 +95,7 @@ test("states incomplete season coverage rather than averaging it away", async ({
 
   /* A war day that never ended is missing for everyone who was in it, so the
      caveat is scoped to the season rather than marked on the rows (#54). */
-  await expect(page.getByText(/2 of 3 war days logged/)).toBeVisible();
+  await expect(page.getByText(/2 of 7 war days logged/)).toBeVisible();
 });
 
 test("renders the year-round member roster with the local fixture", async ({ page }) => {

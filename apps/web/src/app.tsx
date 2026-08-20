@@ -14,13 +14,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AppChromeProvider } from "./app-chrome.js";
 import { Mark } from "./design/mark.js";
+import type { AppRole } from "./routes.js";
 import "./auth/auth-shell.css";
 
 export type AppSession =
   | { status: "loading" }
   | { status: "signed_out" }
   | { status: "access_denied"; message: string }
-  | { status: "signed_in"; displayName: string; role: "leader" | "admin" };
+  | { status: "signed_in"; displayName: string; role: AppRole };
 
 /* A placeholder that appears and vanishes inside a tenth of a second is a flash
  * and reads as breakage rather than progress, so a fast resolve shows nothing at

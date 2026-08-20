@@ -206,7 +206,27 @@ describe("CwlReviewPage", () => {
     const client = reviewClient({ cwl_wars: [...WAR_ROWS, { war_tag: "#W3", war_day: 3, state: "inWar" }] });
     render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
 
-    expect(await screen.findByText(/2 of 3 war days logged/)).toBeVisible();
+    expect(await screen.findByText(/2 of 7 war days logged/)).toBeVisible();
+  });
+
+  /* The denominator is the season's seven days, not a count of the `cwl_wars`
+     rows. A war day nobody collected leaves no row at all, so counting rows
+     would make logged equal total and the caveat would go quiet on exactly the
+     season it exists to warn about. */
+  it("counts uncollected war days against the season's own length", async () => {
+    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByText(/2 of 7 war days logged/)).toBeVisible();
+  });
+
+  it("says nothing about coverage once every war day is logged", async () => {
+    const client = reviewClient({
+      cwl_wars: [1, 2, 3, 4, 5, 6, 7].map((warDay) => ({ war_tag: `#W${warDay}`, war_day: warDay, state: "warEnded" })),
+    });
+    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByRole("heading", { name: /Below eight stars/ })).toBeVisible();
+    expect(screen.queryByText(/war days logged/)).not.toBeInTheDocument();
   });
 
   it("leaves the phase through the strip", async () => {

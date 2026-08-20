@@ -25,6 +25,7 @@ import type { CwlWarState } from "../data/operations.js";
 
 export type CwlPhase = "lineup" | "review";
 
+
 export const CWL_PHASE_LABELS: ReadonlyArray<readonly [CwlPhase, string]> = [
   ["lineup", "Lineup"],
   ["review", "Review"],
@@ -70,6 +71,20 @@ export function phaseFromHash(hash: string): CwlPhase | undefined {
   return PHASES.find((phase) => phase === requested);
 }
 
+/* ALWAYS NAMES THE PHASE, including the one the route would have defaulted to.
+ *
+ * The tempting version omits the parameter for the default, on the grounds that
+ * a URL should not restate state it would have chosen anyway. That version
+ * strands the leader, and in exactly the direction ADR 0002 wrote the control to
+ * prevent. Once the season is over the default at bare `#/cwl` IS review, so
+ * pressing Lineup would assign the identical hash — no `hashchange`, no
+ * re-render, nothing moves, and the only way back to the lineup is typing the
+ * query string by hand.
+ *
+ * Naming it also makes the control's whole promise true: after one tap the URL
+ * says which phase you are in, so it can be linked and reasoned about. A bare
+ * `#/cwl` still means "whichever phase the season is in", which is what a
+ * bookmark or the nav menu should give you. */
 export function hashForPhase(phase: CwlPhase): string {
-  return phase === "lineup" ? "#/cwl" : `#/cwl?phase=${phase}`;
+  return `#/cwl?phase=${phase}`;
 }

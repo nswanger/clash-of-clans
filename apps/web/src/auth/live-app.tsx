@@ -85,14 +85,15 @@ export function LiveApp({ client, location, children, navigation = defaultNaviga
   return (
     <App
       session={session}
-      onSignOut={() => {
-        void signOut(client).catch((error) => {
-          setSession({
-            status: "access_denied",
-            message: error instanceof Error ? error.message : "Unable to sign out.",
-          });
-        });
-      }}
+      /* A failed sign-out must NOT become `access_denied`. That state renders
+         "Not on the roster", which `app.tsx` documents as absence rather than
+         apology — nothing has gone wrong, this account is simply not on the
+         list. A network error during sign-out is the opposite: something did go
+         wrong, and the account is still perfectly valid. Reporting it there
+         would tell a signed-in leader they had been removed from the clan.
+         The session is unchanged, so the honest outcome is to stay put; the
+         auth state change is what moves the app when the sign-out succeeds. */
+      onSignOut={() => { void signOut(client).catch(() => {}); }}
       onSignIn={() => {
         const currentUrl = new URL(location.href);
         const invitation = currentUrl.searchParams.get("invitation");

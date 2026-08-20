@@ -28,9 +28,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
+import { Metric, SkeletonRows, SKELETON_DELAY_MS, useWide } from "../design/layout.js";
 import { Sheet } from "../design/sheet.js";
 import { loadWarActivityWindow, type MemberWarActivity } from "../members/member-history.js";
 import {
+  isCollectionUnhealthy,
   loadCwlReviewSeason,
   setCwlBonusesAdministered,
   type CwlMemberRole,
@@ -44,8 +46,6 @@ import "./cwl-review.css";
 /* ADR 0001's threshold, shared with the lineup workspace's own bonus predicate.
  * It is a rank boundary here rather than a cutoff — see the header. */
 export const CWL_BONUS_STAR_THRESHOLD = 8;
-const WIDE_QUERY = "(min-width: 720px)";
-const SKELETON_DELAY_MS = 250;
 /* Thirty days here where the members roster refuses it, and the difference is
  * the question. The roster asks "who stopped turning up this week", which a long
  * window cannot answer. A role change is a judgement about the whole year, not
@@ -207,10 +207,11 @@ function DayOutcome({ inLineup, completed }: { inLineup: boolean; completed: num
   return <span className="cwl-review-outcome cm-statustext is-unavailable">Missed</span>;
 }
 
-function MemberPanel({ entry, activity, loggedWarDays, wide, onClose }: {
+function MemberPanel({ entry, activity, loggedWarDays, seasonId, wide, onClose }: {
   entry: RankedReviewMember;
   activity: MemberWarActivity | undefined;
   loggedWarDays: number;
+  seasonId: string;
   wide: boolean;
   onClose: () => void;
 }) {
@@ -229,7 +230,9 @@ function MemberPanel({ entry, activity, loggedWarDays, wide, onClose }: {
         {wide ? null : <button className="cm-iconbutton" type="button" aria-label="Close" onClick={onClose}><Icon name="close" /></button>}
       </div>
       <div className="cm-panel-body">
-        <p className="cm-panel-label">Season record</p>
+        {/* Scoped, like every other label in this panel: "Season record" alone
+            is ambiguous once the season menu can move you between seasons. */}
+        <p className="cm-panel-label">Season record <span className="cm-sep">·</span> CWL {seasonId}</p>
         <dl className="cwl-review-facts">
           <div><dt>Stars</dt><dd>{record.stars}</dd></div>
           <div><dt>Stars per war</dt><dd>{record.starsPerWar === null ? "—" : record.starsPerWar.toFixed(1)}</dd></div>
@@ -324,7 +327,7 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
 
   const ranked = useMemo(() => rankReviewMembers(snapshot?.members ?? []), [snapshot]);
 
-  const administered = snapshot?.season.bonusesAdministeredAt !== null && snapshot !== undefined;
+  const administered = snapshot?.season.bonusesAdministeredAt != null;
   const toggleAdministered = async () => {
     if (!snapshot) return;
     setSeasonMenuOpen(false);
@@ -356,6 +359,7 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
         entry={active}
         activity={activity.get(active.member.playerTag)}
         loggedWarDays={snapshot?.loggedWarDays ?? 0}
+        seasonId={snapshot?.season.seasonId ?? ""}
         wide={wide}
         onClose={() => setSelectedTag(null)}
       />
@@ -365,10 +369,9 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
   const below = ranked.filter((entry) => !entry.record.secured);
   const missedAttacks = ranked.reduce((sum, entry) => sum + entry.record.missedAttacks, 0);
   const clanStars = ranked.reduce((sum, entry) => sum + entry.record.stars, 0);
-  const stale = snapshot?.freshness.collectionStatus !== null
-    && snapshot?.freshness.collectionStatus !== undefined
-    && snapshot.freshness.collectionStatus !== "healthy"
-    && snapshot.freshness.collectionStatus !== "running";
+  /* The same predicate the Admin route reads, not a second copy of the rule:
+     "which statuses count as unhealthy" is one fact and two surfaces ask it. */
+  const stale = snapshot !== undefined && isCollectionUnhealthy({ status: snapshot.freshness.collectionStatus });
 
   return <>
     <main className="cm-shell cwl-review-page" aria-busy={!snapshot && !error}>
@@ -478,32 +481,3 @@ function Group({ title, entries, selectedTag, onOpen }: {
   </section>;
 }
 
-function Metric({ value, label, danger = false }: { value: number | null; label: string; danger?: boolean }) {
-  return <div className={`cm-metric ${danger ? "is-danger" : ""}`}><strong>{value ?? "—"}</strong><span>{label}</span></div>;
-}
-
-function SkeletonRows() {
-  return <div className="cm-rows" aria-hidden="true">
-    {[58, 47, 66, 51, 62, 44].map((width, index) => <div key={index} className="cm-row has-pos is-skeleton">
-      <span className="cm-row-pos"><span className="cm-skel" style={{ width: "14px" }} /></span>
-      <span className="cm-row-main">
-        <span className="cm-row-name"><span className="cm-skel" style={{ width: `${width}%` }} /></span>
-        <span className="cm-row-meta"><span className="cm-skel" style={{ width: "72px", height: "9px" }} /></span>
-      </span>
-      <span className="cm-row-stats"><span className="cm-skel" style={{ width: "28px", height: "9px" }} /></span>
-    </div>)}
-  </div>;
-}
-
-function useWide(): boolean {
-  const [wide, setWide] = useState(() => window.matchMedia?.(WIDE_QUERY).matches ?? false);
-  useEffect(() => {
-    const query = window.matchMedia?.(WIDE_QUERY);
-    if (!query) return;
-    const update = () => setWide(query.matches);
-    update();
-    query.addEventListener?.("change", update);
-    return () => query.removeEventListener?.("change", update);
-  }, []);
-  return wide;
-}

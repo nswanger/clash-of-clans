@@ -17,6 +17,7 @@ import { Icon } from "../design/icon.js";
 import { Sheet } from "../design/sheet.js";
 import {
   clearCwlAppliedLineupChanges,
+  CWL_WAR_DAYS,
   loadCurrentCwlLineupWorkspace,
   recordCwlAppliedLineupChange,
   reinheritCwlLineupPlan,
@@ -35,7 +36,7 @@ import { CwlPhaseStrip } from "./cwl-phase-strip.js";
 import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-lineup-workspace.css";
 
-const DAYS = [1, 2, 3, 4, 5, 6, 7];
+const DAYS = Array.from({ length: CWL_WAR_DAYS }, (_, index) => index + 1);
 const WIDE_QUERY = "(min-width: 720px)";
 export const CWL_BONUS_STAR_THRESHOLD = 8;
 
@@ -770,7 +771,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
   if (loading && !snapshot) {
     return <main className="cm-shell" aria-busy="true">
       <AppTopbar route="cwl" eyebrow="CWL" title="Lineup" />
-      <CwlPhaseStrip phase={phase} onPhase={onPhase} lineupDayLabel="Lineup" />
+      <CwlPhaseStrip phase={phase} onPhase={onPhase} />
       <div className="cm-rows">{[0, 1, 2, 3, 4, 5].map((index) => <div className="cm-row is-skeleton" key={index}>
         <span className="cm-row-main"><span className="cm-skel" style={{ width: "42%" }} /><span className="cm-row-meta"><span className="cm-skel" style={{ width: 84 }} /></span></span>
         <span className="cm-row-stats"><span className="cm-skel" style={{ width: 34 }} /></span>
@@ -855,7 +856,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
 
       <CwlPhaseStrip phase={phase} onPhase={onPhase} lineupDayLabel={`Day ${day}`} />
 
-      <nav className="cm-segmented cwl-daystrip" aria-label="CWL war days">
+      <nav className="cm-segmented" aria-label="CWL war days">
         {DAYS.map((item) => <button key={item} type="button" aria-current={item === day} onClick={() => setDay(item)}>
           <span>Day {item}</span><small>{warDayStatus(warStates.get(item))}</small>
         </button>)}

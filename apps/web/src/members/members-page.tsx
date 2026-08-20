@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
+import { Metric, SkeletonRows, SKELETON_DELAY_MS, useWide } from "../design/layout.js";
 import { Sheet } from "../design/sheet.js";
 import {
   activityStatus,
@@ -38,10 +39,6 @@ type Panel = { mode: "member"; tag: string } | { mode: "filters" } | null;
  * signal and a thin one, which is why seven is the default. */
 const WINDOWS = [{ days: 3, label: "3 days" }, { days: 7, label: "7 days" }] as const;
 const DEFAULT_WINDOW_DAYS = 7;
-const WIDE_QUERY = "(min-width: 720px)";
-/* A placeholder that appears and vanishes inside a tenth of a second reads as
- * breakage rather than progress, so a fast load shows nothing at all (#43). */
-const SKELETON_DELAY_MS = 250;
 
 export function MembersPage({ client, clanTag }: MemberPageProps) {
   const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW_DAYS);
@@ -386,27 +383,6 @@ function Choices<Value extends string>({ label, value, options, onChange }: {
   );
 }
 
-/* One primitive, in the shape of the row it stands in for — `cm-row` with
- * blocks instead of content, so it inherits height, padding, radius and grid
- * from the real thing and cannot drift from it (#43). No copy: loading is the
- * most literal unknown in the app, and uncertainty is structural here. */
-function SkeletonRows() {
-  return <div className="cm-rows" aria-hidden="true">
-    {[62, 44, 71, 51, 66, 47].map((width, index) => <div key={index} className="cm-row has-pos is-skeleton">
-      <span className="cm-row-pos"><span className="cm-skel" style={{ width: "14px" }} /></span>
-      <span className="cm-row-main">
-        <span className="cm-row-name"><span className="cm-skel" style={{ width: `${width}%` }} /></span>
-        <span className="cm-row-meta"><span className="cm-skel" style={{ width: "72px", height: "9px" }} /></span>
-      </span>
-      <span className="cm-row-stats"><span className="cm-skel" style={{ width: "28px", height: "9px" }} /></span>
-    </div>)}
-  </div>;
-}
-
-function Metric({ value, label }: { value: number | null; label: string }) {
-  return <div className="cm-metric"><strong>{value ?? "—"}</strong><span>{label}</span></div>;
-}
-
 /* Roster facts and observed war activity are two loads, and only the second
  * depends on the window — so changing the window re-fetches the activity and
  * leaves the rows where they are. Replacing populated rows with a skeleton to
@@ -442,19 +418,6 @@ function useMemberRoster(client: any, clanTag: string, windowDays: number) {
   }, [clanTag, client, windowDays]);
 
   return { members, activity, ready, error, showSkeleton };
-}
-
-function useWide(): boolean {
-  const [wide, setWide] = useState(() => window.matchMedia?.(WIDE_QUERY).matches ?? false);
-  useEffect(() => {
-    const query = window.matchMedia?.(WIDE_QUERY);
-    if (!query) return;
-    const update = () => setWide(query.matches);
-    update();
-    query.addEventListener?.("change", update);
-    return () => query.removeEventListener?.("change", update);
-  }, []);
-  return wide;
 }
 
 function memberSorter(sort: Sort, statusOf: (member: MemberRosterMember) => ActivityStatus, now: number) {

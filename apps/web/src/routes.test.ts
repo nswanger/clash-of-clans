@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redirectForPath, routeForPath } from "./app-routes.js";
+import { redirectForPath, routeForPath } from "./routes.js";
 
 describe("routeForPath", () => {
   it("dispatches the three routes ADR 0002 left standing", () => {

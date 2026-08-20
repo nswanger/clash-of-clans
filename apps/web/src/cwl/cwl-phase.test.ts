@@ -52,11 +52,21 @@ describe("phaseFromHash", () => {
 });
 
 describe("hashForPhase", () => {
-  /* The lineup is the route's own default, so it carries no parameter — a URL
-     should not name state it would have chosen anyway. */
-  it("names only the phase that is not the plain route", () => {
-    expect(hashForPhase("lineup")).toBe("#/cwl");
+  it("names every phase, including the one the route defaults to", () => {
+    expect(hashForPhase("lineup")).toBe("#/cwl?phase=lineup");
     expect(hashForPhase("review")).toBe("#/cwl?phase=review");
+  });
+
+  /* The regression that makes this worth its own test. Omitting the parameter
+     for the default phase strands the leader in the direction ADR 0002 wrote the
+     control to prevent: once a season is over the default at bare `#/cwl` is
+     review, so a Lineup press that produced `#/cwl` would assign the hash the
+     page is already on — no `hashchange`, no re-render, no way back. */
+  it("produces a hash that differs from the bare route, so the control always moves", () => {
+    for (const phase of ["lineup", "review"] as const) {
+      expect(hashForPhase(phase)).not.toBe("#/cwl");
+      expect(phaseFromHash(hashForPhase(phase))).toBe(phase);
+    }
   });
 });
 

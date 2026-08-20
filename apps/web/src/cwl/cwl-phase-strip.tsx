@@ -17,8 +17,10 @@ export function CwlPhaseStrip({ phase, onPhase, lineupDayLabel }: {
   phase: CwlPhase;
   onPhase: (next: CwlPhase) => void;
   /* The lineup segment's sub-label names the day it would open on, so switching
-     phase is a choice with a stated destination rather than a jump. */
-  lineupDayLabel: string;
+     phase is a choice with a stated destination rather than a jump. Optional
+     because the lineup's own loading state does not know the day yet, and a
+     segment reading "Lineup / Lineup" is worse than one with no sub-label. */
+  lineupDayLabel?: string | undefined;
 }) {
   const sublabel = (value: CwlPhase) => value === "lineup" ? lineupDayLabel : "Season";
   return (
@@ -28,7 +30,7 @@ export function CwlPhaseStrip({ phase, onPhase, lineupDayLabel }: {
         type="button"
         aria-current={key === phase}
         onClick={() => onPhase(key)}
-      ><span>{label}</span><small>{sublabel(key)}</small></button>)}
+      ><span>{label}</span>{sublabel(key) ? <small>{sublabel(key)}</small> : null}</button>)}
     </nav>
   );
 }

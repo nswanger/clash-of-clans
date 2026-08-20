@@ -29,25 +29,12 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./design/icon.js";
 import { Mark } from "./design/mark.js";
+import { routesFor, type AppRole, type AppRouteKey } from "./routes.js";
 
-export type AppRouteKey = "cwl" | "members" | "admin";
-export type AppRole = "leader" | "admin";
-
-interface RouteEntry { key: AppRouteKey; label: string; href: string; adminOnly?: boolean }
-
-/* Three after ADR 0002, and Admin is role-conditional — so a leader who is not
- * an admin sees two. Both counts were drawn in the prototype, because a nav that
- * only looks right at three is designed for a user most of the clan is not. */
-const ROUTES: RouteEntry[] = [
-  { key: "cwl", label: "CWL", href: "#/cwl" },
-  { key: "members", label: "Members", href: "#/members" },
-  { key: "admin", label: "Admin", href: "#/admin", adminOnly: true },
-];
-
-export function routesFor(role: AppRole): RouteEntry[] {
-  return ROUTES.filter((route) => !route.adminOnly || role === "admin");
-}
-
+/* The route table itself lives in `routes.ts`, beside the matcher and the
+ * redirects. It used to be here as well, which meant adding a fourth route
+ * touched the nav in one file and the dispatcher in another — one logical change
+ * scattered across two, and no compiler check that they agreed. */
 export interface AppChrome {
   displayName: string;
   role: AppRole;
