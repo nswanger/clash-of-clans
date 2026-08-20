@@ -103,6 +103,8 @@ Three things the live workspace did not have arrived with it — the swap panel,
 
 **Settled before this wave started, as required — see [ADR 0002](../docs/adr/0002-app-surfaces-and-cwl-phase.md).** Three of the four routes this wave was written to conform are deleted instead, so what remains is much smaller than the heading implies.
 
+**Two design dependencies, one of them still open.** The review phase is settled ([#54](https://github.com/nswanger/clash-of-clans/issues/54), closed). The app chrome is not ([#58](https://github.com/nswanger/clash-of-clans/issues/58)) — it belongs to this wave, it is a live defect rather than a cosmetic gap, and it has no prototype. Neither blocks the route deletions or the rename. See "The app chrome" below.
+
 The app collapses to three routes: **CWL**, **Members**, **Admin**. No deadline. The three surviving routes are conformed against the component inventory rather than against a prototype — by this point it should carry them, and anything that needs a new component is a finding worth recording rather than a licence to invent one. The one genuinely new surface, the review phase, does have a prototype, because a surface that exists nowhere yet cannot be conformed to anything.
 
 | Route | Wave 3 does |
@@ -154,7 +156,13 @@ It slipped for a legible reason rather than by oversight: the waves are organise
 That makes it the one piece of conformance work with a reason to move early, and the one with the least to go on. Two questions, both open:
 
 - **When.** ~~Fold it into wave 3, or pull it forward before wave 2?~~ **Decided: wave 3.** Wave 2 landed against the unmigrated bar deliberately, rather than answer "what is app-level navigation in this system" under a deadline. The nav is now a white bar above a dark page on every route including the workspace, and it stays that way until wave 3. ADR 0002 makes the job smaller than it looked: the bar carries five links today and will carry three.
-- **What.** There is nothing to port. Conforming the nav means designing one, which is exactly the case `components.md` calls "a finding worth recording rather than a licence to invent" — so it wants a real decision about what app-level navigation is in this system, not a `cm-`-prefixed restatement of the current bar.
+- **What.** ~~There is nothing to port.~~ **Ticketed as [#58](https://github.com/nswanger/clash-of-clans/issues/58).** Conforming the nav means designing one, which is exactly the case `components.md` calls "a finding worth recording rather than a licence to invent" — so it wants a real decision about what app-level navigation is in this system, not a `cm-`-prefixed restatement of the current bar.
+
+> **The app chrome must be migrated in wave 3, and it is blocked on [#58](https://github.com/nswanger/clash-of-clans/issues/58) — design the app chrome.** It is the same position [#54](https://github.com/nswanger/clash-of-clans/issues/54) was in: no prototype, no component-inventory entry, and until now no ticket. **The route deletions, the rename and the review phase do not depend on it** and can land first; only the nav and the auth shells wait.
+>
+> Two findings #58 carries, both of which wave 3 meets whether or not the design lands first. **There is no navigation component** — the inventory's "Navigation and notice" section is `cm-segmented` and `cm-notice`, both in-page controls, and nothing in it means "move between routes". And **there is no primary/filled button**: `cm-ghost` and `cm-search` are the controls, while the filled button exists twice as page-layer vocabulary (the lineup's `.donebutton`, the action bar's Save) and never as a system component. `.primary-button` survives this wave in Admin as well as on the sign-in screen, so wave 3 needs one either way.
+>
+> [#24](https://github.com/nswanger/clash-of-clans/issues/24) permits the mark in exactly one place in normal use — the top bar, beside the product name. The app has no such bar, and the page topbars carry the *page* name, so that placement currently exists nowhere. Whatever #58 designs is where the mark lands.
 
 ## Rules
 
