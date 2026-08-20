@@ -212,6 +212,12 @@ describe("Supabase operations", () => {
     expect(result.bonusesAdministeredAt).toBe("2026-08-20T12:00:00.000Z");
   });
 
+  it("rejects a bonus administration response with no season identity", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { bonusesAdministeredAt: null }, error: null });
+    await expect(setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: true }))
+      .rejects.toThrow("Bonus administration returned an invalid response.");
+  });
+
   it("surfaces a failed bonus administration rather than reporting success", async () => {
     const rpc = vi.fn().mockResolvedValue({ error: { message: "Leader access required" } });
     await expect(setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: true }))

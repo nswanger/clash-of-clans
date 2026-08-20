@@ -607,13 +607,19 @@ export async function setCwlBonusesAdministered(client: any, value: {
   return bonusAdministrationFromRpc(result.data);
 }
 
-function bonusAdministrationFromRpc(row: any): CwlBonusAdministration {
+function bonusAdministrationFromRpc(value: unknown): CwlBonusAdministration {
+  const row = record(value);
+  if (typeof row.clanTag !== "string" || typeof row.seasonId !== "string") {
+    throw new Error("Bonus administration returned an invalid response.");
+  }
   return {
     clanTag: row.clanTag,
     seasonId: row.seasonId,
-    /* Absent evidence stays absent: null means "not handed out", and the domain
-     * refuses to render an unknown as a value. */
-    bonusesAdministeredAt: row.bonusesAdministeredAt ?? null,
+    /* Absent evidence stays absent, and the absence is the answer here rather
+     * than a missing field: null means "not handed out". A non-string is
+     * therefore coerced to null rather than thrown on, unlike the two
+     * identifiers above, which have no meaningful absent form. */
+    bonusesAdministeredAt: typeof row.bonusesAdministeredAt === "string" ? row.bonusesAdministeredAt : null,
   };
 }
 
