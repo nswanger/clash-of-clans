@@ -28,7 +28,11 @@ The one genuine gap is `regular_war_member_history`, the war-by-war record behin
 
 ## A resting phase, deferred
 
-After review has been available for some time, the CWL route should rest rather than continue presenting a finished season as though action were outstanding. The marker is days since the final war's `end_time`. It becomes the default phase position while lineup and review stay reachable, so it costs no new mechanism.
+After review has been available for some time, the CWL route should rest rather than continue presenting a finished season as though action were outstanding. It becomes the default phase position while lineup and review stay reachable, so it costs no new mechanism.
+
+**Amended by [#54](https://github.com/nswanger/clash-of-clans/issues/54): the marker is `cwl_seasons.bonuses_administered_at`, with days since the final war's `end_time` as the backstop.** This ADR originally set the marker on elapsed time alone. The review surface records one fact — whether the bonus medals have been handed out — and that fact is what review is for, so it says the phase is finished directly instead of inferring it from how long the page has been sitting there. Elapsed time is a guess about when someone lost interest; the flag is an observation. The elapsed-time rule survives for the season nobody ever marks, which is the same shape as the date guard on the review marker above: a leader who stops touching the app must still end up somewhere sensible.
+
+Deliberately **not** recorded: who received a bonus. The API will never confirm it, and cross-season fairness was judged not worth a hand-maintained record. The flag answers "is this page still in use", which is the only question the phase model needs.
 
 This is an **empty state, not a loading state**. The loading pattern has no copy and uses skeletons, which assert that data is arriving; nothing is arriving here for weeks, so borrowing it would be a lie about the wait. It is also not the happy-path banner [#19](https://github.com/nswanger/clash-of-clans/issues/19) prohibits: that rule bans announcing that everything is fine, whereas a resting state is the honest rendering of nothing being here, in the same spirit as loading rendering nothing at all below 250ms. It must read as absence rather than reassurance.
 

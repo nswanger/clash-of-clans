@@ -10,6 +10,16 @@
       ],
       "port": 5183,
       "url": "http://127.0.0.1:5183"
+    },
+    {
+      "name": "design-prototypes",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "python3 -m http.server 5184 --bind 127.0.0.1 --directory design"
+      ],
+      "port": 5184,
+      "url": "http://127.0.0.1:5184"
     }
   ]
 }
