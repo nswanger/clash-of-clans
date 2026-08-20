@@ -17,7 +17,9 @@
  * PREFIX. Page classes are `cwl-`, not `lineup-`: `.lineup-actions` is already
  * the dashboard's in styles.css, which is exactly the collision that made the
  * members roster take `members-` rather than the prototype's bare names. The
- * route is `#/cwl-lineup`, so `cwl-` names the surface either way.
+ * route is `#/cwl`, so `cwl-` names the surface either way — and the review
+ * phase beside it takes `cwl-review-` for exactly the same reason one scope
+ * down: two phases of one route share a stylesheet namespace (#54).
  *
  * SPECIFICITY. Page rules that override a component carry an ancestor. The
  * prototype's page rules win ties by source order, because `_prototype.css` is
@@ -134,3 +136,4 @@
   .cwl-workspace .cwl-columns { grid-template-columns: minmax(0, 1fr) minmax(300px, 340px) minmax(280px, 320px); }
   .cwl-rail { display: block; }
 }
+

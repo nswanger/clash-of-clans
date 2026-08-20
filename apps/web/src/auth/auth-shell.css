@@ -1,0 +1,50 @@
+/* The auth shell — page layer (#58).
+ *
+ * Ported from design/prototype/app-chrome.html, which is the spec. One surface,
+ * three states, and the only place the mark appears large; it is page layer
+ * because exactly one route renders it, even though that route is the one every
+ * session starts on.
+ *
+ * Classes are prefixed `auth-` for the reason every page layer here is prefixed:
+ * this is a global stylesheet during an incremental migration. The old
+ * `.access-shell` these rules replace was shared by the sign-in screen and the
+ * `#/access` page, which is exactly the collision the prefix rule exists for —
+ * two different surfaces on one class, and wave 3 splits them.
+ *
+ * The mark is LARGE here (72px, cabossed head rather than the shield) because
+ * this is the one screen with room and no page name to compete with. #24 permits
+ * the mark in muted empty states, and a sign-in screen is the first one the app
+ * has. The product name survives here too, and only here: this is the one
+ * surface with no page name to carry it (#24 as amended by #58).
+ */
+.auth-shell {
+  min-height: 100vh; min-height: 100dvh;
+  display: grid; align-content: center; justify-items: center; gap: var(--cm-space-3);
+  max-width: 320px; margin: 0 auto; padding: var(--cm-space-6) var(--cm-gutter);
+  text-align: center;
+}
+.auth-mark { width: 72px; height: 72px; opacity: .9; }
+.auth-shell h1 {
+  margin: 0; font-size: var(--cm-text-lg); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.auth-shell p { margin: 0; font-size: var(--cm-text-sm); line-height: 1.45; color: var(--cm-fg-muted); }
+.auth-shell .cm-button { margin-top: var(--cm-space-2); }
+
+/* Loading is the mark and nothing else — no spinner, no skeleton, no string.
+ * #43 deleted the app's six loading strings and "Loading your war room…" is the
+ * last of them; a skeleton asserts that data is arriving into a shape, and at
+ * this point the app does not yet know whether the reader is allowed a shape at
+ * all. Below the 250ms threshold this renders nothing (#43, rule 1). */
+.auth-shell.is-loading { gap: 0; }
+.auth-shell.is-loading .auth-mark { opacity: .28; }
+
+/* The announcement the deleted string used to carry. Visually hidden rather
+ * than removed: #43's rule is that loading has no COPY, not that it goes
+ * unannounced — `aria-busy` plus one live region is what makes deleting the
+ * visible strings cost nothing in accessibility terms. */
+.auth-live {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden; white-space: nowrap;
+  clip-path: inset(50%); border: 0;
+}

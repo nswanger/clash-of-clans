@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
+import { AppTopbar } from "../app-chrome.js";
 import { LiveApp, type LiveSessionClient } from "./live-app.js";
 
 function createClient() {
@@ -10,6 +11,7 @@ function createClient() {
       getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-1" } } }, error: null }),
       onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
       signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
     },
     from: vi.fn(() => profileQuery),
     rpc: vi.fn().mockImplementation((name: string) => Promise.resolve(name === "has_app_role" ? { data: true, error: null } : { error: null })),
@@ -17,11 +19,20 @@ function createClient() {
 }
 
 describe("LiveApp", () => {
+  /* The signed-in assertion goes through a real topbar now, because the display
+     name is no longer rendered by `App` — the chrome is a context the surfaces
+     consume, and the name is the account control's accessible name (#58). */
   it("loads the current Supabase session and role", async () => {
-    render(<LiveApp client={createClient()} location={{ href: "https://ops.example/", origin: "https://ops.example", pathname: "/" }} />);
+    render(
+      <LiveApp client={createClient()} location={{ href: "https://ops.example/", origin: "https://ops.example", pathname: "/" }}>
+        {() => <AppTopbar route="members" eyebrow="Year-round clan" title="Members" />}
+      </LiveApp>,
+    );
 
-    expect(screen.getByRole("status")).toHaveTextContent("Loading your war room");
-    await waitFor(() => expect(screen.getByText("Nick")).toBeVisible());
+    /* Loading has no visible copy (#43): the announcement is a live region and
+       the mark, and below 250ms there is nothing at all. */
+    expect(screen.getByRole("status")).toHaveTextContent("Checking your access");
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Nick/ })).toBeVisible());
   });
 
   it("shows login for a signed-out invitee without attempting redemption", async () => {
@@ -30,7 +41,7 @@ describe("LiveApp", () => {
     vi.mocked(client.auth.getSession).mockResolvedValue({ data: { session: null }, error: null });
     render(<LiveApp client={client} location={{ href: "https://ops.example/?invitation=secret", origin: "https://ops.example", pathname: "/" }} />);
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Leader access" })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Clan Muster" })).toBeVisible());
     expect(client.rpc).not.toHaveBeenCalledWith("redeem_invitation", expect.anything());
     await user.click(screen.getByRole("button", { name: "Continue with Discord" }));
     expect(sessionStorage.getItem("pending-invitation")).toBe("secret");
@@ -46,7 +57,7 @@ describe("LiveApp", () => {
 
     await user.click(await screen.findByRole("button", { name: "Continue with Discord" }));
 
-    expect(await screen.findByRole("heading", { name: "Access unavailable" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Not on the roster" })).toBeVisible();
     expect(screen.getByText("Discord provider is not enabled")).toBeVisible();
   });
 

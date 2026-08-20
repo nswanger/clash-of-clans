@@ -47,6 +47,8 @@
 .cm-row,
 .cm-iconbutton,
 .cm-ghost,
+.cm-account,
+.cm-routebutton,
 .cm-check,
 .cm-handle,
 .cm-actionbar-changes,
@@ -67,8 +69,13 @@
 }
 
 /* ---------- header ---------- */
+/* Four slots after #58 — the mark, the route control, the flexible middle, and
+ * `cm-topbar-side`. Centred rather than top-aligned, and packed from the start
+ * rather than spread: the mark and the account control are both 24-44px objects
+ * that want to centre on the heading block, and the middle must take the slack
+ * rather than the gaps. */
 .cm-topbar {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--cm-space-3);
+  display: flex; align-items: center; justify-content: flex-start; gap: var(--cm-space-3);
   padding: var(--cm-space-4) 0 var(--cm-space-3);
 }
 .cm-topbar h1 {
@@ -93,6 +100,40 @@
 }
 /* still 44px of tap target — only the glyph gets smaller */
 .cm-iconbutton.is-small { width: var(--cm-tap-min); height: var(--cm-tap-min); font-size: var(--cm-text-md); }
+
+/* ---------- the mark, and the account control (#58) ----------
+ * `cm-topbar` carries four slots after #58: the mark, the route control, the
+ * flexible middle, and `cm-topbar-side`. It is the app's only bar.
+ *
+ * The mark stands ALONE here, which is #24 amended rather than broken. #24 wrote
+ * the placement as "the top bar, beside the product name"; that assumed a bar
+ * that names the product, and the only bar in this app names the PAGE. The rule
+ * that was load-bearing is untouched — once per screen, top bar, never on rows
+ * or as texture. The product name survives on the auth shell alone.
+ *
+ * The shield rather than the bare head, on #24's own rule: the container is what
+ * survives shrinking, and 24px is inside the 16-32px band it was drawn for.
+ */
+.cm-mark { flex: none; display: block; width: 24px; height: 24px; }
+
+/* The display name was a bare <span> with no affordance, and the app had no
+ * route to sign out at all. The INITIAL travels, not the name: the name is the
+ * widest unbounded string in the chrome and the one piece of it nobody reads
+ * twice. It stays the button's accessible name. */
+.cm-account {
+  flex: none; display: inline-grid; place-items: center;
+  width: var(--cm-tap-min); height: var(--cm-tap-min);
+  margin-right: -10px;
+  border: none; background: none; border-radius: var(--cm-radius-circle);
+}
+.cm-account span {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: var(--cm-radius-circle);
+  background: var(--cm-surface-sunken); border: 1px solid var(--cm-hairline);
+  font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
+  color: var(--cm-fg-muted);
+}
+.cm-account:hover span { color: var(--cm-fg-strong); }
 
 /* ---------- segmented strip ----------
  * A row of mutually exclusive choices, scrollable when it overflows. The CWL
@@ -120,6 +161,66 @@
   box-shadow: inset 0 calc(-1 * var(--cm-marker-width)) 0 var(--cm-accent-edge);
 }
 
+/* ---------- the primary nav (#58) ----------
+ * THE PAGE NAME IS THE NAV. There is no app bar and no tab bar: after ADR 0002
+ * there are three destinations, one role-conditional and one visited monthly,
+ * and a permanently-rendered nav pays rent on a decision a leader makes rarely.
+ * `cm-topbar` already sits on every surface, so folding the route control into
+ * it costs no chrome at all — which is what the two rejected alternatives could
+ * not do. A bottom tab set needs a slim app bar above it for the mark AND
+ * contends for the bottom edge `cm-actionbar` already owns on the default
+ * route; a top rail measurably does not fit at 375px once the mark, the product
+ * name, three links and the account control share a line.
+ *
+ * The trade is real and was accepted knowingly: navigation is behind a tap.
+ */
+.cm-routebutton {
+  display: inline-flex; align-items: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0; border: none; background: none;
+  text-align: left; color: inherit;
+}
+.cm-routebutton .cm-eyebrow { margin-bottom: 0; }
+.cm-routebutton h1 {
+  margin: 0; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl);
+}
+/* The sprite's chevron points right — it is the row's affordance — so the
+ * disclosure form rotates it down and up rather than flipping it end for end:
+ * 180deg points it back at the page name, which reads as "go back". */
+.cm-routebutton-chev { display: inline-flex; color: var(--cm-fg-muted); transform: rotate(90deg); }
+.cm-routebutton[aria-expanded="true"] .cm-routebutton-chev { transform: rotate(-90deg); }
+
+/* The page layer's menu shape at app scope: the lineup's day menu and the
+ * review season menu are the same object one scope down. Deliberately NOT a
+ * `cm-segmented` — that strip already carries the CWL phase one level below
+ * this (ADR 0002), and two segmented strips in one header is two headers
+ * wearing a component. */
+.cm-routemenu {
+  position: absolute; z-index: 40; margin-top: 4px; min-width: 200px;
+  padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+/* Anchored to the trailing edge where the control that opened it is: the route
+ * control is the first slot in the bar and the account control is the last. */
+.cm-routemenu.is-trailing { right: 0; }
+.cm-routemenu a,
+.cm-routemenu button {
+  display: flex; align-items: center; gap: var(--cm-space-2);
+  width: 100%; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-sm);
+  background: none; text-align: left; text-decoration: none; color: var(--cm-fg);
+  font-family: inherit; font-variant-numeric: inherit; cursor: pointer;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium);
+}
+.cm-routemenu a:hover,
+.cm-routemenu button:hover { background: var(--cm-surface-sunken); }
+/* The current item is marked by ink and weight like every other current state
+ * in the system. No route icons: the label is the affordance in a menu, so an
+ * icon beside it is decoration, and decoration does not earn a place in a set
+ * #40 capped at eight. */
+.cm-routemenu a[aria-current="page"] { color: var(--cm-fg-strong); font-weight: var(--cm-weight-semibold); }
+
 /* ---------- the one notice region ----------
  * Danger only, one per screen. It has no success, caution or info variant by
  * design (#19); everything else that wants to announce itself is a mark on the
@@ -139,6 +240,36 @@
   background: none; color: inherit;
   font-size: var(--cm-text-xs); font-weight: var(--cm-weight-semibold);
 }
+
+/* ---------- the aggregate strip ----------
+ * PROMOTED from the members page layer by #54, which needed it unchanged: "how
+ * healthy is the clan" and "how did the season go" are the same question shape
+ * asked of different data, and a second surface needing exactly the same
+ * aggregate read is what makes it a component rather than one page's tile.
+ *
+ * Two-up on a phone, four across above 720px. FOUR METRICS, NEVER FIVE — a
+ * strip that scrolls clips a metric mid-word, which reads as a bug rather than
+ * as an affordance.
+ */
+.cm-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-2); }
+.cm-metric {
+  min-width: 0;
+  padding: var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface);
+}
+.cm-metric strong {
+  display: block; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.cm-metric span {
+  display: block; margin-top: 2px;
+  font-size: var(--cm-text-xs); line-height: 1.3; color: var(--cm-fg-muted);
+}
+/* One fact, one colour: the figure is coloured only where the same fact is
+ * marked danger on the rows below it. There is deliberately no success variant
+ * — a zero is the rule, and rules go unmarked (#54). */
+.cm-metric.is-danger strong { color: var(--cm-danger-ink); }
 
 /* ---------- section ---------- */
 /* The top gap belongs to the columns grid, not to the section inside the first
@@ -305,15 +436,58 @@
   letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
 }
 .cm-panel-foot { padding: var(--cm-space-3) var(--cm-space-4) var(--cm-space-4); border-top: 1px solid var(--cm-hairline); }
+/* One control, filling the slot it is alone in. */
+.cm-panel-foot .cm-ghost { width: 100%; }
 
 /* ---------- controls ---------- */
+/* THE FILLED BUTTON (#58). It existed twice as page-layer vocabulary — the
+ * lineup's done button and the action bar's Save — and never as a system
+ * component, because neither prototype needed one outside an editing surface.
+ * The sign-in screen is the case that forced it: the only control on the only
+ * auth state that has one.
+ *
+ * It is the accent's one large surface in the app. Gold fills and does not
+ * write (#16), so `--cm-on-accent` is the only ink permitted on it, and that
+ * rule is what keeps a filled button from appearing anywhere a ghost would do.
+ * It takes `--cm-radius-md` and the 44px floor like every other control;
+ * nothing about being primary earns an exception to either.
+ *
+ * The old `.primary-button` blue leaves with it — the system has no blue
+ * accent, so the sign-in button was never a restyle. */
+.cm-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--cm-space-2);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  border: 1px solid transparent; border-radius: var(--cm-radius-md);
+  background: var(--cm-accent-fill); color: var(--cm-on-accent);
+  font-family: inherit; font-variant-numeric: inherit; cursor: pointer;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-semibold);
+}
+.cm-button:hover:not(:disabled) { background: var(--cm-accent-fill-hover); }
+.cm-button:disabled { opacity: .5; cursor: not-allowed; }
+.cm-button.is-block { width: 100%; }
+
+/* WIDTH IS AUTO, and the panel foot is what fills. It was `width: 100%` from the
+ * day it was drawn, because until wave 3 every ghost in the app lived alone in a
+ * `cm-panel-foot` and full-width was what that slot wanted. The Admin route is
+ * the first surface to put two of them side by side in a row, which turned an
+ * unnoticed coincidence into a bug: each button filled the line and the pair
+ * stacked. The fill belongs to the slot, not to the button — the same split
+ * `cm-button.is-block` makes explicit. */
 .cm-ghost {
-  width: 100%; min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-4);
   border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
   background: var(--cm-surface); font-size: var(--cm-text-md); font-weight: var(--cm-weight-medium);
   color: var(--cm-fg);
 }
 .cm-ghost:disabled { color: var(--cm-fg-muted); border-color: var(--cm-hairline); cursor: not-allowed; }
+/* The destructive secondary. Added by wave 3's Admin route, which is the first
+ * surface in the app with irreversible controls — revoking access and revoking
+ * an invitation. Named from #19's five marks like every other variant, and it
+ * colours the INK only: a filled danger button is a large accent surface, and
+ * the accent has exactly one of those (`cm-button`). The confirmation, not the
+ * colour, is what actually guards the act. */
+.cm-ghost.is-danger { color: var(--cm-danger-ink); border-color: var(--cm-danger-ink); }
+.cm-ghost.is-danger:disabled { color: var(--cm-fg-muted); border-color: var(--cm-hairline); }
 .cm-search {
   width: 100%; min-height: var(--cm-tap-min); margin-bottom: var(--cm-space-3);
   padding: 0 var(--cm-space-3); font: inherit;
@@ -482,6 +656,7 @@
  * members docks the member detail. Each page sets its own column count.
  */
 @media (min-width: 720px) {
+  .cm-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .cm-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); gap: var(--cm-space-5); align-items: start; }
   .cm-scrim { display: none; }
   .cm-panel {

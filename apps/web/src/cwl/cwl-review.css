@@ -1,0 +1,131 @@
+/* CWL review phase — page layer.
+ *
+ * Ported from the <style> block of design/prototype/cwl-review.html, which is
+ * the spec (#54). Everything here is what only this phase uses; everything it
+ * stands on is `cm-`-prefixed and comes from @cwl/design.
+ *
+ * The prefix is `cwl-review-`, not `cwl-`: the route is `#/cwl` and the lineup
+ * phase already owns `cwl-` in the file beside this one, so two phases of one
+ * route would collide inside a single stylesheet. This is the same collision the
+ * members roster hit with `.metric` and the lineup hit with `.lineup-actions`.
+ *
+ * The summary strip is NOT here, and that absence is the finding #54 produced:
+ * it was members page layer because one surface used it, and a second surface
+ * needing exactly the same aggregate read is what promoted it to `cm-summary`
+ * in the component layer. This file is shorter by that block.
+ *
+ * Every rule below that overrides a `cm-` component is scoped to an ancestor on
+ * purpose. A bundler orders stylesheets by import graph, so a page stylesheet
+ * imported from its own module lands BEFORE the component layer and loses every
+ * tie — the members roster found this the hard way when `display: flex` on
+ * `cm-row-stats` beat a page-layer `display: none`.
+ */
+
+/* ---------- the season menu ----------
+ * The lineup's day menu at a different scope, and deliberately not a segmented
+ * strip: seasons accumulate without bound while war days and phases are fixed
+ * small sets, and the strip above already carries the phase (ADR 0002).
+ *
+ * ADR 0002 requires a previous season to stay reachable; this is where that
+ * lives, and where a real data gap shows. Every CWL view routes through
+ * `cwl_current_seasons`, so an earlier season is not queryable today — the
+ * entries are honestly disabled rather than silently missing.
+ */
+.cwl-review-seasonmenu-wrap { position: relative; }
+.cwl-review-seasonmenu {
+  position: absolute; right: 0; top: calc(var(--cm-tap-min) + var(--cm-space-1)); z-index: 20;
+  min-width: 240px; padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.cwl-review-seasonmenu button {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  width: 100%; text-align: left;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-md); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.cwl-review-seasonmenu button[disabled] { color: var(--cm-fg-unknown); cursor: not-allowed; }
+.cwl-review-seasonmenu button small {
+  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
+}
+.cwl-review-divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
+.cwl-review-seasonmenu p {
+  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
+  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
+}
+
+/* ---------- ranked list ----------
+ * Progressive disclosure through the row's own stats slot, gated on a CONTAINER
+ * query for the reason #22 found: the list column's width depends on whether the
+ * panel is docked beside it, so a viewport breakpoint is wrong in exactly the
+ * band where the panel is open on a small desktop.
+ */
+.cwl-review-section { container-type: inline-size; container-name: cwl-review-list; }
+.cwl-review-section + .cwl-review-section { margin-top: var(--cm-space-5); }
+/* 26px rather than the component's 22px: the rank runs the length of the CWL
+ * roster here, where the lineup's slot number stops at 15. */
+.cwl-review-section .cm-row.has-pos { grid-template-columns: 26px minmax(0, 1fr) auto auto; }
+.cwl-review-page .cwl-review-wide-only { display: none; }
+.cwl-review-listhead { display: none; }
+/* Header and rows are two separate grids, so every column they share must be an
+ * EXPLICIT width in both — with `auto` tracks they size to their own contents
+ * and drift apart. 600px because below it the name column stops being readable. */
+@container cwl-review-list (min-width: 600px) {
+  .cwl-review-section .cm-row.has-pos,
+  .cwl-review-listhead { grid-template-columns: 26px minmax(0, 1fr) auto 62px 10px; }
+  .cwl-review-page .cwl-review-wide-only { display: flex; flex-direction: row; align-items: baseline; gap: var(--cm-space-4); }
+  .cwl-review-page .cwl-review-wide-only .cwl-review-stat { width: 72px; text-align: right; }
+  .cwl-review-section .cm-row-stats:not(.cwl-review-wide-only) { width: 62px; }
+  .cwl-review-listhead {
+    display: grid; align-items: end; gap: var(--cm-space-3);
+    /* +1px for the border the rows have and the header does not */
+    padding: 0 calc(var(--cm-row-pad-x) + 1px) var(--cm-space-2);
+  }
+  .cwl-review-listhead span {
+    font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+    letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+  }
+  .cwl-review-listhead .cwl-review-group { display: flex; flex-direction: row; gap: var(--cm-space-4); }
+  .cwl-review-listhead .cwl-review-group span { width: 72px; text-align: right; }
+  .cwl-review-listhead .cwl-review-stars { text-align: right; }
+}
+/* ---------- panel contents ---------- */
+.cwl-review-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-3); margin: 0 0 var(--cm-space-4); }
+.cwl-review-facts dt {
+  margin-bottom: 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.cwl-review-facts dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); overflow-wrap: anywhere; }
+
+/* The war-day record: the follow-up evidence, and the only reader
+ * `cwl_completed_missed_attacks` has ever had. One line per ended war day, so
+ * "missed two" is answerable as "which two". */
+.cwl-review-days { margin: 0 0 var(--cm-space-4); padding: 0; list-style: none; }
+.cwl-review-days li {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: baseline;
+  gap: var(--cm-space-3); padding: var(--cm-space-2) 0;
+  font-size: var(--cm-text-sm); color: var(--cm-fg-strong);
+}
+.cwl-review-days li + li { border-top: 1px solid var(--cm-hairline); }
+.cwl-review-day { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
+.cwl-review-outcome { font-size: var(--cm-text-sm); }
+.cwl-review-figure { font-weight: var(--cm-weight-semibold); }
+.cwl-review-freshness { margin: 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+.cwl-review-freshness + .cm-panel-label { margin-top: var(--cm-space-4); }
+/* Caution rather than danger: incomplete coverage is a caveat on the figures,
+ * not a fault in them, and the notice region is the only danger surface (#19). */
+.cwl-review-caveat { margin: 0 0 var(--cm-space-4); font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-caution-ink); }
+
+.cwl-review-live {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden; white-space: nowrap;
+  clip-path: inset(50%); border: 0;
+}
+
+/* The detail column is wider than the component default: the member panel
+ * carries two facts grids and a war-day list, where the lineup's bench carries a
+ * list of rows. */
+@media (min-width: 720px) {
+  .cwl-review-page .cm-columns { grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); }
+}

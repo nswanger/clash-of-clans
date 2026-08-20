@@ -12,10 +12,12 @@
  * leaves: see "the rotation queue" note below.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
 import { Sheet } from "../design/sheet.js";
 import {
   clearCwlAppliedLineupChanges,
+  CWL_WAR_DAYS,
   loadCurrentCwlLineupWorkspace,
   recordCwlAppliedLineupChange,
   reinheritCwlLineupPlan,
@@ -30,9 +32,11 @@ import {
   type CwlLineupWorkspaceSnapshot,
   type CwlWarState,
 } from "../data/operations.js";
+import { CwlPhaseStrip } from "./cwl-phase-strip.js";
+import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-lineup-workspace.css";
 
-const DAYS = [1, 2, 3, 4, 5, 6, 7];
+const DAYS = Array.from({ length: CWL_WAR_DAYS }, (_, index) => index + 1);
 const WIDE_QUERY = "(min-width: 720px)";
 export const CWL_BONUS_STAR_THRESHOLD = 8;
 
@@ -457,9 +461,23 @@ function useWide(): boolean {
   return wide;
 }
 
-export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanTag: string }) {
+export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initialDay }: {
+  client: any;
+  clanTag: string;
+  /* The phase this route is in, and how to leave it (ADR 0002). Wave 3 turned
+     this from a page into one phase of a route; nothing else about the workspace
+     moved. */
+  phase: CwlPhase;
+  onPhase: (next: CwlPhase) => void;
+  /* The day to open on, resolved ONCE by the route from the war states it
+     already loaded. It used to be derived here too, from a second query with the
+     same rule — which made the phase strip's "Lineup · Day 3" a promise a
+     different derivation was free to break. One rule, one place, and one fewer
+     round trip. */
+  initialDay: number;
+}) {
   const wide = useWide();
-  const [day, setDay] = useState<number>();
+  const [day, setDay] = useState<number>(initialDay);
   const [snapshot, setSnapshot] = useState<CwlLineupWorkspaceSnapshot>();
   const [draft, setDraft] = useState<string[]>([]);
   /* Which members were actually dragged. Moving one row past another changes
@@ -483,7 +501,6 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
     setError(undefined);
     try {
       const next = await loadCurrentCwlLineupWorkspace(client, clanTag, day);
-      if (day === undefined) setDay(next.plan.warDay);
       setSnapshot(next);
       setDraft(next.plan.playerTags);
       setBaseline(next.appliedBaseline);
@@ -675,7 +692,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
    * does not either — which is the whole finding of #21: the work to do in
    * Clash appears here rather than vanishing. */
   const save = async () => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       const plan = await saveCwlLineupPlan(client, {
         clanTag, seasonId: snapshot.season.seasonId, warDay: day,
@@ -694,7 +711,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
   };
 
   const toggleLock = async () => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     setDayMenuOpen(false);
     try {
       const plan = await setCwlLineupPlanLock(client, {
@@ -711,7 +728,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
   };
 
   const reinherit = async () => {
-    if (!snapshot || day === undefined || day <= 1 || locked) return;
+    if (!snapshot || day <= 1 || locked) return;
     setDayMenuOpen(false);
     try {
       const plan = await reinheritCwlLineupPlan(client, {
@@ -730,7 +747,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
   };
 
   const checkOff = async (item: ChecklistItem) => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       setBaseline(await recordCwlAppliedLineupChange(client, {
         clanTag, seasonId: snapshot.season.seasonId, warDay: day,
@@ -740,14 +757,14 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
   };
 
   const undoCheck = async (changeSequence: number) => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       setBaseline(await undoCwlAppliedLineupChange(client, { clanTag, seasonId: snapshot.season.seasonId, warDay: day, changeSequence }));
     } catch (reason) { setStatus(errorText(reason, "Unable to undo that change.")); }
   };
 
   const clearChecklist = async () => {
-    if (!snapshot || day === undefined) return;
+    if (!snapshot) return;
     try {
       setBaseline(await clearCwlAppliedLineupChanges(client, { clanTag, seasonId: snapshot.season.seasonId, warDay: day }));
       setPanel(null);
@@ -758,7 +775,8 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
 
   if (loading && !snapshot) {
     return <main className="cm-shell" aria-busy="true">
-      <header className="cm-topbar"><div><p className="cm-eyebrow">CWL</p><h1>Lineup</h1></div></header>
+      <AppTopbar route="cwl" eyebrow="CWL" title="Lineup" />
+      <CwlPhaseStrip phase={phase} onPhase={onPhase} />
       <div className="cm-rows">{[0, 1, 2, 3, 4, 5].map((index) => <div className="cm-row is-skeleton" key={index}>
         <span className="cm-row-main"><span className="cm-skel" style={{ width: "42%" }} /><span className="cm-row-meta"><span className="cm-skel" style={{ width: 84 }} /></span></span>
         <span className="cm-row-stats"><span className="cm-skel" style={{ width: 34 }} /></span>
@@ -770,7 +788,7 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
       <div className="cm-notice" role="alert"><div className="cm-grow"><strong>Lineup workspace unavailable</strong><p>{error}</p></div></div>
     </main>;
   }
-  if (!snapshot || day === undefined) return null;
+  if (!snapshot) return null;
 
   const warSize = snapshot.season.warSize;
   const warStates = new Map(snapshot.warDays.map((war) => [war.warDay, war.state]));
@@ -815,11 +833,11 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
 
   return <>
     <main className="cm-shell cwl-workspace">
-      <header className="cm-topbar">
-        <div>
-          <p className="cm-eyebrow">CWL <span className="cm-sep">·</span> {snapshot.season.seasonId}</p>
-          <h1>Day {day} lineup</h1>
-        </div>
+      <AppTopbar
+        route="cwl"
+        eyebrow={<>CWL <span className="cm-sep">·</span> {snapshot.season.seasonId}</>}
+        title={`Day ${day} lineup`}
+      >
         <div className="cm-topbar-side">
           <span className={`cm-statuschip ${locked ? "is-on" : ""}`}>{locked ? "Locked" : "Unlocked"}</span>
           <span className="cwl-daymenu-wrap">
@@ -839,7 +857,9 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
               : null}
           </span>
         </div>
-      </header>
+      </AppTopbar>
+
+      <CwlPhaseStrip phase={phase} onPhase={onPhase} lineupDayLabel={`Day ${day}`} />
 
       <nav className="cm-segmented" aria-label="CWL war days">
         {DAYS.map((item) => <button key={item} type="button" aria-current={item === day} onClick={() => setDay(item)}>

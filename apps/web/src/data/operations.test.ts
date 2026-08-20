@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  approveRecommendation,
   createInvitation,
   demoteAdmin,
   loadAccessManagement,
   loadCurrentCwlLineupWorkspace,
   promoteLeader,
-  regenerateRecommendations,
   normalizeClanRole,
   reinheritCwlLineupPlan,
   reissueInvitation,
@@ -67,27 +65,6 @@ describe("Supabase operations", () => {
       invitation_id: "invitation-1",
       invitation_expires_at: "2026-07-21T00:00:00Z",
     });
-  });
-
-  it("appends an approval decision using the current leader identity", async () => {
-    const rpc = vi.fn().mockResolvedValue({ error: null });
-    const client = { rpc };
-    await approveRecommendation(client, "recommendation-1", [{ outPlayerTag: "#OUT", inPlayerTag: "#IN" }]);
-    expect(rpc).toHaveBeenCalledWith("record_leader_decision", expect.objectContaining({ recommendation_id: "recommendation-1", decision_status: "approved" }));
-  });
-
-  it("regenerates recommendations through the protected Edge Function", async () => {
-    const invoke = vi.fn().mockResolvedValue({
-      data: { status: "persisted", recommendationId: "recommendation-2", created: true },
-      error: null,
-    });
-
-    await expect(regenerateRecommendations({ functions: { invoke } }, "#CLAN")).resolves.toEqual({
-      status: "persisted",
-      recommendationId: "recommendation-2",
-      created: true,
-    });
-    expect(invoke).toHaveBeenCalledWith("regenerate-recommendations", { body: { clanTag: "#CLAN" } });
   });
 
   it("saves lineup plans with the loaded revision and ordered player tags", async () => {

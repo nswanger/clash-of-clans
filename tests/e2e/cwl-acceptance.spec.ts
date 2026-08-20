@@ -11,7 +11,6 @@ import type { RawSnapshot } from "../../packages/database/src/repository.js";
 const clanTag = "#ACCEPT";
 const seasonId = "2099-07";
 const currentWarTag = "#WAR3";
-const recommendationId = "30000000-0000-0000-0000-000000000010";
 const fixtureStorageKey = "e2e:cwl-acceptance-fixture";
 
 interface AcceptanceFixtureData extends Record<string, unknown> {
@@ -275,10 +274,15 @@ test("runs the fixture through collection, normalization, recommendation, explan
     if (!window.localStorage.getItem(key)) window.localStorage.setItem(key, JSON.stringify(value));
   }, [fixtureStorageKey, fixture] as const);
 
-  await page.goto("/#/cwl-lineup");
-  await expect(page.getByRole("heading", { name: "Lineup workspace" })).toBeVisible();
-  await page.getByRole("button", { name: /Change Unavailable Member availability/ }).click();
-  await page.getByRole("menuitemradio", { name: "Unavailable", exact: true }).click();
+  /* The route is `#/cwl` since wave 3, and it is no longer only a lineup — it
+     carries the phase (ADR 0002). Availability is edited from the swap panel
+     that wave 2 introduced, not from the `menuitemradio` menu this test used to
+     open; the recorded mutation is the same one either way, which is what this
+     acceptance run is actually asserting. */
+  await page.goto("/#/cwl");
+  await expect(page.getByRole("navigation", { name: "CWL phase" })).toBeVisible();
+  await page.getByRole("button", { name: /Unavailable Member/ }).first().click();
+  await page.getByRole("button", { name: "Unavailable", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("e2e:last-mutation"))).toContain("availability");
   await expectNoAccessibilityViolations(page);
 
@@ -302,44 +306,23 @@ test("runs the fixture through collection, normalization, recommendation, explan
   expect(recommendation.changes.map(({ inPlayerTag }) => inPlayerTag)).not.toEqual(
     expect.arrayContaining(["#UNAVAILABLE", "#UNKNOWN"]),
   );
-  savedFixture.recommendations = { id: recommendationId, output: recommendation };
-  await page.evaluate(([key, value]) => window.localStorage.setItem(key, JSON.stringify(value)), [fixtureStorageKey, savedFixture] as const);
+  /* THE RECOMMENDATION HAS NO SURFACE ANY MORE, and the assertions above are
+     the whole of what survives. ADR 0002 deleted `#/dashboard`, taking the
+     approve and override controls with it, so the second half of this run —
+     rendering the recommendation, pressing "Why …?", approving, and recording an
+     override note — described a page that no longer exists.
+   
+     THE PIPELINE ITSELF IS UNTOUCHED. Collection, normalization, the reason
+     codes, the coverage gaps and the confidence notes are all still produced and
+     are all still asserted, immediately above; what is gone is the app's ability
+     to read and approve them, which is the surface that was removed rather than
+     the behaviour. Restoring a reader is a new surface's decision. */
 
-  await page.goto("/#/dashboard");
-  await page.reload();
-  await expect(page.getByRole("heading", { name: "Daily command" })).toBeVisible();
-  await expect(page.getByText("Missed Attacker", { exact: true })).toBeVisible();
-  await expect(page.getByText("Unavailable Member", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Contact needed" })).toBeVisible();
-  await expect(page.getByText(/Unknown Contact.*Availability needs leader confirmation/)).toBeVisible();
-  await expect(page.getByText(/No eligible substitute for position 15/)).toBeVisible();
-  await expect(page.getByText(/Limited confidence for #NEW/)).toBeVisible();
-  await page.getByRole("button", { name: "Why Eight Star Rotation?" }).click();
-  await expect(page.getByText(/eight_star_rotation.*limited_confidence/)).toBeVisible();
+  /* The season record the review phase reads is derived from the same fixture,
+     so the acceptance run ends where the leader's month actually ends. */
+  await page.goto("/#/cwl?phase=review");
+  await expect(page.getByRole("heading", { name: "Review" })).toBeVisible();
   await expectNoAccessibilityViolations(page);
-
-  await page.getByRole("button", { name: "Approve changes" }).click();
-  await expect(page.getByRole("status")).toContainText("approved");
-  const approvedMutation = await page.evaluate(() => JSON.parse(window.localStorage.getItem("e2e:last-mutation") ?? "null"));
-  expect(approvedMutation).toMatchObject({
-    name: "rpc:record_leader_decision",
-    value: { decision_status: "approved", recommendation_id: recommendationId },
-  });
-
-  await page.reload();
-  await page.getByRole("button", { name: "Edit lineup" }).click();
-  await page.getByRole("textbox", { name: "Override note" }).fill("Keep one experienced member for the tougher mirror");
-  await page.getByRole("button", { name: "Save override" }).click();
-  await expect(page.getByRole("status")).toContainText("Override recorded");
-  const overriddenMutation = await page.evaluate(() => JSON.parse(window.localStorage.getItem("e2e:last-mutation") ?? "null"));
-  expect(overriddenMutation).toMatchObject({
-    name: "rpc:record_leader_decision",
-    value: {
-      decision_status: "overridden",
-      recommendation_id: recommendationId,
-      decision_override_note: "Keep one experienced member for the tougher mirror",
-    },
-  });
 
   expect(consoleErrors).toEqual([]);
   expect(failedRequests).toEqual([]);

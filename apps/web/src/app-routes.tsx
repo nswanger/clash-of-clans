@@ -1,28 +1,17 @@
+/* The dispatcher. What each route IS, which paths redirect, and why three of
+ * them were deleted rather than conformed, all live in `routes.ts` beside the
+ * table — this file only renders what that module resolves.
+ */
 import { useEffect, useState } from "react";
-import { AccessPage } from "./admin/access-page.js";
-import { DashboardPage } from "./dashboard/dashboard-page.js";
-import { MembersPage, RosterOverviewPage } from "./members/members-page.js";
-import type { DailyDashboardData } from "./dashboard/daily-dashboard.js";
-import { approveRecommendation, overrideRecommendation, regenerateRecommendations } from "./data/operations.js";
-import { CwlLineupWorkspacePage } from "./cwl-lineup/cwl-lineup-workspace.js";
-import "./cwl-lineup/cwl-lineup-workspace.css";
+import { AdminRoute } from "./admin/admin-route.js";
+import { MembersPage } from "./members/members-page.js";
+import { CwlRoutePage } from "./cwl/cwl-route.js";
+import { redirectForPath, routeForPath, type AppRole } from "./routes.js";
 
-type Role = "leader" | "admin";
-type Route = "dashboard" | "overview" | "members" | "season" | "access" | "cwl_lineup" | "access_denied";
+export { redirectForPath, routeForPath } from "./routes.js";
 
-export function routeForPath(hash: string, role: Role): Route {
-  const path = hash.split("?")[0];
-  if (path === "#/overview") return "overview";
-  if (path === "#/members") return "members";
-  if (path === "#/season") return "season";
-  if (path === "#/cwl-lineup") return "cwl_lineup";
-  if (path === "#/dashboard") return "dashboard";
-  if (path === "#/access") return role === "admin" ? "access" : "access_denied";
-  return "cwl_lineup";
-}
-
-export function AppRoutes({ client, clanTag, role, origin, basePath, loadDashboard }: {
-  client: any; clanTag: string; role: Role; origin: string; basePath: string; loadDashboard: () => Promise<DailyDashboardData>;
+export function AppRoutes({ client, clanTag, role, origin, basePath }: {
+  client: any; clanTag: string; role: AppRole; origin: string; basePath: string;
 }) {
   const [hash, setHash] = useState(window.location.hash || "#/");
   useEffect(() => {
@@ -30,17 +19,25 @@ export function AppRoutes({ client, clanTag, role, origin, basePath, loadDashboa
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
   }, []);
+
+  /* `replace`, not an assignment: a deleted route must not sit in the history
+     stack, or Back from `#/members` returns to `#/overview` and bounces. */
+  const redirect = redirectForPath(hash);
+  useEffect(() => {
+    if (redirect) window.location.replace(`${window.location.pathname}${window.location.search}${redirect}`);
+  }, [redirect]);
+  if (redirect) return null;
+
   const route = routeForPath(hash, role);
-  if (route === "overview") return <RosterOverviewPage client={client} clanTag={clanTag} />;
   if (route === "members") return <MembersPage client={client} clanTag={clanTag} />;
-  if (route === "access") return <AccessPage client={client} origin={`${origin}${basePath}`} />;
-  if (route === "cwl_lineup") return <CwlLineupWorkspacePage client={client} clanTag={clanTag} />;
-  if (route === "access_denied") return <main className="access-shell"><h1>Access unavailable</h1><p>Admin access is required.</p></main>;
-  if (route === "season") return <main className="dashboard-shell"><h1>Season details</h1><p>Verified group standings are not available in the normalized data yet.</p></main>;
-  return <DashboardPage
-    load={loadDashboard}
-    onApprove={(recommendationId, changes) => approveRecommendation(client, recommendationId, changes)}
-    onOverride={(recommendationId, changes, note) => overrideRecommendation(client, recommendationId, changes, note)}
-    onRegenerate={() => regenerateRecommendations(client, clanTag)}
-  />;
+  if (route === "admin") return <AdminRoute client={client} origin={`${origin}${basePath}`} />;
+  /* Absence, not apology — the same shape as the signed-out shell. Nothing has
+     gone wrong; this account is simply not an admin. */
+  if (route === "access_denied") {
+    return <main className="auth-shell">
+      <h1>Admin only</h1>
+      <p>Ask an admin to widen your access, then open this page again.</p>
+    </main>;
+  }
+  return <CwlRoutePage client={client} clanTag={clanTag} hash={hash} />;
 }

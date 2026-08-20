@@ -121,11 +121,13 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 |---|---|---|
 | `cm-segmented` | `aria-current="true"` on the active button | The CWL day strip and the activity-window selector are the same component (#22). Horizontally scrollable, scrollbar hidden. |
 | `cm-routebutton` | `aria-expanded` | **The primary nav.** The page's own `h1` is the route control: pressing the page name discloses the routes. Lives in `cm-topbar`, so it adds no band of chrome. |
-| `cm-routemenu` | `aria-current="page"` on the active route | The three routes. Overlay, `cm-shadow-overlay`, 44px rows. |
+| `cm-routemenu` | `aria-current="page"` on the active route, `is-trailing` | **The topbar's disclosure menu**, in both its uses — the three routes, and the account control's sign-out. Overlay, `cm-shadow-overlay`, 44px rows. `is-trailing` anchors it to the right edge, where the account control is. |
 
 **The primary nav is the page name** ([#58](https://github.com/nswanger/clash-of-clans/issues/58)). There is no nav bar and no tab bar: after ADR 0002 there are three destinations, one of them role-conditional and one visited monthly, and a permanently-rendered nav pays rent on a decision a leader makes rarely. `cm-topbar` already sits on every surface, so folding the route control into it costs nothing — which is what the two rejected alternatives could not do. A bottom tab set needs a slim app bar above it for the mark *and* contends for the bottom edge that `cm-actionbar` already owns on the default route; a top rail measurably does not fit at 375px once the mark, the product name, three links and the account control are on one line.
 
 **The route menu is system layer, where the day and season menus are page layer.** Same shape, different scope: those are one surface's own overflow of actions, and this is the app's only way between routes.
+
+**It has two uses, not one, and the second was a wave 3 finding.** #58 drew the account control as opening sign-out and did not say what that menu is. It is this one: the topbar has exactly two things that disclose, and both are app-scope rather than surface-scope, so one component covers them. `is-trailing` is the one positional variant in the system and is named as such rather than from #19's five marks, because it expresses which edge the control that opened it sits on — the route control is the bar's first slot and the account control is its last.
 
 **Navigation is deliberately not a `cm-segmented`.** That strip already carries the CWL phase one level down (ADR 0002), and a second one above it is two headers wearing a component.
 | `cm-notice` | — | **Danger only.** One region per screen, and only collection health or a save conflict may fill it (#19). It has no success, caution or info variant by design. |
@@ -184,8 +186,12 @@ Where a docked panel has no other occupant it opens on the first row by default 
 | Class | Variants / states | Notes |
 |---|---|---|
 | `cm-button` | `is-block`, `:disabled` | The primary/filled button. |
-| `cm-ghost` | `:disabled` | The secondary button. |
+| `cm-ghost` | `is-danger`, `:disabled` | The secondary button. **Width is auto; the panel foot is what fills** — see below. |
 | `cm-search` | — | A single search input. It replaced a four-control filter row (#20); ranking does the work sorting used to. |
+
+**The ghost's full width belonged to the slot, not the button** (wave 3). `cm-ghost` was `width: 100%` from the day it was drawn, because until wave 3 every ghost in the app lived alone in a `cm-panel-foot` and full-width was what that slot wanted. The Admin route is the first surface to put two of them side by side in a row, which turned an unnoticed coincidence into a bug: each button filled the line and the pair stacked one per row. The fill moved to `.cm-panel-foot .cm-ghost`, which is the same split `cm-button.is-block` already made explicit. Nothing at any existing call site changed.
+
+**`is-danger` is the destructive secondary**, added by the same surface — the first one in the app with irreversible controls, revoking access and revoking an invitation. It is named from #19's five marks like every other variant, and it colours the **ink only**: a filled danger button is a large accent surface, and the accent has exactly one of those. The confirmation, not the colour, is what actually guards the act.
 
 **The filled button is `cm-button`** ([#58](https://github.com/nswanger/clash-of-clans/issues/58)). It existed twice as page-layer vocabulary — the lineup's `.donebutton` and the action bar's Save — and never as a system component, because neither prototype needed one outside an editing surface. The sign-in screen is the case that forced it: the only control on the only surface that has one control.
 
@@ -218,6 +224,10 @@ Not components. Listed so the boundary is legible.
 
 **Review:** season menu, war-day record, coverage caveat, list header, facts grid, freshness line.
 
+**Admin:** collection-health facts list, the invitation token block, the audit list, the per-row error line, the control row. Conformed against this inventory rather than against a prototype, because wave 3 has none for it — which makes it the inventory's third test and the one that produced the two component changes above.
+
+**The facts grid stayed page layer at its third use**, and that is a decision rather than an oversight. `members-facts`, `cwl-review-facts` and `admin-facts` are the same idea with three different grids for three different readings — two-up for a member's season, label-beside-value for an endpoint and its failure category. A component parameterised by its own grid is a `<div>` with extra steps, so the pattern is named in three places and shared in none.
+
 **Auth:** the shell that carries the three session states. One surface, three states, and the only place the mark appears large; it is page layer because exactly one route renders it.
 
 The season menu is the lineup's day menu at a different scope, and stays page layer for the same reason: both are one surface's own overflow of actions, not a control the system offers. Seasons are deliberately **not** a `cm-segmented` — the strip on that route already carries the phase (ADR 0002), and seasons accumulate without bound while war days and activity windows are fixed small sets.
@@ -226,7 +236,7 @@ The season menu is the lineup's day menu at a different scope, and stays page la
 
 - **A success, caution or info notice.** The notice region takes danger only, and only two things can fill it (#19). Everything else that wants to announce itself is a mark on the thing it describes.
 - **A "no changes" or "all good" banner.** Rows and surfaces mark the exception, never the rule. Thirteen "Available" labels on fifteen rows is the happy-path banner again, one row at a time.
-- **A loading spinner, an empty-state illustration, an error card.** Not yet designed, and inventing them here would be guessing ahead of a surface that needs them.
+- **A loading spinner, an empty-state illustration, an error card.** Not yet designed, and inventing them here would be guessing ahead of a surface that needs them. The empty state now has its surface — wave 4's resting phase ([#55](https://github.com/nswanger/clash-of-clans/issues/55)) — and is still not drawn here, because that wave is where it gets decided.
 - **A modal dialog.** The panel covers every case both surfaces had. A second overlay form would need a reason neither has produced.
 - **A tooltip.** Nothing survived that needed one; evidence goes in the panel.
 - **A card.** `cm-row` and `cm-panel` cover the two real shapes. "Card" is a name for a box, not for a concept, and it is how the current CSS ended up with 43 distinct paddings (#14).

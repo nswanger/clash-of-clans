@@ -46,3 +46,13 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
   outline: var(--cm-focus-width) solid var(--cm-focus-ring);
   outline-offset: var(--cm-focus-offset);
 }
+
+/* Global motion opt-out. It lived in `apps/web/src/styles.css` against the app's
+ * old chrome; it is design-system truth rather than app chrome, so it moves here
+ * with the surfaces that used to sit under it (#25, wave 3). The component layer
+ * keeps its own narrower rules — the skeleton shimmer and the sheet transitions
+ * — because those must hold when `clan-muster.css` is imported without this
+ * file. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

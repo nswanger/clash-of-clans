@@ -27,8 +27,25 @@ function fixtureWarActivity(playerTag: string, warsParticipated: number, attacks
 
 const defaultTableData: Record<string, unknown> = {
   profiles: { display_name: "E2E Leader" },
-  cwl_seasons: { clan_tag: "#E2E", season_id: "2026-07", war_size: 15 },
-  cwl_wars: { war_tag: "#WAR3", war_day: 3, end_time: "2026-07-13T23:59:59.000Z", attacks_per_member: 1 },
+  /* A CURRENT season with a live war day, so the CWL route opens on the lineup
+     phase. The phase marker is the war states with a date guard (ADR 0002): a
+     season id naming an earlier month reads as review no matter what the states
+     say, which is the guard doing its job and not something to fixture around. */
+  cwl_seasons: { clan_tag: "#E2E", season_id: "2026-08", war_size: 15, bonuses_administered_at: null },
+  cwl_wars: [
+    { war_tag: "#WAR1", war_day: 1, state: "warEnded", preparation_start_time: null, start_time: null, end_time: "2026-08-11T23:59:59.000Z", updated_at: "2026-08-12T00:00:00.000Z", attacks_per_member: 1 },
+    { war_tag: "#WAR2", war_day: 2, state: "warEnded", preparation_start_time: null, start_time: null, end_time: "2026-08-12T23:59:59.000Z", updated_at: "2026-08-13T00:00:00.000Z", attacks_per_member: 1 },
+    { war_tag: "#WAR3", war_day: 3, state: "inWar", preparation_start_time: null, start_time: null, end_time: "2026-08-13T23:59:59.000Z", updated_at: "2026-08-13T06:00:00.000Z", attacks_per_member: 1 },
+  ],
+  /* The review phase's assignment record. Already scoped to `warEnded` by the
+     view, so days 1 and 2 only — day 3 contributes nothing at all, which is what
+     the coverage caveat is about. */
+  cwl_completed_missed_attacks: [
+    { war_day: 1, player_tag: "#MASON", assigned_attacks: 1, completed_assigned_attacks: 1 },
+    { war_day: 2, player_tag: "#MASON", assigned_attacks: 1, completed_assigned_attacks: 1 },
+    { war_day: 1, player_tag: "#SAM", assigned_attacks: 1, completed_assigned_attacks: 1 },
+    { war_day: 2, player_tag: "#SAM", assigned_attacks: 1, completed_assigned_attacks: 0 },
+  ],
   member_roster_overview: [
     fixtureMember("#MASON", "Mason", "admin", 1, 15),
     fixtureMember("#SAM", "Sam", "member", 2, 16),
@@ -40,7 +57,12 @@ const defaultTableData: Record<string, unknown> = {
     { player_tag: "#KIRA", name: "Kira", town_hall_level: 14 },
   ],
   cwl_war_members: [{ player_tag: "#MASON", assigned_attacks: 1 }],
-  cwl_attacks: [{ attacker_tag: "#MASON" }],
+  cwl_attacks: [
+    { war_tag: "#WAR1", attacker_tag: "#MASON", stars: 3 },
+    { war_tag: "#WAR2", attacker_tag: "#MASON", stars: 3 },
+    { war_tag: "#WAR3", attacker_tag: "#MASON", stars: 3 },
+    { war_tag: "#WAR1", attacker_tag: "#SAM", stars: 2 },
+  ],
   cwl_member_stars: [
     { player_tag: "#MASON", stars: 8 }, { player_tag: "#SAM", stars: 5 }, { player_tag: "#KIRA", stars: 2 },
   ],
@@ -50,8 +72,13 @@ const defaultTableData: Record<string, unknown> = {
   cwl_eight_star_eligibility: [
     { player_tag: "#MASON", stars: 8, eight_star_eligible: true }, { player_tag: "#SAM", stars: 5, eight_star_eligible: false }, { player_tag: "#KIRA", stars: 2, eight_star_eligible: false },
   ],
-  collection_attempts: { run_id: "run-1" },
-  collection_runs: { status: "healthy", last_fresh_at: "2026-07-12T17:56:00.000Z", error_message: null },
+  /* The row shape the Admin route's collection health actually reads, not just
+     the `run_id` the deleted dashboard needed to find the run. */
+  collection_attempts: [
+    { run_id: "run-1", endpoint: "clan", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-13T06:00:00.000Z", finished_at: "2026-08-13T06:00:30.000Z" },
+    { run_id: "run-1", endpoint: "members", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-13T06:00:30.000Z", finished_at: "2026-08-13T06:01:00.000Z" },
+  ],
+  collection_runs: { id: "run-1", status: "healthy", started_at: "2026-08-13T06:00:00.000Z", finished_at: "2026-08-13T06:01:00.000Z", last_fresh_at: "2026-08-13T06:01:00.000Z", error_message: null },
   recommendations: { id: "30000000-0000-0000-0000-000000000001", output: {
     changes: [{ outPlayerTag: "#MASON", inPlayerTag: "#SAM", reasons: [{ code: "missed_attack", explanation: "Missed the assigned attack on Day 2" }] }],
     contacts: [{ playerTag: "#KIRA", reason: "Availability is unknown" }], coverageGaps: [], confidenceNotes: [],
@@ -97,9 +124,17 @@ function recordMutation(name: string, value: unknown) {
 
 function builder(table: string, tableData: Record<string, unknown>, persistFixture?: () => void): any {
   const result = () => ({ data: tableData[table] ?? [], error: null });
+  /* `maybeSingle` and `single` return ONE row in Supabase, and the stub used to
+     hand back the whole table — which worked only while every singly-read table
+     was fixtured as a bare object. `cwl_wars` is a list now, because the phase
+     marker reads every day's state. */
+  const firstRow = () => {
+    const data = tableData[table] ?? null;
+    return { data: Array.isArray(data) ? data[0] ?? null : data, error: null };
+  };
   const query: any = {
     select: () => query, eq: () => query, in: () => query, order: () => query, limit: () => query,
-    single: async () => result(), maybeSingle: async () => result(),
+    single: async () => firstRow(), maybeSingle: async () => firstRow(),
     upsert: async (value: unknown) => {
       if (table === "member_availability" && Array.isArray(tableData[table]) && value !== null && typeof value === "object") {
         const rows = tableData[table] as Array<Record<string, unknown>>;
@@ -158,6 +193,13 @@ export function createE2EClient(): any {
           ],
           error: null,
         };
+      }
+      if (name === "set_cwl_bonuses_administered") {
+        const season = tableData.cwl_seasons as Record<string, unknown>;
+        season.bonuses_administered_at = args.administered ? "2026-08-20T10:00:00.000Z" : null;
+        persistFixture?.();
+        recordMutation(`rpc:${name}`, args);
+        return { data: { clanTag: "#E2E", seasonId: String(season.season_id), bonusesAdministeredAt: season.bonuses_administered_at }, error: null };
       }
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };
       if (name === "get_access_management_snapshot") return { data: accessManagementSnapshot, error: null };

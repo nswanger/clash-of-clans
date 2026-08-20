@@ -1,8 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { AccessManagementSnapshot } from "../data/operations.js";
-import { AccessManagement } from "./access-management.js";
+import type { AccessManagementSnapshot, CollectionHealth } from "../data/operations.js";
+import { AdminPage } from "./admin-page.js";
 
 const snapshot: AccessManagementSnapshot = {
   people: [
@@ -58,9 +58,20 @@ const snapshot: AccessManagementSnapshot = {
   ],
 };
 
-function renderAccess(overrides: Partial<React.ComponentProps<typeof AccessManagement>> = {}) {
-  const props: React.ComponentProps<typeof AccessManagement> = {
+const healthyCollection: CollectionHealth = {
+  runId: "run-healthy",
+  status: "healthy",
+  startedAt: "2026-08-20T06:00:00Z",
+  finishedAt: "2026-08-20T06:01:00Z",
+  lastFreshAt: "2026-08-20T06:01:00Z",
+  errorMessage: null,
+  attempts: [{ endpoint: "clan", status: "healthy", httpStatus: 200, errorCategory: null, startedAt: "2026-08-20T06:00:00Z", finishedAt: "2026-08-20T06:00:30Z" }],
+};
+
+function renderAccess(overrides: Partial<React.ComponentProps<typeof AdminPage>> = {}) {
+  const props: React.ComponentProps<typeof AdminPage> = {
     snapshot,
+    collection: healthyCollection,
     loadError: undefined,
     onRetryLoad: vi.fn().mockResolvedValue(undefined),
     onCreateInvitation: vi.fn().mockResolvedValue("https://ops.test/?invitation=secret"),
@@ -73,14 +84,14 @@ function renderAccess(overrides: Partial<React.ComponentProps<typeof AccessManag
     confirmAction: vi.fn().mockReturnValue(true),
     ...overrides,
   };
-  render(<AccessManagement {...props} />);
+  render(<AdminPage {...props} />);
   return props;
 }
 
-describe("AccessManagement", () => {
+describe("AdminPage", () => {
   it("shows people, invitation status, and access audit history without stored links", () => {
     renderAccess();
-    expect(screen.getByRole("heading", { name: "People" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /^People/ })).toBeVisible();
     expect(screen.getByText("Current account")).toBeVisible();
     expect(screen.getByText("Redeemed by Grace", { exact: false })).toBeVisible();
     expect(screen.getByText("Nick granted leader access to Grace")).toBeVisible();
@@ -119,8 +130,12 @@ describe("AccessManagement", () => {
   it("hides self-lockout actions and supports promotion", async () => {
     const user = userEvent.setup();
     const props = renderAccess();
-    const selfRow = screen.getByText("Nick").closest("li")!;
-    expect(within(selfRow).queryByRole("button")).not.toBeInTheDocument();
+    /* Not a class query: #25's proof rule is that no test in this suite asserts
+       on a class name, which is exactly what makes a restyle invisible to it.
+       The self row is the one whose controls are absent, so ask for them by
+       accessible name instead. */
+    expect(screen.queryByRole("button", { name: /Nick/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Revoke access" })).toHaveLength(snapshot.people.length - 1);
     await user.click(screen.getByRole("button", { name: "Promote to admin" }));
     expect(props.onPromote).toHaveBeenCalledWith("leader-one");
     expect(await screen.findByRole("status")).toHaveTextContent("Grace is now an admin");
