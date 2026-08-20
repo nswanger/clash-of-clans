@@ -148,6 +148,15 @@ export interface CwlAppliedLineupBaseline {
   playerTags: string[];
 }
 
+/* One fact per season: whether the bonus medals were handed out. `null` is the
+ * whole of "not yet" — there is no boolean beside it, because a flag plus an
+ * instant is two records of one thing. */
+export interface CwlBonusAdministration {
+  clanTag: string;
+  seasonId: string;
+  bonusesAdministeredAt: string | null;
+}
+
 export interface CwlLineupWorkspaceSnapshot {
   season: {
     clanTag: string;
@@ -576,6 +585,36 @@ export async function clearCwlAppliedLineupChanges(client: any, value: {
   });
   ensureSuccess(result, "Unable to clear the checklist");
   return appliedBaselineFromRpc(result.data);
+}
+
+/* The review surface's only control (#54). It records whether the bonus medals
+ * were handed out — never who received them — and the same flag is what tells
+ * the CWL route it may rest (ADR 0002).
+ *
+ * A toggle rather than a one-way latch, because it is one tap at the end of a
+ * season and a mistap has to be recoverable. Marking twice is idempotent
+ * server-side: the instant says when the bonuses were handed out, and a second
+ * tap is not a second handout. */
+export async function setCwlBonusesAdministered(client: any, value: {
+  clanTag: string; seasonId: string; administered: boolean;
+}): Promise<CwlBonusAdministration> {
+  const result = await client.rpc("set_cwl_bonuses_administered", {
+    requested_clan_tag: value.clanTag,
+    requested_season_id: value.seasonId,
+    administered: value.administered,
+  });
+  ensureSuccess(result, "Unable to record whether the bonuses were handed out");
+  return bonusAdministrationFromRpc(result.data);
+}
+
+function bonusAdministrationFromRpc(row: any): CwlBonusAdministration {
+  return {
+    clanTag: row.clanTag,
+    seasonId: row.seasonId,
+    /* Absent evidence stays absent: null means "not handed out", and the domain
+     * refuses to render an unknown as a value. */
+    bonusesAdministeredAt: row.bonusesAdministeredAt ?? null,
+  };
 }
 
 function ensureSuccess(result: Result, context: string): void {
