@@ -2,6 +2,8 @@
 
 Locked by [#23](https://github.com/nswanger/clash-of-clans/issues/23). Derived from two real surfaces — the CWL lineup workspace ([#20](https://github.com/nswanger/clash-of-clans/issues/20), [#21](https://github.com/nswanger/clash-of-clans/issues/21)) and the members roster ([#22](https://github.com/nswanger/clash-of-clans/issues/22)) — not guessed ahead of them.
 
+A third surface, the post-CWL review phase ([#54](https://github.com/nswanger/clash-of-clans/issues/54)), was designed against this inventory rather than alongside it — the first one that had to be, since it does not exist in `apps/web` at all. It needed **no new component and no ninth icon**, which is the inventory's first real test rather than its third derivation. It also carries one recorded fact and still no action bar, which sharpens where the editing layer's boundary actually is: a bar is for holding a draft against a baseline, not for owning any control at all. What it did produce is one promotion and two boundary corrections, recorded below.
+
 The prototypes in [`prototype/`](prototype/) are the reference implementation. Where this document and the prototypes disagree, the prototypes are wrong and should be corrected.
 
 ## Three layers
@@ -104,7 +106,7 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | `cm-shell` | — | Page container: max width, gutters. |
 | `cm-topbar` | — | Eyebrow, `h1`, and a right-hand slot. |
 | `cm-topbar-side` | — | The right-hand slot. |
-| `cm-statuschip` | `is-on` | Renamed from `lockchip`, which named its first use rather than the concept. |
+| `cm-statuschip` | `is-on` | Renamed from `lockchip`, which named its first use rather than the concept. #54 is the second use — "bonuses administered" — which is what makes the rename right rather than speculative. |
 | `cm-iconbutton` | `is-small` | 44px by default; `is-small` is still 44px of tap target. |
 
 ### Navigation and notice
@@ -119,6 +121,8 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | Class | Variants / states | Notes |
 |---|---|---|
 | `cm-columns` | — | The one-to-three column grid. Owns the top spacing, because a section inside the first column cannot space the second (#20). |
+| `cm-summary` | — | The aggregate strip above a list: two-up on a phone, four across above 720px. **Promoted from the members page layer by #54**, which needed it unchanged — "how healthy is the clan" and "how did the season go" are the same question shape asked of different data. Four metrics, never five; a strip that scrolls clips a metric mid-word, which reads as a bug. |
+| `cm-metric` | `is-danger` | One tile in the strip. `is-danger` colours the figure only, and only where the same fact is marked danger on the rows below it — one fact, one colour (#54). There is deliberately no success variant: a zero is the rule, and rules go unmarked. |
 | `cm-section` | — | |
 | `cm-section-head` | — | Heading, count, and an actions slot. |
 | `cm-rows` | — | Vertical stack with a gap. |
@@ -191,7 +195,11 @@ Not components. Listed so the boundary is legible.
 
 **Lineup:** bench trigger, bench column, day menu, the desktop rail and its cards, `moved-from` (reorder's own vocabulary), head actions.
 
-**Members:** summary strip, metric tile, list header, facts grid, evidence list, freshness line, filter choices, window row.
+**Members:** metric tile, list header, facts grid, evidence list, freshness line, filter choices, window row.
+
+**Review:** season menu, war-day record, coverage caveat, list header, facts grid, freshness line.
+
+The season menu is the lineup's day menu at a different scope, and stays page layer for the same reason: both are one surface's own overflow of actions, not a control the system offers. Seasons are deliberately **not** a `cm-segmented` — the strip on that route already carries the phase (ADR 0002), and seasons accumulate without bound while war days and activity windows are fixed small sets.
 
 ## What is deliberately not a component
 
@@ -201,6 +209,7 @@ Not components. Listed so the boundary is legible.
 - **A modal dialog.** The panel covers every case both surfaces had. A second overlay form would need a reason neither has produced.
 - **A tooltip.** Nothing survived that needed one; evidence goes in the panel.
 - **A card.** `cm-row` and `cm-panel` cover the two real shapes. "Card" is a name for a box, not for a concept, and it is how the current CSS ended up with 43 distinct paddings (#14).
+- **A tick and a cross for a data outcome.** #54 wanted them for a per-war-day record and used words instead. #40's line is that an affordance becomes an icon while everything else stays type, and a war day's outcome is not something you press — so the icon set stays at eight.
 - **Density or theme variants on any component.** Density follows `(pointer: coarse)` and theme follows the token layer, so surfaces inherit both rather than choosing (#17).
 
 ## What this replaces

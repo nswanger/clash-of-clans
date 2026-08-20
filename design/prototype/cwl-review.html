@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Post-CWL review — mobile prototype</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<script src="_prototype.js" defer></script>
+<style>
+/* Clan Muster — the post-CWL review phase (#54 prototype).
+ *
+ * The third surface, and the first that had to be designed rather than ported:
+ * the lineup workspace and the members roster both existed in apps/web before
+ * their prototypes. This one does not exist anywhere yet.
+ *
+ * It is the second phase of the CWL route, not a fourth tab (ADR 0002): review
+ * is impossible during a season and the workspace is inert after one, so the
+ * phase control above the list is the same .segmented component the day strip
+ * uses, one level up.
+ *
+ * Three decisions, one list. Bonus medals, role changes and follow-ups share a
+ * roster and a season, and the ranking ADR 0001 fixes serves all three from
+ * opposite ends: the top of the list is who contributed most, the bottom is who
+ * did not turn up. A second section for follow-ups would put the same rows on
+ * the page twice, which is what #/overview was deleted for.
+ *
+ * The two groups are ADR 0001's eight-star boundary made visible. They are NOT
+ * a bonus cutoff: the game grants a league-dependent number of bonuses and
+ * nothing in the schema knows it (verified against stored raw_snapshots on
+ * #54). The list ranks; the leader supplies the count.
+ *
+ * It records exactly one fact: whether the bonus medals have been handed out.
+ * Not who received them — that is a record nobody asked for and the API will
+ * never confirm — but whether the job is done, which is what decides whether
+ * this surface is still in use or is finished. It is also a better resting
+ * marker than "days since the final war ended" (ADR 0002), because it is an
+ * observation rather than a guess about when someone lost interest.
+ *
+ * One fact does not make an editing surface. There is no action bar and no
+ * draft: the state is a chip in the topbar and a single item in the season
+ * menu, which is exactly how the lineup carries the day lock. A bar exists to
+ * hold "unsaved" against "not yet done in game" (#21), and neither question
+ * exists here.
+ *
+ * Page classes take the surface's own prefix on the port. The route is #/cwl
+ * and the lineup phase already owns `cwl-`, so review-only classes want
+ * `cwl-review-` to avoid a collision inside one route's stylesheet.
+ *
+ * Roster is synthetic but real-shaped: 24 CWL members over 7 war days, war size
+ * 15. Real player tags must not enter this public repo.
+ */
+
+/* ---------- summary strip ----------
+ * Lifted from the members roster unchanged, which is the finding: it was page
+ * layer there because one surface used it. A second surface needing exactly the
+ * same aggregate read is what promotes it to the system layer.
+ */
+.summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-2); }
+.metric {
+  min-width: 0;
+  padding: var(--cm-space-3);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface);
+}
+.metric strong {
+  display: block; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
+}
+.metric span {
+  display: block; margin-top: 2px;
+  font-size: var(--cm-text-xs); line-height: 1.3; color: var(--cm-fg-muted);
+}
+/* One fact, one colour. A missed attack is marked danger on the row, so the
+ * count of them is marked danger here — the members roster set that precedent
+ * with .count.is-short. It stays uncoloured at zero rather than turning
+ * success, because "nobody missed" is the rule and rules go unmarked. */
+.metric.is-danger strong { color: var(--cm-danger-ink); }
+
+.phase { margin-bottom: var(--cm-space-3); }
+
+/* ---------- the season menu ----------
+ * Same pattern as the lineup's day menu, and deliberately not a segmented
+ * strip: seasons accumulate without bound and the strip above already carries
+ * the phase. ADR 0002 requires a previous season to stay reachable; the menu is
+ * where that lives.
+ */
+.seasonmenu-wrap { position: relative; }
+.seasonmenu {
+  position: absolute; right: 0; top: calc(var(--cm-tap-min) + var(--cm-space-1)); z-index: 20;
+  min-width: 240px; padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.seasonmenu button {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  width: 100%; text-align: left;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-md); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.seasonmenu button[disabled] { color: var(--cm-fg-unknown); }
+.seasonmenu button small { font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase; }
+.seasonmenu .divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
+.seasonmenu p {
+  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
+  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
+}
+
+/* ---------- ranked list ----------
+ * Progressive disclosure through the row's own stats slot, gated on a CONTAINER
+ * query for the reason #22 found: the list column's width depends on whether
+ * the panel is docked beside it, so a viewport breakpoint is wrong in exactly
+ * the band where the panel is open on a small desktop.
+ */
+.section { container-type: inline-size; container-name: list; }
+.section + .section { margin-top: var(--cm-space-5); }
+.wide-only { display: none; }
+.listhead { display: none; }
+@container list (min-width: 600px) {
+  .row.has-pos, .listhead { grid-template-columns: 26px minmax(0, 1fr) auto 62px 10px; }
+  .wide-only { display: flex; flex-direction: row; gap: var(--cm-space-4); }
+  .wide-only .stat { width: 72px; text-align: right; }
+  .row-stats:not(.wide-only) { width: 62px; }
+  .listhead {
+    display: grid; align-items: end; gap: var(--cm-space-3);
+    padding: 0 calc(var(--cm-row-pad-x) + 1px) var(--cm-space-2);
+  }
+  .listhead span {
+    font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+    letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+  }
+  .listhead .group { display: flex; flex-direction: row; gap: var(--cm-space-4); }
+  .listhead .group span { width: 72px; text-align: right; }
+  .listhead .stars { text-align: right; }
+}
+
+/* ---------- panel contents ---------- */
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-3); margin: 0 0 var(--cm-space-4); }
+.facts dt {
+  margin-bottom: 2px; font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.facts dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); overflow-wrap: anywhere; }
+
+/* The war-day record: the follow-up evidence, and the only reader
+ * cwl_completed_missed_attacks has ever had. One line per ended war day, so
+ * "missed two" is answerable as "which two".
+ *
+ * Words, not glyphs. A tick and a cross here would be two new icons for a data
+ * column, and #40's rule is that an affordance becomes an icon while everything
+ * else stays type — a war day's outcome is not something you press.
+ */
+.days { margin: 0 0 var(--cm-space-4); padding: 0; list-style: none; }
+.days li {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: baseline;
+  gap: var(--cm-space-3); padding: var(--cm-space-2) 0;
+  font-size: var(--cm-text-sm); color: var(--cm-fg-strong);
+}
+.days li + li { border-top: 1px solid var(--cm-hairline); }
+.days .day { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
+.days .outcome { font-size: var(--cm-text-sm); }
+.days .figure { font-weight: var(--cm-weight-semibold); }
+.freshness { margin: 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+.caveat { margin: 0 0 var(--cm-space-4); font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-caution-ink); }
+
+@media (min-width: 720px) {
+  .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .columns { grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); }
+}
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <span>Prototype state</span>
+  <button type="button" data-state="notice" aria-pressed="false">Collection stale</button>
+  <button type="button" data-state="incomplete" aria-pressed="false">Day 7 never ended</button>
+  <button type="button" data-state="lineup" aria-pressed="false">Lineup phase</button>
+  <button type="button" data-state="administered" aria-pressed="false">Bonuses administered</button>
+</div>
+
+<div class="shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow" id="eyebrow">CWL · 2026-08</p>
+      <h1 id="title">Review</h1>
+    </div>
+    <div class="topbar-side">
+      <span id="reviewchipslot"></span>
+      <span class="seasonmenu-wrap">
+        <button class="iconbutton" type="button" id="seasonbutton" aria-label="Season options" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+        <div id="seasonmenuslot"></div>
+      </span>
+    </div>
+  </header>
+
+  <nav class="segmented phase" id="phasestrip" aria-label="CWL phase"></nav>
+
+  <div class="summary" id="summary"></div>
+
+  <div id="noticeslot"></div>
+
+  <div class="columns">
+    <div>
+      <div id="groups"></div>
+    </div>
+    <div id="panelcolumn"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * Synthetic season, real shape. Field names mirror the views this surface would
+ * read: cwl_member_bonus_progress (wars_participated, stars),
+ * cwl_completed_missed_attacks (assigned / completed / missed, per ended war
+ * day), and regular_war_member_activity_window for the gauge ADR 0001 says may
+ * inform a role change through evidence the leader can see.
+ * ------------------------------------------------------------------------- */
+const NAMES = ["Ashfall","Bramblefang","Ironvale","Quillon","Emberwake","Thane","Nettlebrook","Sableridge",
+"Cairnwick","Foxglove","Marrowgate","Pellworth","Rookhaven","Stonebarrow","Thistledown","Vantwick","Wrenfield",
+"Yarrowmere","Alderstone","Briarhold","Coldmoor","Duskmantle","Elmsworth","Fernhollow"];
+const WAR_DAYS = 7;
+const WAR_SIZE = 15;
+
+let seed = 20260820;
+const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+/* A CWL roster is signed up for the season; the lineup picks 15 of them each
+ * day, so participation is uneven by design and "wars joined" is the number
+ * that makes stars readable. Twelve members carry every day and twelve rotate
+ * through the remaining slots — 15 x 7 = 105 assignments, which is the
+ * constraint that makes the ranking's supporting context necessary rather than
+ * decorative.
+ *
+ * Missed attacks are deliberately RARE here, and that is a design constraint
+ * rather than optimism: the row-marking rule only holds if the mark is the
+ * exception. A roster where half the rows carry a red phrase is the happy-path
+ * banner inverted, and it would hide the two people the follow-up decision is
+ * actually about. */
+const DAYS_EACH = [7,7,7,7,7,7,7,7,7,7,7,7, 3,2,2,2,2,2,2,2,1,1,1,1];
+const ROSTER = NAMES.map((name, i) => {
+  const role = i === 0 ? "leader" : i < 3 ? "coLeader" : i < 9 ? "elder" : "member";
+  // three members who go quiet mid-season, which is what the follow-up decision
+  // exists for; everyone else uses nearly every attack they are handed
+  const unreliable = i === 4 || i === 9 || i === 17;
+  const reliability = unreliable ? 0.45 + rnd() * 0.2 : 0.90 + rnd() * 0.10;
+  const skill = 1.2 + rnd() * 1.5;
+  const selectedDays = new Set();
+  const wanted = DAYS_EACH[i];
+  const order = [1, 2, 3, 4, 5, 6, 7];
+  for (let k = order.length - 1; k > 0; k--) { // Fisher-Yates on the seeded source
+    const j = Math.floor(rnd() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  order.slice(0, wanted).forEach((d) => selectedDays.add(d));
+  const days = [];
+  for (let d = 1; d <= WAR_DAYS; d++) {
+    if (!selectedDays.has(d)) { days.push({ day: d, inLineup: false, assigned: 0, completed: 0, stars: 0 }); continue; }
+    const completed = rnd() < reliability ? 1 : 0;
+    days.push({ day: d, inLineup: true, assigned: 1, completed, stars: completed ? Math.min(3, Math.max(1, Math.round(skill * (0.7 + rnd() * 0.7)))) : 0 });
+  }
+  return {
+    playerTag: "#R" + String(i).padStart(3, "0") + "XY",
+    name, role,
+    townHallLevel: 16 - Math.floor(rnd() * 4),
+    days,
+    // The separate gauge. Never folded into the CWL ranking — ADR 0001 keeps it
+    // as evidence for role and follow-up talk, shown rather than scored in.
+    regular: (() => {
+      const observed = 5;
+      const joined = Math.max(0, Math.min(observed, Math.round(observed * (reliability - 0.1))));
+      const assigned = joined * 2;
+      const made = Math.round(assigned * Math.min(1, reliability + 0.05));
+      return { observed, joined, assigned, made, stars: Math.round(made * skill) };
+    })(),
+  };
+});
+
+/* Derived exactly as the views derive it, so the surface is readable as a query
+ * plan and not just as a picture. A war day that never reached warEnded is
+ * absent from cwl_completed_missed_attacks entirely — it contributes no stars
+ * and no missed attack, which is coverage rather than a clean sheet. */
+function seasonRecord(m) {
+  const logged = m.days.filter((d) => d.day <= state.loggedDays);
+  const played = logged.filter((d) => d.inLineup);
+  const stars = played.reduce((sum, d) => sum + d.stars, 0);
+  const assigned = played.reduce((sum, d) => sum + d.assigned, 0);
+  const completed = played.reduce((sum, d) => sum + d.completed, 0);
+  return {
+    stars, assigned, completed,
+    missed: assigned - completed,
+    warsParticipated: played.length,
+    starsPerWar: played.length ? stars / played.length : null,
+    secured: stars >= 8,
+    unlogged: m.days.filter((d) => d.day > state.loggedDays && d.inLineup).length,
+  };
+}
+
+const state = {
+  loggedDays: WAR_DAYS,
+  panel: null,          // null | {mode:"member", tag}
+  notice: false,
+  incomplete: false,
+  lineup: false,        // the other phase, for the phase control only
+  administered: false,  // bonus medals handed out — the one recorded fact
+  seasonMenuOpen: false,
+};
+
+const BY_TAG = new Map(ROSTER.map((m) => [m.playerTag, m]));
+const el = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const roleLabel = (r) => r === "coLeader" ? "Co-leader" : r[0].toUpperCase() + r.slice(1);
+const star = '<svg class="icon" aria-hidden="true"><use href="#i-star"/></svg>';
+
+/* ADR 0001's order, and nothing else: eight or more stars first, then total
+ * stars, with stars per war and wars participated as supporting context — which
+ * is what the tie-breaks are. Elder is the last resort, as CONTEXT.md has it.
+ * Rating never sorts this list; it is not a lineup. */
+const RANK_ORDER = { leader: 0, coLeader: 1, elder: 2, member: 3 };
+function ranked() {
+  return ROSTER.map((m) => ({ m, r: seasonRecord(m) })).sort((a, b) =>
+    (b.r.secured - a.r.secured) ||
+    (b.r.stars - a.r.stars) ||
+    ((b.r.starsPerWar ?? 0) - (a.r.starsPerWar ?? 0)) ||
+    (b.r.warsParticipated - a.r.warsParticipated) ||
+    (RANK_ORDER[a.m.role] - RANK_ORDER[b.m.role]) ||
+    a.m.name.localeCompare(b.m.name));
+}
+
+function renderPhase() {
+  const phases = [["lineup", "Lineup", "Day 7"], ["review", "Review", "Season"]];
+  const current = state.lineup ? "lineup" : "review";
+  el("phasestrip").innerHTML = phases.map(([key, label, sub]) =>
+    `<button type="button" data-phase="${key}" aria-current="${key === current}">
+      <span>${label}</span><small>${sub}</small></button>`).join("");
+  el("title").textContent = state.lineup ? "Day 7 lineup" : "Review";
+  /* Coverage is stated on the season, not just per member. A war day that never
+   * reached warEnded is absent from cwl_completed_missed_attacks entirely, so
+   * every figure below quietly covers a shorter season than the heading claims
+   * — and "make uncertainty visible" is the project's own rule. It is muted
+   * rather than coloured because an absence carries no hue (#16). */
+  el("eyebrow").textContent = state.loggedDays < WAR_DAYS
+    ? `CWL · 2026-08 · ${state.loggedDays} of ${WAR_DAYS} war days logged`
+    : "CWL · 2026-08";
+}
+
+/* Four metrics, and the fourth is the coverage line rather than a fifth
+ * decision. "Missed attacks" is the follow-up count: the list is already
+ * ordered so those members are at its foot, and this is what says how far to
+ * scroll. */
+function renderSummary() {
+  const rows = ranked();
+  const secured = rows.filter((x) => x.r.secured).length;
+  const missed = rows.reduce((sum, x) => sum + x.r.missed, 0);
+  const stars = rows.reduce((sum, x) => sum + x.r.stars, 0);
+  el("summary").innerHTML = [
+    [rows.length, "Members in the season", false],
+    [stars, "Clan stars", false],
+    [secured, "At eight or more stars", false],
+    [missed, "Missed attacks", missed > 0],
+  ].map(([v, l, danger]) =>
+    `<div class="metric${danger ? " is-danger" : ""}"><strong>${v}</strong><span>${l}</span></div>`).join("");
+}
+
+function renderNotice() {
+  el("noticeslot").innerHTML = state.notice
+    ? `<div class="notice" role="alert">
+        <div class="grow"><strong>Collection data is stale</strong>
+        <p>Last successful observation was 2 days ago. Attacks made since then are not in this record.</p></div>
+        <button type="button">Retry</button>
+      </div>` : "";
+}
+
+/* Rows mark the exception. Stars and wars joined sit in the stats slot on every
+ * row because they are the ranking's own terms and a rank you cannot read is a
+ * verdict — three stars from one war and three from seven are different facts.
+ *
+ * Attacks used is NOT on the row, and that is the row-marking rule doing real
+ * work: an unmarked row used every attack it was given, so printing "7 of 7"
+ * beside it says the same thing twice. The count only earns its place where the
+ * container query has already bought the space for it.
+ *
+ * Participation is a figure, never a phrase. "Joined 2 of 7" written into the
+ * meta line put a muted mark on most of the rotation half of the roster, which
+ * is the majority state there — the happy-path banner one row at a time, and in
+ * the unknown colour, which means absent evidence rather than a short season.
+ *
+ * An unlogged war day is not a row mark either, for the same reason from the
+ * other direction: a war day that never reached warEnded is missing for all
+ * fifteen members who were in it, so marking the row fires on most of the
+ * roster and says nothing that distinguishes them. It belongs to the season —
+ * the eyebrow states it — and to the panel, where it explains one member's
+ * figures. Scope the mark to the thing that actually varies. */
+function rowHtml(m, r, rank, selected) {
+  const bits = [roleLabel(m.role)];
+  if (r.missed > 0) bits.push(`<span class="avail is-unavailable">${r.missed} attack${r.missed === 1 ? "" : "s"} missed</span>`);
+  if (r.warsParticipated === 0) bits.push(`<span class="avail is-unknown">In no logged war</span>`);
+  return `<button class="row has-pos ${selected ? "is-selected" : ""}" type="button" data-tag="${m.playerTag}">
+    <span class="row-pos">${rank}</span>
+    <span class="row-main">
+      <span class="row-name">${esc(m.name)}</span>
+      <span class="row-meta">${bits.join(' <span class="sep">·</span> ')}</span>
+    </span>
+    <span class="row-stats wide-only">
+      <span class="row-th stat">${r.completed} of ${r.assigned}</span>
+      <span class="row-th stat">${r.starsPerWar === null ? "—" : r.starsPerWar.toFixed(1)}</span>
+    </span>
+    <span class="row-stats"><span class="row-stars">${r.stars}${star}</span>
+      <span class="row-th">${r.warsParticipated} war${r.warsParticipated === 1 ? "" : "s"}</span></span>
+    <span class="chev" aria-hidden="true"><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></span>
+  </button>`;
+}
+
+/* Two groups, one continuous ranking. The boundary is ADR 0001's eight-star
+ * threshold and says so in its own heading — it is not a bonus cutoff, because
+ * the number of bonuses the game grants is league-dependent and is not
+ * collected. Nothing on this surface claims to know it. */
+function renderGroups() {
+  /* The other phase is a whole other surface — lineup-adjust.html — so the
+   * control is shown moving rather than faked here. What matters for #54 is
+   * that the two phases share one route and one strip, not that one prototype
+   * contains both. */
+  if (state.lineup) {
+    el("groups").innerHTML = `<p class="empty">The lineup workspace is the other phase of this route —
+      see <a href="lineup-adjust.html">lineup-adjust.html</a>. The two can never both want to be on screen.</p>`;
+    return;
+  }
+  const rows = ranked();
+  const wide = window.matchMedia("(min-width: 720px)").matches;
+  const active = effectivePanel(wide);
+  const selected = active?.mode === "member" ? active.tag : null;
+  const head = `<div class="listhead" aria-hidden="true">
+      <span>#</span><span>Member</span>
+      <span class="group"><span>Attacks</span><span>Stars / war</span></span>
+      <span class="stars">Stars · wars</span><span></span>
+    </div>`;
+  const group = (title, items) => !items.length ? "" : `<section class="section">
+      <div class="section-head"><h2>${title} <span class="count">${items.length}</span></h2></div>
+      ${head}
+      <div class="rows">${items.map(({ m, r, rank }) => rowHtml(m, r, rank, m.playerTag === selected)).join("")}</div>
+    </section>`;
+  const numbered = rows.map((x, i) => ({ ...x, rank: i + 1 }));
+  el("groups").innerHTML =
+    group("Eight or more stars", numbered.filter((x) => x.r.secured)) +
+    group("Below eight stars", numbered.filter((x) => !x.r.secured));
+}
+
+const outcome = (d) => !d.inLineup ? `<span class="outcome avail is-unknown">Not in the lineup</span>`
+  : d.completed ? `<span class="outcome">Attacked</span>`
+  : `<span class="outcome avail is-unavailable">Missed</span>`;
+
+function memberPanelHtml(m, wide) {
+  const r = seasonRecord(m);
+  const g = m.regular;
+  const logged = m.days.filter((d) => d.day <= state.loggedDays);
+  return `<div class="panel" ${wide ? "" : 'role="dialog" aria-modal="true"'} aria-label="${esc(m.name)}">
+    <div class="panel-head">
+      <div class="grow">
+        <h2>${esc(m.name)}</h2>
+        <p class="panel-evidence">${roleLabel(m.role)} · TH${m.townHallLevel} ·
+          joined ${r.warsParticipated} of ${state.loggedDays} logged war days</p>
+      </div>
+      ${wide ? "" : '<button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>'}
+    </div>
+    <div class="panel-body">
+      <p class="panel-label">Season record · CWL 2026-08</p>
+      <dl class="facts">
+        <div><dt>Stars</dt><dd>${r.stars}</dd></div>
+        <div><dt>Stars per war</dt><dd>${r.starsPerWar === null ? "—" : r.starsPerWar.toFixed(1)}</dd></div>
+        <div><dt>Attacks used</dt><dd>${r.completed} of ${r.assigned}</dd></div>
+        <div><dt>Missed</dt><dd>${r.missed}</dd></div>
+      </dl>
+      ${r.unlogged > 0 ? `<p class="caveat">${r.unlogged} war day this member was in has not been recorded as ended,
+        so it is absent from this record entirely — neither stars nor a missed attack.</p>` : ""}
+
+      <p class="panel-label">War days</p>
+      <ul class="days">
+        ${logged.map((d) => `<li><span class="day">Day ${d.day}</span>${outcome(d)}
+          <span class="figure">${d.inLineup && d.completed ? `${d.stars}${star}` : "—"}</span></li>`).join("")}
+      </ul>
+
+      <p class="panel-label">Regular wars · last 30 days</p>
+      <dl class="facts">
+        <div><dt>Wars joined</dt><dd>${g.joined} of ${g.observed} observed</dd></div>
+        <div><dt>Attacks used</dt><dd>${g.made} of ${g.assigned}</dd></div>
+        <div><dt>Stars</dt><dd>${g.stars}</dd></div>
+        <div><dt>Stars per attack</dt><dd>${g.made ? (g.stars / g.made).toFixed(1) : "—"}</dd></div>
+      </dl>
+      <p class="freshness">Regular-war evidence is a separate gauge and does not rank this list. It is here because a
+        role change is a judgement about the whole year, not about one week (ADR 0001).</p>
+    </div>
+  </div>`;
+}
+
+/* Where the panel is docked it opens on the top-ranked member — an empty column
+ * is dead space that also hides the fact that rows do anything. The narrow
+ * layout never auto-opens, because there the panel covers the list. */
+function effectivePanel(wide) {
+  if (state.panel) return state.panel;
+  if (!wide) return null;
+  const first = ranked()[0];
+  return first ? { mode: "member", tag: first.m.playerTag, auto: true } : null;
+}
+
+function renderPanel() {
+  const wide = window.matchMedia("(min-width: 720px)").matches;
+  const panel = effectivePanel(wide);
+  const html = !state.lineup && panel?.mode === "member" ? memberPanelHtml(BY_TAG.get(panel.tag), wide) : "";
+  document.querySelectorAll("[data-overlay]").forEach((n) => n.remove());
+  el("panelcolumn").innerHTML = "";
+  if (!html) return;
+  if (wide) el("panelcolumn").innerHTML = html;
+  else document.body.insertAdjacentHTML("beforeend",
+    `<div data-overlay><button class="scrim" type="button" data-close aria-label="Close"></button>${html}</div>`);
+}
+
+/* The chip appears only once the medals are out, and that is the row-marking
+ * rule at page scale: "still to do" is the state this surface exists in, so it
+ * goes unmarked. `.lockchip` is `cm-statuschip` in the shipped layer — renamed
+ * because it named the day lock rather than the concept, and this is the second
+ * use that proves the rename right.
+ *
+ * It is a chip and not a button. The state is displayed where the season is
+ * named and toggled from the season's own overflow menu, which is exactly how
+ * the lineup carries Lock day: a status is read in the header, an action is
+ * taken from the menu that owns the scope. */
+function renderReviewChip() {
+  el("reviewchipslot").innerHTML = state.administered
+    ? `<span class="lockchip is-locked">Bonuses administered</span>` : "";
+}
+
+/* ADR 0002 requires a previous season to stay reachable, and this is where that
+ * lives. It is also where a real data gap shows: every CWL view routes through
+ * cwl_current_seasons, which is `distinct on (clan_tag) ... order by season_id
+ * desc` — the latest season and nothing else. Reaching an earlier one is a
+ * season-parameterised view or function, the same shape of change #34 made for
+ * the roster's activity window. Until that exists the entries are honestly
+ * disabled rather than silently missing. */
+function renderSeasonMenu() {
+  el("seasonbutton").setAttribute("aria-expanded", String(state.seasonMenuOpen));
+  el("seasonmenuslot").innerHTML = state.seasonMenuOpen
+    ? `<div class="seasonmenu" role="menu">
+        <button type="button" role="menuitem" data-administered>${state.administered ? "Reopen review" : "Mark bonuses administered"}</button>
+        <div class="divider"></div>
+        <button type="button" role="menuitem" aria-current="true">2026-08 <small>Current</small></button>
+        <button type="button" role="menuitem" disabled>2026-07</button>
+        <button type="button" role="menuitem" disabled>2026-06</button>
+        <p>Earlier seasons are collected but not queryable: every CWL view is scoped to the latest season.</p>
+      </div>`
+    : "";
+}
+
+function render() {
+  state.loggedDays = state.incomplete ? WAR_DAYS - 1 : WAR_DAYS;
+  renderPhase(); renderReviewChip(); renderSummary(); renderNotice(); renderGroups(); renderPanel(); renderSeasonMenu();
+}
+
+/* ------------------------------------------------------------------------- */
+document.addEventListener("click", (event) => {
+  const t = event.target;
+
+  const harness = t.closest(".harness button");
+  if (harness) {
+    const key = harness.dataset.state;
+    state[key] = !state[key];
+    harness.setAttribute("aria-pressed", String(state[key]));
+    return render();
+  }
+
+  if (t.closest("#seasonbutton")) { state.seasonMenuOpen = !state.seasonMenuOpen; return renderSeasonMenu(); }
+  if (state.seasonMenuOpen && !t.closest(".seasonmenu")) { state.seasonMenuOpen = false; renderSeasonMenu(); }
+
+  if (t.closest("[data-administered]")) {
+    state.administered = !state.administered;
+    state.seasonMenuOpen = false;
+    document.querySelectorAll('[data-state="administered"]').forEach((b) => b.setAttribute("aria-pressed", String(state.administered)));
+    return render();
+  }
+
+  if (t.closest("[data-close]")) { state.panel = null; return render(); }
+
+  const phase = t.closest("[data-phase]");
+  if (phase) {
+    state.lineup = phase.dataset.phase === "lineup";
+    document.querySelectorAll('[data-state="lineup"]').forEach((b) => b.setAttribute("aria-pressed", String(state.lineup)));
+    return render();
+  }
+
+  const row = t.closest(".row");
+  if (row) { state.panel = { mode: "member", tag: row.dataset.tag }; return render(); }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (state.seasonMenuOpen) { state.seasonMenuOpen = false; return renderSeasonMenu(); }
+  if (state.panel) { state.panel = null; render(); }
+});
+window.matchMedia("(min-width: 720px)").addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
