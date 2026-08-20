@@ -123,17 +123,43 @@ function recordMutation(name: string, value: unknown) {
 }
 
 function builder(table: string, tableData: Record<string, unknown>, persistFixture?: () => void): any {
-  const result = () => ({ data: tableData[table] ?? [], error: null });
+  /* `eq` and `in` USED TO BE NO-OPS, and that is a fixture that lies rather than
+     one that is merely thin. `cwl_attacks` is the case that exposed it: the
+     lineup workspace scopes it to the current war tag and the review phase reads
+     every logged day, so an unfiltered table hands the workspace all three wars'
+     attacks and Mason's row reads "3/1 attacks" — three attacks against one
+     assigned, which no real war can produce.
+
+     A filter applies only when at least one row in the table actually carries
+     the column. The fixtures are written as the columns each loader selects, so
+     several omit scoping columns their query still names — `cwl_members` rows
+     have no `clan_tag` — and filtering on an absent column would empty the table
+     instead of narrowing it. Ignoring those keeps a thin fixture thin, while a
+     column the fixture does model is honoured. */
+  const filters: Array<{ column: string; match: (value: unknown) => boolean }> = [];
+  const applyFilters = (data: unknown) => {
+    if (!Array.isArray(data)) return data;
+    return data.filter((row) => filters.every((filter) => {
+      if (!row || typeof row !== "object") return true;
+      const modelled = data.some((candidate) => candidate && typeof candidate === "object" && filter.column in candidate);
+      if (!modelled) return true;
+      return filter.match((row as Record<string, unknown>)[filter.column]);
+    }));
+  };
+  const result = () => ({ data: applyFilters(tableData[table] ?? []), error: null });
   /* `maybeSingle` and `single` return ONE row in Supabase, and the stub used to
      hand back the whole table — which worked only while every singly-read table
      was fixtured as a bare object. `cwl_wars` is a list now, because the phase
      marker reads every day's state. */
   const firstRow = () => {
-    const data = tableData[table] ?? null;
+    const data = applyFilters(tableData[table] ?? null);
     return { data: Array.isArray(data) ? data[0] ?? null : data, error: null };
   };
   const query: any = {
-    select: () => query, eq: () => query, in: () => query, order: () => query, limit: () => query,
+    select: () => query,
+    eq: (column: string, value: unknown) => { filters.push({ column, match: (candidate) => candidate === value }); return query; },
+    in: (column: string, values: unknown[]) => { filters.push({ column, match: (candidate) => values.includes(candidate) }); return query; },
+    order: () => query, limit: () => query,
     single: async () => firstRow(), maybeSingle: async () => firstRow(),
     upsert: async (value: unknown) => {
       if (table === "member_availability" && Array.isArray(tableData[table]) && value !== null && typeof value === "object") {
@@ -155,12 +181,28 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
   return query;
 }
 
+/* THE DEFAULT FIXTURE PERSISTS TOO, and it has to for the checklist to be
+ * testable at all. `cwl_applied_lineup_baselines` exists because a half-applied
+ * change set is a fact about the clan's war rather than about one device (#36),
+ * so the assertion that matters is that a checked-off swap is still checked off
+ * after a reload. Against in-memory state that assertion cannot fail, because
+ * the reload takes the fixture back to its starting position along with it.
+ *
+ * Each Playwright test gets a fresh browser context, so this persists within a
+ * test and never across one. */
+const DEFAULT_FIXTURE_KEY = "e2e:fixture";
+
 export function createE2EClient(): any {
   const acceptanceFixture = window.localStorage.getItem("e2e:cwl-acceptance-fixture");
-  const tableData: Record<string, unknown> = acceptanceFixture ? JSON.parse(acceptanceFixture) : defaultTableData;
+  const storedDefault = acceptanceFixture ? null : window.localStorage.getItem(DEFAULT_FIXTURE_KEY);
+  const tableData: Record<string, unknown> = acceptanceFixture
+    ? JSON.parse(acceptanceFixture)
+    : storedDefault
+      ? JSON.parse(storedDefault)
+      : defaultTableData;
   const persistFixture = acceptanceFixture
     ? () => window.localStorage.setItem("e2e:cwl-acceptance-fixture", JSON.stringify(tableData))
-    : undefined;
+    : () => window.localStorage.setItem(DEFAULT_FIXTURE_KEY, JSON.stringify(tableData));
   return {
     auth: {
       getSession: async () => ({ data: { session: { user: { id: "e2e-user" } } }, error: null }),

@@ -153,7 +153,21 @@ async function buildAcceptanceFixture() {
 
   const repository = new MemoryRepository();
   const canonicalSnapshots = rawStore.snapshots.filter(({ endpoint }) => endpoint === "league_group" || endpoint === "league_war");
-  for (const snapshot of canonicalSnapshots) await normalizeSnapshot(repository, snapshot);
+  /* A war snapshot CANNOT name its own season or war day: the payload carries
+     neither, so both come from the league group that listed the tag, and
+     `normalizeWar` refuses a war it cannot place rather than inventing a day.
+     `collectOnce` passes that context per capture; re-normalizing the stored
+     snapshots here means rebuilding it, from the same round order the group
+     payload above defines. */
+  const warDayByTag = new Map(groupPayload.rounds.flatMap((round, index) => round.warTags.map((tag) => [tag, index + 1] as const)));
+  for (const snapshot of canonicalSnapshots) {
+    await normalizeSnapshot(repository, snapshot, {
+      clanTag,
+      collectionRunId: "acceptance-run",
+      seasonId,
+      ...(warDayByTag.has(snapshot.requestIdentity) ? { warDay: warDayByTag.get(snapshot.requestIdentity)! } : {}),
+    });
+  }
   await expect(repository.counts()).resolves.toEqual({ seasons: 1, wars: 3, warMembers: 45, attacks: 44 });
   expect(repository.normalized).toEqual(new Set(canonicalSnapshots.map(({ id }) => id)));
 
@@ -233,7 +247,21 @@ async function buildAcceptanceFixture() {
       priority_mode: season.priorityMode,
       eight_star_rotation_enabled: season.eightStarRotationEnabled,
     },
-    cwl_wars: { war_tag: currentWarTag, war_day: 3, end_time: "2099-07-04T01:00:00.000Z", attacks_per_member: 1 },
+    /* EVERY WAR DAY, WITH ITS STATE. Wave 3 made `cwl_wars` a list in the default
+       fixture because the phase marker reads every day's state, and left this
+       one a single stateless row — so the workspace could find no war in
+       preparation or in war, fell back to day 1, and this run drove an empty
+       day-1 lineup while asserting against the day-3 war above. */
+    cwl_wars: [1, 2, 3].map((warDay) => ({
+      war_tag: `#WAR${warDay}`,
+      war_day: warDay,
+      state: warDay === 3 ? "inWar" : "warEnded",
+      preparation_start_time: `2099-07-0${warDay}T00:00:00.000Z`,
+      start_time: `2099-07-0${warDay}T01:00:00.000Z`,
+      end_time: `2099-07-0${warDay + 1}T01:00:00.000Z`,
+      updated_at: `2099-07-0${warDay + 1}T02:00:00.000Z`,
+      attacks_per_member: 1,
+    })),
     cwl_members: [...repository.members.values()].map((member) => ({
       player_tag: member.playerTag,
       name: member.name,
@@ -244,6 +272,21 @@ async function buildAcceptanceFixture() {
       assigned_attacks: member.assignedAttacks,
     })),
     cwl_attacks: currentAttacks.map((attack) => ({ attacker_tag: attack.attackerTag })),
+    /* THE SEEDED PLAN, without which this run cannot reach the swap panel. An
+       absent plan makes the stub's RPC invent one, and the invented plan holds
+       the default fixture's roster rather than this one's — so every member here
+       would be on the bench, and pressing a bench row ADDS a member rather than
+       opening the panel that owns availability. The day-3 lineup is what the war
+       payload above already asserts the game holds. */
+    cwlLineupPlans: {
+      "3": {
+        clanTag, seasonId: season.seasonId, warDay: 3, revision: 1, isLocked: false,
+        lockedAt: null, lockedBy: null, inheritedFromWarDay: null,
+        createdAt: "2099-07-03T08:00:00.000Z", createdBy: "e2e-user",
+        updatedAt: "2099-07-03T08:00:00.000Z", updatedBy: "e2e-user",
+        playerTags: [...currentLineupTags],
+      },
+    },
     member_availability: [...availability].map(([playerTag, status]) => ({ player_tag: playerTag, status })),
     cwl_eight_star_eligibility: memberFacts.map((member) => ({
       player_tag: member.playerTag,
