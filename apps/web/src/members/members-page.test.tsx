@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { MembersPage, RosterOverviewPage } from "./members-page.js";
+import { MembersPage } from "./members-page.js";
 
 /* jsdom reports `(min-width: 720px)` as false, so every test here exercises the
  * narrow layout: the panel is a sheet that only opens when a row is pressed,
@@ -99,13 +99,6 @@ describe("MembersPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("permission denied");
   });
 
-  it("summarizes the year-round roster separately from CWL operations", async () => {
-    render(<RosterOverviewPage client={clientWith([databaseRow()], [activityRow()])} clanTag="#CLAN" />);
-
-    expect(await screen.findByText("Current members")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Clan overview" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Review members" })).toHaveAttribute("href", "#/members");
-  });
 });
 
 function databaseRow() {

@@ -16,31 +16,13 @@
  * collision.
  */
 
-/* ---------- summary strip ----------
- * The one component the lineup workspace had no use for: a roster is arrived at
- * with "how healthy is the clan", and neither surface in #20 had an aggregate
- * read. Two-up on a phone and four across above 720px — a scrolling strip
- * clipped a metric mid-word, which reads as a bug rather than an affordance.
- *
- * Four metrics, not five: "no war activity" is derivable from the other three,
- * and it is the number most likely to be misread as "inactive", which the
- * domain explicitly refuses to say.
+/* THE SUMMARY STRIP IS GONE FROM THIS FILE, and its absence is the finding.
+ * It was page layer here for the only reason page layer ever means anything —
+ * one surface used it. The post-CWL review phase then needed exactly the same
+ * aggregate read unchanged (#54), which is what promotes a thing to the system
+ * layer, so it is `cm-summary` and `cm-metric` in @cwl/design now. The markup on
+ * this page did not change at all.
  */
-.members-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cm-space-2); }
-.members-metric {
-  min-width: 0;
-  padding: var(--cm-space-3);
-  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
-  background: var(--cm-surface);
-}
-.members-metric strong {
-  display: block; font-size: var(--cm-text-xl); font-weight: var(--cm-weight-bold);
-  letter-spacing: var(--cm-tracking-xl); color: var(--cm-fg-strong);
-}
-.members-metric span {
-  display: block; margin-top: 2px;
-  font-size: var(--cm-text-xs); line-height: 1.3; color: var(--cm-fg-muted);
-}
 
 /* ---------- search row ---------- */
 .members-searchrow { display: flex; gap: var(--cm-space-2); margin-top: var(--cm-space-3); }
@@ -156,6 +138,3 @@
   border-color: var(--cm-border-control); color: var(--cm-fg-strong); background: var(--cm-surface-sunken);
 }
 
-@media (min-width: 720px) {
-  .members-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}

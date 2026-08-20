@@ -1,8 +1,18 @@
 interface Result<T = unknown> { data?: T; error: { message: string } | null }
 
-export type RecommendationRegenerationResult =
-  | { status: "skipped"; reason: "no_active_cwl_context" }
-  | { status: "persisted"; recommendationId: string; created: boolean };
+/* The recommendation readers left with `#/dashboard` (ADR 0002, #25 wave 3).
+ * `approveRecommendation`, `overrideRecommendation`, `regenerateRecommendations`
+ * and their client and result types had exactly one caller between them — the
+ * daily dashboard — and ADR 0002 judged that content not worth a surface,
+ * because it describes only the current CWL cycle. They are dead by the same
+ * rule that took the six profile counters in wave 1: their only reader is gone.
+ *
+ * THE PIPELINE ITSELF IS UNTOUCHED. `recommendations`, the collector's
+ * production of them, and the `regenerate-recommendations` edge function are all
+ * still there and still running; what is deleted is the app's ability to read
+ * and approve them, which is the surface ADR 0002 removed. Restoring a reader is
+ * a new surface's decision, not a resurrection of this code.
+ */
 
 export interface InvitationClient {
   rpc(name: string, args: Record<string, unknown>): Promise<Result<any>>;
@@ -45,6 +55,97 @@ export interface AccessManagementSnapshot {
 }
 
 export type AccessManagementClient = InvitationClient;
+
+/* ---------------------------------------------------------------------------
+ * Collection health (#9, ADR 0002)
+ * ------------------------------------------------------------------------- */
+
+/* One endpoint's outcome in the latest run. `errorCategory` is the coarse label
+ * the collector persists — `normalization_error` is the one #9 was opened
+ * about: it was recorded on every failed normalization and read by nothing,
+ * which is why a members endpoint returning HTTP 200 and dropping 47 player
+ * captures was diagnosable only by replaying the RPC by hand.
+ *
+ * The underlying message is NOT here, because it is not stored: the collector
+ * pushes it onto `internalErrors` and the repository writes only the category.
+ * Surfacing the category is what the schema can honestly support today, and it
+ * is the difference between "something failed" and "normalization failed on the
+ * members endpoint". */
+export interface CollectionAttemptHealth {
+  endpoint: string;
+  status: string;
+  httpStatus: number | null;
+  errorCategory: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export interface CollectionHealth {
+  runId: string | null;
+  status: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastFreshAt: string | null;
+  errorMessage: string | null;
+  attempts: CollectionAttemptHealth[];
+}
+
+/* Moved to Admin from the deleted daily dashboard, which is where "is this data
+ * trustworthy" belongs beside "who can see it" (ADR 0002). The latest run and
+ * its attempts, and nothing historical: a run before the latest one cannot
+ * change what the app is showing now, and a log of them is a different feature
+ * from a health check. */
+export async function loadCollectionHealth(client: any): Promise<CollectionHealth> {
+  const runResult = await client.from("collection_runs")
+    .select("id,status,started_at,finished_at,last_fresh_at,error_message")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  ensureSuccess(runResult, "Unable to load collection health");
+  if (!runResult.data) {
+    return { runId: null, status: null, startedAt: null, finishedAt: null, lastFreshAt: null, errorMessage: null, attempts: [] };
+  }
+  const run = record(runResult.data);
+  const runId = String(run.id);
+
+  const attemptsResult = await client.from("collection_attempts")
+    .select("endpoint,status,http_status,error_category,started_at,finished_at")
+    .eq("run_id", runId)
+    .order("started_at");
+  ensureSuccess(attemptsResult, "Unable to load collection attempts");
+
+  return {
+    runId,
+    status: typeof run.status === "string" ? run.status : null,
+    startedAt: typeof run.started_at === "string" ? run.started_at : null,
+    finishedAt: typeof run.finished_at === "string" ? run.finished_at : null,
+    lastFreshAt: typeof run.last_fresh_at === "string" ? run.last_fresh_at : null,
+    errorMessage: typeof run.error_message === "string" ? run.error_message : null,
+    attempts: rows<{
+      endpoint: string; status: string; http_status: number | null;
+      error_category: string | null; started_at: string; finished_at: string | null;
+    }>(attemptsResult.data).map((row) => ({
+      endpoint: typeof row.endpoint === "string" ? row.endpoint : "unknown endpoint",
+      /* Absent evidence stays absent. An attempt with no recorded status is not
+         a healthy one — it is an attempt we cannot read, which the surface marks
+         rather than assumes away. */
+      status: typeof row.status === "string" ? row.status : "unknown",
+      httpStatus: typeof row.http_status === "number" ? row.http_status : null,
+      errorCategory: typeof row.error_category === "string" ? row.error_category : null,
+      startedAt: typeof row.started_at === "string" ? row.started_at : "",
+      finishedAt: typeof row.finished_at === "string" ? row.finished_at : null,
+    })),
+  };
+}
+
+/* A run is healthy or it is not, and only the latter is drawn. Rows and surfaces
+ * mark the exception, never the rule (#19) — a green "collection is fine" panel
+ * is the happy-path banner the whole design budget exists to remove. `running`
+ * is not a fault: it is a run that has not finished. */
+export function isCollectionUnhealthy(health: CollectionHealth): boolean {
+  if (health.status === null) return true;
+  return health.status !== "healthy" && health.status !== "running";
+}
 
 export type CwlAvailability = "available" | "unavailable" | "unknown";
 export type CwlMemberRole = "leader" | "coLeader" | "elder" | "member" | "unknown";
@@ -157,6 +258,70 @@ export interface CwlBonusAdministration {
   bonusesAdministeredAt: string | null;
 }
 
+/* ---------------------------------------------------------------------------
+ * The post-CWL review phase (#54, #25 wave 3)
+ * ------------------------------------------------------------------------- */
+
+/* Just enough to decide which phase the CWL route opens in (ADR 0002). It is a
+ * separate, tiny load rather than a field on the workspace snapshot because the
+ * decision has to be made BEFORE either phase's own data is fetched — the
+ * workspace snapshot is the lineup phase's data, and fetching it to discover
+ * that the season is over is the stale-lineup defect the phase model fixes. */
+export interface CwlSeasonPhaseSnapshot {
+  clanTag: string;
+  seasonId: string;
+  warDays: Array<{ warDay: number; state: CwlWarState }>;
+  bonusesAdministeredAt: string | null;
+}
+
+/* One member's record on one ENDED war day. A war day that never reached
+ * `warEnded` is absent from `cwl_completed_missed_attacks` entirely, so it
+ * contributes no stars and no missed attack — that is coverage, not a clean
+ * sheet, and the surface says so rather than averaging it in. */
+export interface CwlReviewWarDay {
+  warDay: number;
+  inLineup: boolean;
+  assignedAttacks: number;
+  completedAttacks: number;
+  stars: number;
+}
+
+export interface CwlReviewMember {
+  playerTag: string;
+  name: string;
+  townHallLevel: number;
+  role: CwlMemberRole;
+  days: CwlReviewWarDay[];
+  /* War days this member was assigned to that never reached `warEnded`. The
+     panel's coverage caveat, and the reason a thin record is readable as thin
+     rather than as a bad season. */
+  unloggedWarDays: number;
+}
+
+export interface CwlReviewSeasonSnapshot {
+  season: {
+    clanTag: string;
+    seasonId: string;
+    warSize: number;
+    bonusesAdministeredAt: string | null;
+  };
+  members: CwlReviewMember[];
+  /* Seasons the clan has collected, newest first, EXCLUDING the one rendered.
+     They exist and they are not reachable: every CWL view routes through
+     `cwl_current_seasons`, so the menu lists them honestly disabled rather than
+     pretending the clan has no history (ADR 0002). */
+  earlierSeasonIds: string[];
+  /* Both counts, because the difference between them IS the coverage caveat:
+     "5 of 7 war days logged" is what the eyebrow states, and it is the only
+     honest reading of every figure below it. */
+  loggedWarDays: number;
+  totalWarDays: number;
+  freshness: {
+    lastRefreshedAt: string | null;
+    collectionStatus: string | null;
+  };
+}
+
 export interface CwlLineupWorkspaceSnapshot {
   season: {
     clanTag: string;
@@ -173,15 +338,6 @@ export interface CwlLineupWorkspaceSnapshot {
   freshness: {
     lastRefreshedAt: string | null;
     collectionStatus: string | null;
-  };
-}
-
-export interface RecommendationFunctionClient {
-  functions: {
-    invoke(
-      name: "regenerate-recommendations",
-      options: { body: { clanTag: string } },
-    ): Promise<Result<unknown>>;
   };
 }
 
@@ -505,6 +661,167 @@ export async function loadCwlLineupWorkspace(
   };
 }
 
+/* Two queries and no derivation beyond the season. The phase decision itself is
+ * `defaultCwlPhase` in cwl/cwl-phase.ts, which is pure and tested there; this
+ * only fetches what it reads. */
+export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<CwlSeasonPhaseSnapshot> {
+  const seasonResult = await client.from("cwl_seasons")
+    .select("clan_tag,season_id,bonuses_administered_at")
+    .eq("clan_tag", clanTag)
+    .order("season_id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  ensureSuccess(seasonResult, "Unable to load the current CWL season");
+  if (!seasonResult.data) throw new Error("No CWL season is available.");
+  const season = record(seasonResult.data);
+  const seasonId = String(season.season_id);
+
+  const warsResult = await client.from("cwl_wars")
+    .select("war_day,state")
+    .eq("clan_tag", clanTag)
+    .eq("season_id", seasonId)
+    .order("war_day");
+  ensureSuccess(warsResult, "Unable to load the CWL war states");
+
+  return {
+    clanTag,
+    seasonId,
+    warDays: rows<{ war_day: number; state: string }>(warsResult.data)
+      .flatMap((row) => typeof row.war_day === "number" ? [{ warDay: row.war_day, state: warState(row.state) }] : []),
+    bonusesAdministeredAt: typeof season.bonuses_administered_at === "string" ? season.bonuses_administered_at : null,
+  };
+}
+
+function warState(value: unknown): CwlWarState {
+  return value === "preparation" || value === "inWar" || value === "warEnded" ? value : "unknown";
+}
+
+/* The whole season, per member per ended war day.
+ *
+ * `cwl_completed_missed_attacks` is the assignment record and it is already
+ * scoped to `warEnded`, so its rows ARE the logged days — which is why a member
+ * who was in an unlogged war contributes nothing rather than a zero. Stars come
+ * from `cwl_attacks` rather than `cwl_member_stars`, because the panel's war-day
+ * record needs them per day and the view only totals them per season.
+ *
+ * `cwl_completed_missed_attacks` routes through `cwl_current_seasons`, which is
+ * the latest season and nothing else. That is the data gap the season menu
+ * reports honestly rather than hides: an earlier season is not queryable today,
+ * and would want a season-parameterised source — the same shape of change #34
+ * made for the roster's activity window. */
+export async function loadCwlReviewSeason(client: any, clanTag: string): Promise<CwlReviewSeasonSnapshot> {
+  /* Every season the clan has, not just the latest: the current one is the head
+     of the list and the rest are the season menu's honestly-disabled entries. */
+  const seasonResult = await client.from("cwl_seasons")
+    .select("clan_tag,season_id,war_size,bonuses_administered_at")
+    .eq("clan_tag", clanTag)
+    .order("season_id", { ascending: false });
+  ensureSuccess(seasonResult, "Unable to load the CWL seasons");
+  const seasonRows = rows<{ season_id: string; war_size: number; bonuses_administered_at: string | null }>(seasonResult.data);
+  const currentSeason = seasonRows[0];
+  if (!currentSeason) throw new Error("No CWL season is available.");
+  const season = record(currentSeason);
+  const seasonId = String(season.season_id);
+
+  const [membersResult, rosterResult, warsResult, assignmentResult, collectionResult] = await Promise.all([
+    client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
+    client.from("member_roster_overview").select("player_tag,role").eq("clan_tag", clanTag).eq("is_current_member", true),
+    client.from("cwl_wars").select("war_tag,war_day,state").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
+    client.from("cwl_completed_missed_attacks")
+      .select("war_day,player_tag,assigned_attacks,completed_assigned_attacks")
+      .eq("clan_tag", clanTag).eq("season_id", seasonId),
+    client.from("collection_runs").select("status,last_fresh_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  for (const [result, context] of [
+    [membersResult, "Unable to load CWL members"],
+    [rosterResult, "Unable to load current clan roles"],
+    [warsResult, "Unable to load CWL war states"],
+    [assignmentResult, "Unable to load the season attack record"],
+  ] as Array<[Result, string]>) ensureSuccess(result, context);
+
+  const warRows = rows<{ war_tag: string; war_day: number; state: string }>(warsResult.data);
+  const endedWars = warRows.filter((row) => warState(row.state) === "warEnded");
+  const warDayOfTag = new Map(endedWars.map((row) => [row.war_tag, row.war_day]));
+  const loggedDays = [...new Set(endedWars.map((row) => row.war_day))].sort((left, right) => left - right);
+
+  /* Skipped entirely when no war has ended: `.in()` on an empty list is a query
+     that can only return nothing, and paying a round trip for it on a season
+     that has not started is the phase model's own defect in miniature. */
+  const attackResult = endedWars.length
+    ? await client.from("cwl_attacks").select("war_tag,attacker_tag,stars").in("war_tag", endedWars.map((row) => row.war_tag))
+    : { data: [], error: null };
+  ensureSuccess(attackResult, "Unable to load the season attack record");
+
+  const starsByDay = new Map<string, number>();
+  for (const attack of rows<{ war_tag: string; attacker_tag: string; stars: number }>(attackResult.data)) {
+    const warDay = warDayOfTag.get(attack.war_tag);
+    if (warDay === undefined) continue;
+    const key = `${attack.attacker_tag}:${warDay}`;
+    starsByDay.set(key, (starsByDay.get(key) ?? 0) + (typeof attack.stars === "number" ? attack.stars : 0));
+  }
+
+  /* The coverage caveat's source. A war day that never ended is absent from
+     `cwl_completed_missed_attacks` by construction, so the only way to know a
+     member was IN one is to ask the assignment table directly. Skipped when
+     every day ended, which is the ordinary case. */
+  const unendedWarTags = warRows.filter((row) => warState(row.state) !== "warEnded").map((row) => row.war_tag);
+  const unendedResult = unendedWarTags.length
+    ? await client.from("cwl_war_members").select("player_tag").in("war_tag", unendedWarTags)
+    : { data: [], error: null };
+  ensureSuccess(unendedResult, "Unable to load unfinished war assignments");
+  const unloggedByTag = new Map<string, number>();
+  for (const row of rows<{ player_tag: string }>(unendedResult.data)) {
+    unloggedByTag.set(row.player_tag, (unloggedByTag.get(row.player_tag) ?? 0) + 1);
+  }
+
+  const assignments = new Map<string, { assigned: number; completed: number }>();
+  for (const row of rows<{ war_day: number; player_tag: string; assigned_attacks: number; completed_assigned_attacks: number }>(assignmentResult.data)) {
+    assignments.set(`${row.player_tag}:${row.war_day}`, {
+      assigned: row.assigned_attacks ?? 0,
+      completed: row.completed_assigned_attacks ?? 0,
+    });
+  }
+
+  const roles = new Map(rows<{ player_tag: string; role: string }>(rosterResult.data)
+    .map((row) => [row.player_tag, normalizeClanRole(row.role)]));
+
+  const members = rows<{ player_tag: string; name: string; town_hall_level: number }>(membersResult.data).map((member) => ({
+    playerTag: member.player_tag,
+    name: member.name,
+    townHallLevel: member.town_hall_level,
+    role: roles.get(member.player_tag) ?? "unknown",
+    days: loggedDays.map((warDay) => {
+      const assignment = assignments.get(`${member.player_tag}:${warDay}`);
+      return {
+        warDay,
+        inLineup: assignment !== undefined,
+        assignedAttacks: assignment?.assigned ?? 0,
+        completedAttacks: assignment?.completed ?? 0,
+        stars: starsByDay.get(`${member.player_tag}:${warDay}`) ?? 0,
+      } satisfies CwlReviewWarDay;
+    }),
+    unloggedWarDays: unloggedByTag.get(member.player_tag) ?? 0,
+  } satisfies CwlReviewMember));
+
+  const collection = record(collectionResult.data);
+  return {
+    season: {
+      clanTag,
+      seasonId,
+      warSize: typeof season.war_size === "number" ? season.war_size : 0,
+      bonusesAdministeredAt: typeof season.bonuses_administered_at === "string" ? season.bonuses_administered_at : null,
+    },
+    members,
+    earlierSeasonIds: seasonRows.slice(1).map((row) => row.season_id),
+    loggedWarDays: loggedDays.length,
+    totalWarDays: warRows.length,
+    freshness: {
+      lastRefreshedAt: typeof collection.last_fresh_at === "string" ? collection.last_fresh_at : null,
+      collectionStatus: typeof collection.status === "string" ? collection.status : null,
+    },
+  };
+}
+
 export async function saveCwlLineupPlan(client: any, value: { clanTag: string; seasonId: string; warDay: number; expectedRevision: number; playerTags: string[] }): Promise<CwlDailyLineupPlan> {
   const result = await client.rpc("save_cwl_daily_lineup_plan", {
     requested_clan_tag: value.clanTag,
@@ -685,45 +1002,4 @@ export async function demoteAdmin(client: AccessManagementClient, userId: string
 
 export async function revokeAccess(client: AccessManagementClient, userId: string): Promise<void> {
   ensureSuccess(await client.rpc("revoke_user_access", { target_user_id: userId }), "Unable to revoke access");
-}
-
-export async function approveRecommendation(client: any, recommendationId: string, finalChanges: unknown[]): Promise<void> {
-  ensureSuccess(await client.rpc("record_leader_decision", {
-    recommendation_id: recommendationId,
-    decision_status: "approved",
-    final_changes: finalChanges,
-    decision_override_note: null,
-  }), "Unable to approve recommendation");
-}
-
-export async function overrideRecommendation(client: any, recommendationId: string, finalChanges: unknown[], overrideNote: string): Promise<void> {
-  ensureSuccess(await client.rpc("record_leader_decision", {
-    recommendation_id: recommendationId,
-    decision_status: "overridden",
-    final_changes: finalChanges,
-    decision_override_note: overrideNote,
-  }), "Unable to override recommendation");
-}
-
-export async function regenerateRecommendations(
-  client: RecommendationFunctionClient,
-  clanTag: string,
-): Promise<RecommendationRegenerationResult> {
-  const result = await client.functions.invoke("regenerate-recommendations", {
-    body: { clanTag },
-  });
-  ensureSuccess(result, "Unable to regenerate recommendations");
-  if (!isRecommendationRegenerationResult(result.data)) {
-    throw new Error("Recommendation regeneration returned an invalid response.");
-  }
-  return result.data;
-}
-
-function isRecommendationRegenerationResult(value: unknown): value is RecommendationRegenerationResult {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  if (candidate.status === "skipped") return candidate.reason === "no_active_cwl_context";
-  return candidate.status === "persisted"
-    && typeof candidate.recommendationId === "string"
-    && typeof candidate.created === "boolean";
 }

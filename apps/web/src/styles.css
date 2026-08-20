@@ -1,192 +1,28 @@
-/* The element-level base moved to @cwl/design/base.css with the members roster
- * rebuild (#25, wave 1). `:root` font/colour/background, `* { box-sizing }`,
- * `body { margin }` and `button { font: inherit }` all live there now, against
- * tokens rather than hard-coded values; keeping either copy would leave two
- * element bases fighting over the same properties.
+/* What is left of the app's original stylesheet after the Clan Muster migration
+ * finished (#25, wave 3). One rule.
  *
- * `min-width` stays: it is app chrome, not design-system truth. */
+ * The element-level base went to @cwl/design/base.css with the members roster
+ * (wave 1), and the global `prefers-reduced-motion` opt-out followed it in wave
+ * 3 — it is design-system truth rather than app chrome, and keeping either copy
+ * would leave two element bases arguing over the same properties.
+ *
+ * Everything else left with the surface that carried it, in the same commit as
+ * that surface's rebuild, which is the rule the whole migration turns on:
+ *
+ *   - the dashboard, overview and season blocks, with the three routes ADR 0002
+ *     deleted rather than conformed;
+ *   - the `.access-*` block, with the Admin route's rebuild — and `.access-shell`
+ *     with it, which is the collision the prefix rule exists for: the sign-in
+ *     screen and the access-management page shared that one class while being
+ *     unrelated surfaces, and wave 3 split them into `auth-` and `admin-`;
+ *   - `.app-shell > nav` and `.primary-button`, with the app chrome (#58). The
+ *     nav is the page name in `cm-topbar` now, and the filled button is
+ *     `cm-button`. The old blue leaves with it, because the system has no blue
+ *     accent;
+ *   - `.availability-editor`, which had already outlived its markup.
+ *
+ * `min-width` stays because it is app chrome rather than design-system truth:
+ * it is a statement about the narrowest device this tool is used on, not about
+ * the design system.
+ */
 body { min-width: 320px; }
-
-.access-shell { width: min(480px, calc(100% - 32px)); margin: 12vh auto; padding: 32px; border: 1px solid #e6e6e6; border-radius: 12px; background: #fff; }
-.access-shell h1 { margin: 8px 0; letter-spacing: -.8px; }
-.access-shell p:not(.eyebrow) { color: #6f6e6b; line-height: 1.5; }
-.primary-button { min-height: 44px; padding: 0 16px; border: 1px solid #0075de; border-radius: 5px; color: #fff; background: #0075de; cursor: pointer; }
-.primary-button:hover { background: #005bab; }
-.app-shell > nav { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid #e6e6e6; background: #fff; }
-.app-shell > nav a { padding: 8px 10px; border-radius: 5px; color: #31302e; font-size: 13px; text-decoration: none; }
-.app-shell > nav a:hover { background: #f1f1ef; }
-.app-shell > nav span { margin-left: auto; font-size: 13px; font-weight: 600; }
-.availability-editor { display: grid; gap: 16px; padding: 20px; border: 1px solid #e6e6e6; border-radius: 8px; background: #fff; }
-.availability-editor fieldset { display: flex; gap: 16px; border: 0; padding: 0; }
-.availability-editor legend { margin-bottom: 10px; font-weight: 600; }
-.availability-editor label { display: grid; gap: 6px; color: #31302e; font-size: 13px; }
-.availability-editor fieldset label { display: flex; align-items: center; min-height: 44px; }
-.availability-editor textarea { min-height: 88px; padding: 10px; border: 1px solid #d3d3d3; border-radius: 5px; font: inherit; }
-.availability-editor .primary-button { width: fit-content; }
-
-.dashboard-shell {
-  width: min(1080px, calc(100% - 48px));
-  margin: 32px auto;
-  padding: 40px 48px;
-  border: 1px solid #e6e6e6;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 .2px 1px rgb(0 0 0 / 1%), 0 .8px 3px rgb(0 0 0 / 2%), 0 4px 18px rgb(0 0 0 / 4%);
-}
-
-.eyebrow { margin: 0; color: #6f6e6b; font-size: 12px; font-weight: 600; }
-.dashboard-header h1 { margin: 8px 0 28px; font-size: clamp(32px, 5vw, 40px); letter-spacing: -1.4px; }
-.data-freshness { margin: -18px 0 20px; color: #6f6e6b; font-size: 12px; }
-.recommendation-refresh { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 0 0 16px; padding: 14px; border: 1px solid #d8e7f5; border-radius: 8px; background: #f5faff; }
-.recommendation-refresh strong, .recommendation-refresh small { display: block; }
-.recommendation-refresh strong { color: #183a59; font-size: 13px; }
-.recommendation-refresh small { margin-top: 3px; color: #58738c; font-size: 11px; line-height: 1.4; }
-.recommendation-refresh button { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 1px solid #9bbfdf; border-radius: 5px; color: #005bab; background: #fff; font-weight: 600; cursor: pointer; }
-.recommendation-refresh button:hover:not(:disabled) { border-color: #0075de; background: #edf6ff; }
-.recommendation-refresh button:disabled { color: #6f6e6b; cursor: wait; opacity: .75; }
-.dashboard-feedback { width: min(1080px, calc(100% - 48px)); margin: -20px auto 32px; padding: 12px 14px; border-left: 4px solid #0075de; border-radius: 5px; background: #edf6ff; color: #183a59; font-size: 13px; }
-.dashboard-feedback-error { border-left-color: #dd5b00; background: #fbede4; color: #523410; }
-.operational-state { margin: 0 0 16px; padding: 12px 14px; border-radius: 5px; background: #f1f1ef; color: #31302e; font-size: 13px; }
-.dashboard-warning { margin: 0 0 12px; padding: 12px 14px; border-left: 4px solid #dd5b00; border-radius: 5px; background: #fbede4; color: #523410; font-size: 13px; }
-.daily-summary { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; border: 1px solid #e6e6e6; border-radius: 8px; }
-.metric { min-width: 0; padding: 16px; border-right: 1px solid #e6e6e6; }
-.metric:last-child { border: 0; }
-.metric span, .metric small { display: block; color: #6f6e6b; font-size: 11px; }
-.metric strong { display: block; margin-top: 6px; font-size: 20px; letter-spacing: -.45px; }
-.metric small { margin-top: 5px; }
-.progress { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: #ebebea; }
-.progress i { display: block; height: 100%; border-radius: inherit; background: #62aef0; }
-.season-summary { margin: 14px 0 24px; padding: 12px 14px; border: 1px solid #e6e6e6; border-radius: 8px; background: #fafafa; color: #31302e; font-size: 13px; font-weight: 600; }
-.season-summary h2 { margin: 0; font-size: 14px; }
-.season-summary p { margin: 5px 0; color: #6f6e6b; font-weight: 400; }
-.season-summary a { color: #006fcc; }
-.idle-overview { display: grid; gap: 24px; }
-.idle-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); overflow: hidden; border: 1px solid #e6e6e6; border-radius: 8px; }
-.idle-summary .metric:last-child { border-right: 0; }
-.roster-section h2 { margin: 0 0 12px; font-size: 16px; letter-spacing: -.2px; }
-.clan-roster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 1px; overflow: hidden; border-radius: 8px; background: #e6e6e6; list-style: none; }
-.clan-roster li { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 12px; min-width: 0; padding: 12px 14px; background: #fff; }
-.clan-roster li:first-child { border-radius: 7px 0 0; }
-.clan-roster li:nth-child(2) { border-radius: 0 7px 0 0; }
-.roster-member-copy { min-width: 0; }
-.roster-member-copy strong, .roster-member-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.roster-member-copy strong { font-size: 14px; }
-.roster-member-copy small { margin-top: 3px; color: #6f6e6b; font-size: 11px; }
-.lineup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-.empty-state { grid-column: 1 / -1; margin: 0; padding: 28px; border: 1px dashed #d3d3d3; border-radius: 8px; color: #6f6e6b; text-align: center; }
-.action-group { overflow: hidden; border: 1px solid #e6e6e6; border-radius: 8px; }
-.action-group h3 { margin: 0; padding: 13px 14px; border-bottom: 1px solid #e6e6e6; background: #fafafa; font-size: 14px; letter-spacing: -.2px; }
-.member-action { display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px; border-bottom: 1px solid #e6e6e6; }
-.member-action:last-child { border: 0; }
-.town-hall { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; color: #391c57; background: #d6b6f6; font-size: 9px; font-weight: 700; }
-.member-copy strong { font-size: 14px; }
-.member-copy p { margin: 4px 0 0; color: #6f6e6b; font-size: 11px; line-height: 1.4; }
-.member-action button { grid-column: 2; width: fit-content; min-height: 44px; padding: 0; border: 0; color: #0075de; background: transparent; font-size: 12px; font-weight: 600; cursor: pointer; }
-.member-action button:hover { color: #005bab; }
-.member-action button:focus-visible { outline: 3px solid rgb(0 117 222 / 25%); outline-offset: 3px; }
-.recommendation-details { grid-column: 2; margin: 0; padding: 10px; border-radius: 5px; background: #f1f1ef; color: #31302e; font-size: 12px; }
-.dashboard-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
-.dashboard-actions > button:not(.primary-button) { min-height: 44px; padding: 0 16px; border: 1px solid #d3d3d3; border-radius: 5px; background: #fff; cursor: pointer; }
-
-@media (max-width: 840px) {
-  .app-shell > nav { gap: 2px; overflow-x: auto; padding: 6px 12px; }
-  .app-shell > nav a, .season-summary a { display: inline-flex; align-items: center; min-height: 44px; }
-  .dashboard-shell { width: min(100% - 24px, 680px); margin: 12px auto; padding: 28px 20px; }
-  .recommendation-refresh { align-items: stretch; flex-direction: column; gap: 12px; }
-  .recommendation-refresh button { width: 100%; }
-  .dashboard-feedback { width: min(100% - 24px, 680px); margin: 0 auto 12px; }
-  .daily-summary { grid-template-columns: repeat(2, 1fr); }
-  .idle-summary, .clan-roster { grid-template-columns: 1fr; }
-  .idle-summary .metric { border-right: 0; border-bottom: 1px solid #e6e6e6; }
-  .idle-summary .metric:last-child { border-bottom: 0; }
-  .clan-roster li:first-child, .clan-roster li:nth-child(2) { border-radius: 0; }
-  .metric:nth-child(2) { border-right: 0; }
-  .metric:nth-child(-n + 2) { border-bottom: 1px solid #e6e6e6; }
-  .lineup-actions { grid-template-columns: 1fr; gap: 12px; }
-.access-management button { min-height: 44px; }
-}
-
-.access-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.access-heading h1 { margin: 4px 0 0; font-size: clamp(30px, 5vw, 42px); letter-spacing: -1.4px; }
-.fresh-invitation { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; margin: 20px 0; padding: 16px; border: 1px solid #a9cde9; border-radius: 8px; background: #f2f9ff; }
-.fresh-invitation p { margin: 6px 0 0; overflow-wrap: anywhere; color: #365b78; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 400; }
-.access-section { margin-top: 28px; overflow: hidden; border: 1px solid #e1e0dd; border-radius: 9px; }
-.access-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid #e6e6e6; background: #fafafa; }
-.access-section-heading h2 { margin: 0; font-size: 16px; }
-.access-section-heading span { color: #777571; font-size: 12px; }
-.access-list, .audit-list { margin: 0; padding: 0; list-style: none; }
-.access-list > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 20px; padding: 16px; border-bottom: 1px solid #ecebe9; }
-.access-list > li:last-child, .audit-list > li:last-child { border-bottom: 0; }
-.access-item-copy { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
-.access-item-copy strong { font-size: 14px; }
-.access-item-copy small { flex-basis: 100%; color: #777571; font-size: 11px; line-height: 1.45; }
-.access-status { padding: 3px 7px; border-radius: 999px; color: #565451; background: #eeedeb; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.access-status.admin, .access-status.redeemed { color: #11603b; background: #e5f5ec; }
-.access-status.pending { color: #185786; background: #e7f3fc; }
-.access-status.expired, .access-status.revoked { color: #76501c; background: #f7ecd9; }
-.access-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.access-actions button, .access-management > button, .dashboard-warning button, .inline-error button { padding: 0 12px; border: 1px solid #c9c8c5; border-radius: 5px; color: #174e78; background: #fff; font-size: 12px; font-weight: 650; cursor: pointer; }
-.access-actions button:hover:not(:disabled), .access-management > button:hover:not(:disabled) { border-color: #78aede; background: #f2f8fd; }
-.access-actions .danger-button { color: #9a321f; }
-.access-actions button:disabled { cursor: wait; opacity: .55; }
-.access-list li > [role="status"], .inline-error { grid-column: 1 / -1; margin: 0; font-size: 12px; }
-.inline-error { color: #8b301f; }
-.access-empty { margin: 0; padding: 24px 16px; color: #777571; font-size: 13px; }
-.audit-list > li { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding: 13px 16px; border-bottom: 1px solid #ecebe9; font-size: 13px; }
-.audit-list time { color: #777571; font-size: 11px; white-space: nowrap; }
-
-@media (max-width: 680px) {
-  .access-heading, .access-list > li, .fresh-invitation { align-items: stretch; grid-template-columns: 1fr; }
-  .access-heading { flex-direction: column; }
-  .access-heading .primary-button { width: 100%; }
-  .access-actions { justify-content: flex-start; }
-  .access-actions button { flex: 1 1 auto; }
-  .audit-list > li { align-items: flex-start; flex-direction: column; gap: 5px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
-}
-
-/* What is left of the members block after the roster rebuilt onto Clan Muster
- * (#25, wave 1). Every rule the roster carried is gone with the markup that
- * matched it — cards, facts grid, evidence panel, status pills and the filter
- * row. The `filter-menu` rules outlived it into wave 2, where the CWL workspace
- * stopped rendering the control: the prototype replaces a four-control filter
- * row with one search input and ranked candidates, so the component, its rules
- * and the app's last two `textContent` glyphs went with that surface.
- *
- * These five stay because `#/overview` still uses them, and overview is wave 3
- * with an open question over it: #25 leaves undecided whether the route should
- * exist at all, and answering that inside a styling wave is how a restyle
- * becomes a redesign. They match nothing on the rebuilt roster, which is the
- * property that matters — the hazard the same-commit deletion rule guards
- * against is an old rule still matching a rebuilt element. */
-.members-shell { width: min(1240px, calc(100% - 48px)); margin: 32px auto; }
-.members-heading { margin-bottom: 24px; }
-.members-heading h1 { margin: 4px 0 8px; font-size: clamp(32px, 5vw, 52px); letter-spacing: -2px; }
-.members-heading p:not(.eyebrow) { max-width: 720px; margin: 0; color: #6f6e6b; line-height: 1.55; }
-.roster-summary { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 20px; overflow: hidden; border: 1px solid #e0dfdc; border-radius: 10px; background: #fff; }
-.roster-summary div { display: grid; gap: 4px; padding: 24px; border-right: 1px solid #e6e6e6; }
-.roster-summary div:last-child { border-right: 0; }
-.roster-summary strong { font-size: 32px; letter-spacing: -1px; }
-.roster-summary span { color: #6f6e6b; font-size: 13px; }
-.overview-callout { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px; border: 1px solid #d8e5f0; border-radius: 10px; background: #f5faff; }
-.overview-callout h2 { margin: 0 0 6px; }
-.overview-callout p { margin: 0; color: #536577; line-height: 1.5; }
-.primary-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 5px; color: #fff; background: #0075de; font-size: 14px; font-weight: 650; text-decoration: none; white-space: nowrap; }
-
-@media (max-width: 900px) {
-  .roster-summary { grid-template-columns: repeat(2, 1fr); }
-  .roster-summary div:nth-child(2) { border-right: 0; }
-  .roster-summary div:nth-child(-n + 2) { border-bottom: 1px solid #e6e6e6; }
-}
-
-@media (max-width: 560px) {
-  .members-shell { width: min(100% - 24px, 680px); margin: 18px auto; }
-  .roster-summary { grid-template-columns: 1fr; }
-  .roster-summary div { border-right: 0; border-bottom: 1px solid #e6e6e6; }
-  .roster-summary div:last-child { border-bottom: 0; }
-  .overview-callout { align-items: stretch; flex-direction: column; }
-  .primary-link { justify-content: center; }
-}

@@ -12,6 +12,7 @@
  * leaves: see "the rotation queue" note below.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
 import { Sheet } from "../design/sheet.js";
 import {
@@ -30,6 +31,8 @@ import {
   type CwlLineupWorkspaceSnapshot,
   type CwlWarState,
 } from "../data/operations.js";
+import { CwlPhaseStrip } from "./cwl-phase-strip.js";
+import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-lineup-workspace.css";
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7];
@@ -457,7 +460,15 @@ function useWide(): boolean {
   return wide;
 }
 
-export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanTag: string }) {
+export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase }: {
+  client: any;
+  clanTag: string;
+  /* The phase this route is in, and how to leave it (ADR 0002). Wave 3 turned
+     this from a page into one phase of a route; nothing else about the workspace
+     moved. */
+  phase: CwlPhase;
+  onPhase: (next: CwlPhase) => void;
+}) {
   const wide = useWide();
   const [day, setDay] = useState<number>();
   const [snapshot, setSnapshot] = useState<CwlLineupWorkspaceSnapshot>();
@@ -758,7 +769,8 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
 
   if (loading && !snapshot) {
     return <main className="cm-shell" aria-busy="true">
-      <header className="cm-topbar"><div><p className="cm-eyebrow">CWL</p><h1>Lineup</h1></div></header>
+      <AppTopbar route="cwl" eyebrow="CWL" title="Lineup" />
+      <CwlPhaseStrip phase={phase} onPhase={onPhase} lineupDayLabel="Lineup" />
       <div className="cm-rows">{[0, 1, 2, 3, 4, 5].map((index) => <div className="cm-row is-skeleton" key={index}>
         <span className="cm-row-main"><span className="cm-skel" style={{ width: "42%" }} /><span className="cm-row-meta"><span className="cm-skel" style={{ width: 84 }} /></span></span>
         <span className="cm-row-stats"><span className="cm-skel" style={{ width: 34 }} /></span>
@@ -815,11 +827,11 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
 
   return <>
     <main className="cm-shell cwl-workspace">
-      <header className="cm-topbar">
-        <div>
-          <p className="cm-eyebrow">CWL <span className="cm-sep">·</span> {snapshot.season.seasonId}</p>
-          <h1>Day {day} lineup</h1>
-        </div>
+      <AppTopbar
+        route="cwl"
+        eyebrow={<>CWL <span className="cm-sep">·</span> {snapshot.season.seasonId}</>}
+        title={`Day ${day} lineup`}
+      >
         <div className="cm-topbar-side">
           <span className={`cm-statuschip ${locked ? "is-on" : ""}`}>{locked ? "Locked" : "Unlocked"}</span>
           <span className="cwl-daymenu-wrap">
@@ -839,9 +851,11 @@ export function CwlLineupWorkspacePage({ client, clanTag }: { client: any; clanT
               : null}
           </span>
         </div>
-      </header>
+      </AppTopbar>
 
-      <nav className="cm-segmented" aria-label="CWL war days">
+      <CwlPhaseStrip phase={phase} onPhase={onPhase} lineupDayLabel={`Day ${day}`} />
+
+      <nav className="cm-segmented cwl-daystrip" aria-label="CWL war days">
         {DAYS.map((item) => <button key={item} type="button" aria-current={item === day} onClick={() => setDay(item)}>
           <span>Day {item}</span><small>{warDayStatus(warStates.get(item))}</small>
         </button>)}

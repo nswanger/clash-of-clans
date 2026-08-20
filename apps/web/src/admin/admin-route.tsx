@@ -1,16 +1,28 @@
+/* The Admin route's loader (#25, wave 3).
+ *
+ * Two loads rather than one, and they fail independently on purpose: access
+ * management is the page, and collection health is a section inside it. A
+ * collection-health query that fails must not take the invitation controls down
+ * with it — the operator who most needs to create an invitation is the one
+ * whose collector is broken.
+ */
 import { useCallback, useEffect, useState } from "react";
 import {
   createInvitation,
   demoteAdmin,
   loadAccessManagement,
+  loadCollectionHealth,
   promoteLeader,
   reissueInvitation,
   revokeAccess,
   revokeInvitation,
   type AccessManagementClient,
   type AccessManagementSnapshot,
+  type CollectionHealth,
 } from "../data/operations.js";
-import { AccessManagement } from "./access-management.js";
+import { AppTopbar } from "../app-chrome.js";
+import { AdminPage } from "./admin-page.js";
+import "./admin.css";
 
 function expiresTomorrow(): string {
   return new Date(Date.now() + 86_400_000).toISOString();
@@ -20,8 +32,9 @@ function invitationUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, "")}/?invitation=${encodeURIComponent(token)}`;
 }
 
-export function AccessPage({ client, origin }: { client: AccessManagementClient; origin: string }) {
+export function AdminRoute({ client, origin }: { client: AccessManagementClient; origin: string }) {
   const [snapshot, setSnapshot] = useState<AccessManagementSnapshot>();
+  const [collection, setCollection] = useState<CollectionHealth>();
   const [loadError, setLoadError] = useState<string>();
 
   const load = useCallback(async () => {
@@ -31,26 +44,38 @@ export function AccessPage({ client, origin }: { client: AccessManagementClient;
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Unable to load access management.");
     }
+    /* Swallowed rather than raised: an unavailable health section renders as
+       absent, which is the honest reading of "we could not ask". Raising it
+       would put a collector problem in the notice region of the page that
+       manages people. */
+    await loadCollectionHealth(client)
+      .then(setCollection)
+      .catch(() => setCollection(undefined));
   }, [client]);
 
   useEffect(() => { void load(); }, [load]);
 
   if (!snapshot && loadError) {
-    return <main className="dashboard-shell access-management">
-      <h1>Access management</h1>
-      <p className="dashboard-warning" role="alert">{loadError}</p>
-      <button type="button" onClick={() => void load()}>Retry</button>
+    return <main className="cm-shell admin-page">
+      <AppTopbar route="admin" eyebrow="Operations" title="Admin" />
+      <div className="cm-notice" role="alert">
+        <div className="cm-grow"><strong>Admin unavailable</strong><p>{loadError}</p></div>
+        <button type="button" onClick={() => void load()}>Retry</button>
+      </div>
     </main>;
   }
-  if (!snapshot) return <main className="dashboard-shell"><p role="status">Loading access…</p></main>;
+  /* Nothing at all below the threshold, and no copy above it: this route is one
+     RPC and it either arrives or reports itself (#43). */
+  if (!snapshot) return <main className="cm-shell admin-page" aria-busy="true" />;
 
   const refreshAfter = async (mutation: () => Promise<void>) => {
     await mutation();
     await load();
   };
 
-  return <AccessManagement
+  return <AdminPage
     snapshot={snapshot}
+    collection={collection}
     loadError={loadError}
     onRetryLoad={load}
     onCreateInvitation={async () => {

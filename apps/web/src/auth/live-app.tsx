@@ -4,8 +4,10 @@ import {
   redeemCallbackInvitation,
   resolveAppSession,
   signInWithDiscord,
+  signOut,
   type AuthClient,
   type SessionClient,
+  type SignOutClient,
 } from "./session.js";
 
 interface AuthSubscription {
@@ -13,7 +15,7 @@ interface AuthSubscription {
 }
 
 export interface LiveSessionClient extends Omit<AuthClient, "rpc">, Omit<SessionClient, "rpc"> {
-  auth: AuthClient["auth"] & SessionClient["auth"] & {
+  auth: AuthClient["auth"] & SessionClient["auth"] & SignOutClient["auth"] & {
     onAuthStateChange(callback: () => void): AuthSubscription;
   };
   rpc(name: "redeem_invitation", args: { token: string }): Promise<{ error: { message: string } | null }>;
@@ -83,6 +85,14 @@ export function LiveApp({ client, location, children, navigation = defaultNaviga
   return (
     <App
       session={session}
+      onSignOut={() => {
+        void signOut(client).catch((error) => {
+          setSession({
+            status: "access_denied",
+            message: error instanceof Error ? error.message : "Unable to sign out.",
+          });
+        });
+      }}
       onSignIn={() => {
         const currentUrl = new URL(location.href);
         const invitation = currentUrl.searchParams.get("invitation");

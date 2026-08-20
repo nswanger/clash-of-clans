@@ -1,0 +1,13 @@
+/* The CWL route's own layer — what neither phase owns.
+ *
+ * One rule, and it exists because the route has two `cm-segmented` strips on the
+ * lineup phase and one on the review phase (ADR 0002). The gap under the phase
+ * strip is what stops the pair reading as a single two-row control; the
+ * component cannot own it, because on the review phase a bottom margin would
+ * leave a hole under a strip with nothing beneath it.
+ *
+ * It lives beside the strip component that needs it rather than in either
+ * phase's stylesheet, so neither phase can be loaded without it and neither has
+ * to duplicate it.
+ */
+.cwl-phasestrip { margin-bottom: var(--cm-space-3); }

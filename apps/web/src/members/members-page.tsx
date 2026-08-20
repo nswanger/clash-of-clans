@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
 import { Sheet } from "../design/sheet.js";
 import {
@@ -122,14 +123,14 @@ export function MembersPage({ client, clanTag }: MemberPageProps) {
 
   return <>
     <main className="cm-shell members-page">
-      <header className="cm-topbar">
-        <div>
-          <p className="cm-eyebrow">Year-round clan</p>
-          <h1>Members</h1>
-        </div>
-      </header>
+      <AppTopbar route="members" eyebrow="Year-round clan" title="Members" />
 
-      <div className="members-summary">
+      {/* The summary strip is `cm-summary` now, not `members-summary`. It was
+          page layer here because one surface used it; the review phase needed
+          exactly the same aggregate read, and a second surface is what promoted
+          it (#54). The markup did not change — that is the point of the
+          finding. */}
+      <div className="cm-summary">
         <Metric value={roster.ready ? current.length : null} label="Current members" />
         <Metric
           value={roster.ready ? current.filter((member) => statusOf(member) === "observed").length : null}
@@ -210,44 +211,6 @@ export function MembersPage({ client, clanTag }: MemberPageProps) {
       ? <Sheet label={sheetLabel} onClose={() => setPanel(null)}>{panelBody}</Sheet>
       : null}
   </>;
-}
-
-/* The year-round summary route (#/overview).
- *
- * Untouched by this wave beyond what the data change forces: it is wave 3's,
- * and #25 leaves open whether it should exist at all — the members roster now
- * carries the same four metrics, so conforming it as-is would ship two pages
- * showing identical numbers, one of which exists only to link to the other.
- * Deciding that inside a styling wave is how a restyle becomes a redesign. */
-export function RosterOverviewPage({ client, clanTag }: MemberPageProps) {
-  const roster = useMemberRoster(client, clanTag, DEFAULT_WINDOW_DAYS);
-  if (!roster.ready) {
-    return <main className="members-shell">
-      <h1>Clan overview</h1>
-      <p role={roster.error ? "alert" : "status"}>{roster.error ?? "Loading roster history…"}</p>
-    </main>;
-  }
-  const current = roster.members.filter((member) => member.isCurrentMember);
-  const statusOf = (member: MemberRosterMember) => activityStatus(roster.activity.get(member.playerTag));
-  return (
-    <main className="members-shell">
-      <header className="members-heading">
-        <p className="eyebrow">Year-round clan</p>
-        <h1>Clan overview</h1>
-        <p>Roster health based on successful daily observations, and war activity observed in the wars we logged.</p>
-      </header>
-      <section className="roster-summary" aria-label="Roster summary">
-        <SummaryMetric label="Current members" value={current.length} />
-        <SummaryMetric label="Activity observed · 7 days" value={current.filter((member) => statusOf(member) === "observed").length} />
-        <SummaryMetric label="Building history" value={current.filter((member) => statusOf(member) === "unknown").length} />
-        <SummaryMetric label="Former members" value={roster.members.length - current.length} />
-      </section>
-      <section className="overview-callout">
-        <div><h2>Member history</h2><p>Review roles, observation tenure, profile freshness, and the evidence behind recent activity signals.</p></div>
-        <a className="primary-link" href="#/members">Review members</a>
-      </section>
-    </main>
-  );
 }
 
 /* Rows mark the exception, never the rule. Most members turn up, so a status on
@@ -441,11 +404,7 @@ function SkeletonRows() {
 }
 
 function Metric({ value, label }: { value: number | null; label: string }) {
-  return <div className="members-metric"><strong>{value ?? "—"}</strong><span>{label}</span></div>;
-}
-
-function SummaryMetric({ label, value }: { label: string; value: number }) {
-  return <div><strong>{value}</strong><span>{label}</span></div>;
+  return <div className="cm-metric"><strong>{value ?? "—"}</strong><span>{label}</span></div>;
 }
 
 /* Roster facts and observed war activity are two loads, and only the second

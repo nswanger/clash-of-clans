@@ -45,6 +45,13 @@ export interface AuthClient {
   rpc(name: "redeem_invitation", args: { token: string }): Promise<AuthResult>;
 }
 
+/* Its own interface rather than a method on `AuthClient`: signing out needs
+ * nothing that signing in needs, and widening `AuthClient` would make every
+ * caller and every test stub a method it never reaches. */
+export interface SignOutClient {
+  auth: { signOut(): Promise<AuthResult> };
+}
+
 export async function signInWithDiscord(client: AuthClient, origin: string, returnTo: string, basePath = "/"): Promise<void> {
   const callback = new URL(basePath, origin);
   callback.searchParams.set("authCallback", "1");
@@ -53,6 +60,16 @@ export async function signInWithDiscord(client: AuthClient, origin: string, retu
     provider: "discord",
     options: { redirectTo: callback.toString() },
   });
+  if (error) throw new Error(error.message);
+}
+
+/* The app had no route to sign out at all until #58 gave the display name an
+ * affordance. There is nothing to clean up beyond the Supabase session: the
+ * auth state change this fires is what `LiveApp` already listens to, so the
+ * signed-out shell arrives through the same path a revoked session does rather
+ * than through a second one. */
+export async function signOut(client: SignOutClient): Promise<void> {
+  const { error } = await client.auth.signOut();
   if (error) throw new Error(error.message);
 }
 

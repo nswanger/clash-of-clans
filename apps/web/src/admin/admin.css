@@ -1,0 +1,88 @@
+/* Admin — page layer.
+ *
+ * No prototype: this surface is conformed against the component inventory
+ * rather than ported, which is what wave 3 asks of the three surviving routes.
+ * The measure of that is how short this file is — the sections, rows, pills,
+ * notice, buttons and counts are all `cm-`, and what is left is the four things
+ * genuinely peculiar to an operations page.
+ *
+ * Prefixed `admin-`, and the prefix earns its keep immediately: the old
+ * `.access-shell` was shared by this page and the sign-in screen, two unrelated
+ * surfaces on one class. Wave 3 splits them into `admin-` and `auth-`.
+ */
+
+/* Sections stack down the page here rather than sitting in columns: Admin has
+ * no detail panel, so `cm-columns` would be a one-column grid pretending to be
+ * two. */
+.admin-section + .admin-section { margin-top: var(--cm-space-6); }
+
+/* A row with controls rather than a row that IS a control. `cm-row` is a button
+ * on every other surface; here it is a container holding two or three of them,
+ * so it is a wrapping flex line instead of the component's fixed grid.
+ *
+ * SCOPED TO AN ANCESTOR, like every page-layer rule that overrides a component.
+ * `.admin-row` and `.cm-row` are the same specificity, and a bundler orders
+ * stylesheets by import graph — this file is imported from its own module and so
+ * lands BEFORE the component layer, losing every tie. Unscoped, `display: grid`
+ * beat `display: flex` and the controls stacked one per line. */
+.admin-page .admin-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--cm-space-2) var(--cm-space-3);
+  cursor: default;
+}
+.admin-page .admin-row .cm-row-main { flex: 1 1 220px; }
+.admin-page .admin-row .cm-row-meta { flex-wrap: wrap; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: var(--cm-space-2); }
+
+/* The invitation link, shown once and never stored. Monospace because it is a
+ * token to be copied rather than prose, and it wraps anywhere because it has no
+ * spaces and must not push the page sideways. */
+.admin-fresh {
+  margin-bottom: var(--cm-space-3); padding: var(--cm-space-3);
+  border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface-sunken);
+}
+.admin-token {
+  margin: 0 0 var(--cm-space-3);
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--cm-text-xs); color: var(--cm-fg-strong);
+}
+
+/* One fact per row, as `members-facts` and `cwl-review-facts` do it — and
+ * deliberately NOT promoted to a component on its third use. Each of the three
+ * carries a different column count and grid for a different reading: two-up for
+ * a member's season, and label-beside-value here because an endpoint name and a
+ * failure category are a pair rather than a grid. A component parameterised by
+ * its own grid is a <div> with extra steps. */
+.admin-facts { display: grid; gap: var(--cm-space-2); margin: var(--cm-space-3) 0 0; }
+.admin-facts > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--cm-space-2); }
+.admin-facts dt {
+  min-width: 140px;
+  font-size: var(--cm-text-label); font-weight: var(--cm-weight-semibold);
+  letter-spacing: var(--cm-tracking-label); text-transform: uppercase; color: var(--cm-fg-muted);
+}
+.admin-facts dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); }
+
+.admin-audit { margin: 0; padding: 0; list-style: none; }
+.admin-audit li {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: var(--cm-space-2) var(--cm-space-4);
+  padding: var(--cm-space-3) 0;
+  font-size: var(--cm-text-sm); color: var(--cm-fg);
+}
+.admin-audit li + li { border-top: 1px solid var(--cm-hairline); }
+.admin-audit time { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); white-space: nowrap; }
+
+.admin-freshness { margin: var(--cm-space-3) 0 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+
+/* A per-row failure, not a page-level one. It sits inside the row it belongs to
+ * rather than raising the notice region, because the notice region takes one
+ * claimant per screen and a failed promote is about one person. */
+.admin-error { display: block; margin-top: 4px; font-size: var(--cm-text-xs); color: var(--cm-danger-ink); }
+
+.admin-live {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden; white-space: nowrap;
+  clip-path: inset(50%); border: 0;
+}
