@@ -126,12 +126,24 @@ function CollectionHealthSection({ collection }: { collection: CollectionHealth 
         {collection.startedAt ? <> Latest run started {formatInstant(collection.startedAt)}
           {collection.finishedAt ? <> and finished {formatInstant(collection.finishedAt)}</> : <>, still running</>}.</> : null}
       </p>
+      {/* A run with no status is no run: `loadCollectionHealth` returns the
+          empty health when the table has no rows, and calling that "the latest
+          run was not healthy" names a run the reader could go and look at (#74).
+          It stays a fault — absent evidence stays absent — but it is the fault
+          it actually is. */}
       {unhealthy
         ? <div className="cm-notice" role="alert">
             <div className="cm-grow">
-              <strong>The latest collection run was not healthy</strong>
-              <p>{collection.errorMessage
-                ?? "Figures elsewhere in the app are as old as the last fresh observation above."}</p>
+              {collection.status
+                ? <>
+                    <strong>The latest collection run was not healthy</strong>
+                    <p>{collection.errorMessage
+                      ?? "Figures elsewhere in the app are as old as the last fresh observation above."}</p>
+                  </>
+                : <>
+                    <strong>No collection run has been recorded</strong>
+                    <p>Nothing the app shows can be dated. Check that the collector is running.</p>
+                  </>}
             </div>
           </div>
         : null}
