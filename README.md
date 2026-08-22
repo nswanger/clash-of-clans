@@ -25,7 +25,7 @@ For project GitHub Pages, set `VITE_BASE_PATH` to `/repository-name/`; the deplo
 
 The UnRaid collector uses the separate server-only names in `deploy/unraid/collector.env.example`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLASH_API_TOKEN`, `CLAN_TAG`, and `TZ`. Never expose those server credentials through a `VITE_` variable. Never commit real API tokens, clan or player tags, private member notes, or production credentials. The UnRaid runbook contains the deployment-specific connection procedure; do not copy its sensitive values into source files or tickets.
 
-Use the bundled Node 24 toolchain for local work. CI runs Node 22. Avoid Node 25 for this project because of the current jsdom compatibility issue.
+Local work and CI both run the Node version in `.nvmrc` (Node 24, the active LTS line, supported through April 2028); `nvm use` picks it up. The collector is pinned separately to `node:22-alpine` in `docker/collector.Dockerfile`, which is what fixes its runtime — `engines.node` stays at `>=22` to state that floor. Node 25 is end-of-life and Node 20 older still, so neither should be used here; the Node 25 Web Storage global that shadowed jsdom's `localStorage` is repaired in `apps/web/src/test/setup.ts`, so the suite passes on any of these regardless.
 
 ## Verification
 
