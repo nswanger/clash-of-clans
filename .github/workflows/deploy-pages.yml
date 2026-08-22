@@ -72,11 +72,13 @@ jobs:
 
       # Nothing ran this suite until now, which is how two specs sat stale
       # through a whole wave of rebuilds while the app's default route lost all
-      # browser-level coverage (#63). Both Playwright projects — Desktop Chrome
-      # and iPhone 13 — are Chromium, so one browser covers the matrix, and the
-      # 26 tests take under ten seconds.
-      - name: Install the Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+      # browser-level coverage (#63). The two Playwright projects need two
+      # engines: Desktop Chrome is Chromium, but the iPhone 13 descriptor
+      # carries defaultBrowserType: webkit, so installing Chromium alone failed
+      # all 13 mobile tests on the first CI run. The 26 tests take under ten
+      # seconds; the browser download is the slow part.
+      - name: Install the Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: End-to-end test
         run: pnpm e2e
