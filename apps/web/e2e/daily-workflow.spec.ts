@@ -26,6 +26,16 @@ import { expect, test, type Page } from "@playwright/test";
  * on screen before you ask for it. */
 const DOCKED_BENCH_WIDTH = 720;
 
+/* The page's own location, not `page.url()`. Every URL these specs wait on
+ * changes within one document — a redirect's `location.replace`, a phase
+ * parameter, a consumed invitation token — so Playwright's frame URL updates on
+ * a history event rather than a navigation, and a late or missed event leaves
+ * the cached value stale for a whole poll window (#75). Asking the page reads
+ * the fact itself. */
+function currentUrl(page: Page) {
+  return page.evaluate(() => window.location.href);
+}
+
 function lastMutation(page: Page) {
   return page.evaluate(() => localStorage.getItem("e2e:last-mutation"));
 }
@@ -44,17 +54,25 @@ test("opens the route menu from the page name and moves between routes", async (
   await expect(page.getByRole("heading", { level: 1, name: "Members" })).toBeVisible();
 });
 
+/* `reuseExistingServer: false` starts Vite fresh every run, and this spec is
+ * early enough in the file to be the one that pays for a cold module graph. A
+ * redirect needs a mount, an effect and a hash change on top of that, which can
+ * outrun the 5s poll default on a first request and on nothing afterwards —
+ * consistent with a failure that never reproduced (#75). The wait is only spent
+ * when it is needed. */
+const REDIRECT_TIMEOUT = { timeout: 15_000 };
+
 test("redirects the routes ADR 0002 renamed", async ({ page }) => {
   await page.goto("/#/cwl-lineup");
-  await expect.poll(() => page.url()).toContain("#/cwl");
+  await expect.poll(() => currentUrl(page), REDIRECT_TIMEOUT).toContain("#/cwl");
 
   await page.goto("/#/access");
-  await expect.poll(() => page.url()).toContain("#/admin");
+  await expect.poll(() => currentUrl(page), REDIRECT_TIMEOUT).toContain("#/admin");
 
   /* Deleted for duplicating the roster's own numbers, so the roster is where a
      bookmark should land. */
   await page.goto("/#/overview");
-  await expect.poll(() => page.url()).toContain("#/members");
+  await expect.poll(() => currentUrl(page), REDIRECT_TIMEOUT).toContain("#/members");
 });
 
 test("routes to the admin workflow and keeps its touch targets", async ({ page }) => {
@@ -85,7 +103,7 @@ test("opens the CWL route on the phase the season is actually in", async ({ page
   await expect(page.getByRole("button", { name: /^Lineup/ })).toHaveAttribute("aria-current", "true");
 
   await page.getByRole("button", { name: /^Review/ }).click();
-  await expect.poll(() => page.url()).toContain("phase=review");
+  await expect.poll(() => currentUrl(page)).toContain("phase=review");
   /* NOT "Eight or more stars", which cannot render against this fixture and is
      why this assertion was failing: CWL allows one attack per member per war, so
      two logged war days cap a member at six stars and the secured group is
@@ -159,7 +177,7 @@ test("keeps the page from scrolling sideways on a phone", async ({ page }) => {
 test("redeems an invitation and restores a hash route without leaking the token", async ({ page }) => {
   await page.goto("/?authCallback=1&invitation=e2e-invite&returnTo=%23%2Fmembers");
   await expect(page.getByRole("heading", { level: 1, name: "Members" })).toBeVisible();
-  await expect.poll(() => page.url()).not.toContain("invitation");
+  await expect.poll(() => currentUrl(page)).not.toContain("invitation");
   await expect.poll(() => lastMutation(page)).toContain("redeem_invitation");
 });
 
