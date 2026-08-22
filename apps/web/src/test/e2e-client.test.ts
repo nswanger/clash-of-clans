@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createE2EClient } from "./e2e-client.js";
 
 /* THE STUB'S JOINS ARE THE PART THAT FAILS SILENTLY. A `select()` that drops an
@@ -7,23 +7,9 @@ import { createE2EClient } from "./e2e-client.js";
  * the fixture told the surface the opposite of what production would. */
 describe("the e2e Supabase stub", () => {
   /* The stub reads `window.localStorage` because the browser it was written for
-     has one. Under Node 25 the runtime's own `localStorage` global shadows
-     jsdom's and answers none of the Storage methods — the jsdom incompatibility
-     the README warns about — so the suite supplies the real API rather than
-     depending on which Node happens to be in front. */
-  beforeEach(() => {
-    const entries = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => entries.get(key) ?? null,
-      setItem: (key: string, value: string) => { entries.set(key, value); },
-      removeItem: (key: string) => { entries.delete(key); },
-      clear: () => { entries.clear(); },
-      key: (index: number) => [...entries.keys()][index] ?? null,
-      get length() { return entries.size; },
-    });
-  });
-
-  afterEach(() => { vi.unstubAllGlobals(); });
+     has one. This suite used to hand-roll a Storage here because a Node 25
+     runtime global shadows jsdom's; `src/test/setup.ts` now repairs that once
+     for every suite, so the local stub is gone. */
 
   it("embeds a run's attempts the way PostgREST does", async () => {
     const client = createE2EClient();
