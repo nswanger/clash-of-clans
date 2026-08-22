@@ -159,6 +159,19 @@ function reviewClient(overrides: Record<string, unknown[]> = {}) {
   return { from, rpc };
 }
 
+/* The run the collector writes between seasons, with its attempts embedded the
+   way the loader now asks for them. Everything succeeded except the league
+   group, which does not exist until the next CWL starts. */
+const IDLE_CWL_RUN = {
+  status: "partial",
+  last_fresh_at: "2026-08-20T06:00:00Z",
+  collection_attempts: [
+    { endpoint: "clan", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-20T06:00:00Z", finished_at: "2026-08-20T06:00:10Z" },
+    { endpoint: "members", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-20T06:00:10Z", finished_at: "2026-08-20T06:00:20Z" },
+    { endpoint: "league_group", status: "failed", http_status: 404, error_category: "not_found", started_at: "2026-08-20T06:00:20Z", finished_at: "2026-08-20T06:00:21Z" },
+  ],
+};
+
 describe("CwlReviewPage", () => {
   it("ranks the season into the two eight-star groups", async () => {
     render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
@@ -237,5 +250,25 @@ describe("CwlReviewPage", () => {
     await user.click(await screen.findByRole("button", { name: /Lineup/ }));
 
     expect(onPhase).toHaveBeenCalledWith("lineup");
+  });
+
+  it("does not call the season record stale when only the league group was absent", async () => {
+    render(<CwlReviewPage client={reviewClient({ collection_runs: [IDLE_CWL_RUN] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByRole("heading", { name: /Eight or more stars/ })).toBeVisible();
+    expect(screen.queryByText("Collection data is stale")).not.toBeInTheDocument();
+  });
+
+  it("still calls the season record stale when a real endpoint failed", async () => {
+    const brokenRun = {
+      ...IDLE_CWL_RUN,
+      collection_attempts: [
+        ...IDLE_CWL_RUN.collection_attempts,
+        { endpoint: "player", status: "failed", http_status: 200, error_category: "normalization_error", started_at: "2026-08-20T06:00:21Z", finished_at: "2026-08-20T06:00:22Z" },
+      ],
+    };
+    render(<CwlReviewPage client={reviewClient({ collection_runs: [brokenRun] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByText("Collection data is stale")).toBeVisible();
   });
 });

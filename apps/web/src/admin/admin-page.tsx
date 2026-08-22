@@ -24,6 +24,7 @@ import { useState } from "react";
 import { AppTopbar } from "../app-chrome.js";
 import {
   isCollectionUnhealthy,
+  isExpectedIdleCwlPartial,
   type AccessAuditEvent,
   type AccessInvitation,
   type AccessManagementSnapshot,
@@ -103,7 +104,13 @@ function AuditDescription({ event }: { event: AccessAuditEvent }) {
 function CollectionHealthSection({ collection }: { collection: CollectionHealth | undefined }) {
   if (!collection) return null;
   const unhealthy = isCollectionUnhealthy(collection);
-  const failing = collection.attempts.filter((attempt) => attempt.status !== "healthy");
+  /* Between seasons the league group's 404 is the expected shape of a `partial`
+     run, so the breakdown stays closed along with the banner. Listing the one
+     attempt that failed for the ordinary reason would restate the happy path in
+     table form, which is the thing this section already refuses to draw. */
+  const failing = isExpectedIdleCwlPartial(collection)
+    ? []
+    : collection.attempts.filter((attempt) => attempt.status !== "healthy");
   return (
     <section className="cm-section admin-section" aria-labelledby="admin-collection-heading">
       <div className="cm-section-head">

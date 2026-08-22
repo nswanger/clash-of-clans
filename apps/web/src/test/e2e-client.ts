@@ -156,6 +156,27 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
      instead of narrowing it. Ignoring those keeps a thin fixture thin, while a
      column the fixture does model is honoured. */
   const filters: Array<{ column: string; match: (value: unknown) => boolean }> = [];
+  const embeds: string[] = [];
+  /* Join an embedded child onto its parent row the way PostgREST does. The
+     foreign key is named per embed rather than derived from the table name,
+     because `collection_attempts.run_id` does not follow from
+     `collection_runs` by any rule worth guessing at. An embed this map does not
+     know is left absent rather than invented, which fails loudly in the test
+     that needs it instead of quietly returning the wrong rows. */
+  const embedForeignKeys: Record<string, string> = { collection_attempts: "run_id" };
+  const withEmbeds = (row: unknown) => {
+    if (!row || typeof row !== "object" || embeds.length === 0) return row;
+    const parent = row as Record<string, unknown>;
+    const joined: Record<string, unknown> = { ...parent };
+    for (const embed of embeds) {
+      const childRows = tableData[embed];
+      const foreignKey = embedForeignKeys[embed];
+      if (!Array.isArray(childRows) || !foreignKey) continue;
+      joined[embed] = childRows.filter((child) => child && typeof child === "object"
+        && (child as Record<string, unknown>)[foreignKey] === parent.id);
+    }
+    return joined;
+  };
   const applyFilters = (data: unknown) => {
     if (!Array.isArray(data)) return data;
     return data.filter((row) => filters.every((filter) => {
@@ -172,10 +193,19 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
      marker reads every day's state. */
   const firstRow = () => {
     const data = applyFilters(tableData[table] ?? null);
-    return { data: Array.isArray(data) ? data[0] ?? null : data, error: null };
+    return { data: withEmbeds(Array.isArray(data) ? data[0] ?? null : data), error: null };
   };
   const query: any = {
-    select: () => query,
+    /* THE FIELD LIST IS IGNORED EXCEPT FOR EMBEDS. A plain column list changes
+       nothing here — the fixture row is returned whole — but an embedded
+       resource is a join the fixture has to perform, and a stub that quietly
+       dropped it would hand the caveat an empty attempts list and make an idle
+       CWL run read as a fault on exactly the surface this models. */
+    select: (fields?: string) => {
+      const embedded = typeof fields === "string" ? fields.match(/([a-z_]+)\(/g) ?? [] : [];
+      for (const match of embedded) embeds.push(match.slice(0, -1));
+      return query;
+    },
     eq: (column: string, value: unknown) => { filters.push({ column, match: (candidate) => candidate === value }); return query; },
     in: (column: string, values: unknown[]) => { filters.push({ column, match: (candidate) => values.includes(candidate) }); return query; },
     order: () => query, limit: () => query,
