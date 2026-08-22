@@ -230,16 +230,19 @@ Not components. Listed so the boundary is legible.
 
 **Auth:** the shell that carries the three session states. One surface, three states, and the only place the mark appears large; it is page layer because exactly one route renders it.
 
+**#55 confirmed the season menu stays page layer, and moved it up one level within that.** Stand down needs it byte-for-byte, which looks like the second use that promoted `cm-summary` and is not: stand down and review are two *phases of one route*, so the menu is still one surface's own overflow. It moves from `cwl-review.css` to `cwl-route.css` as `.cwl-seasonmenu*`, which is where what neither phase owns already lives.
+
 The season menu is the lineup's day menu at a different scope, and stays page layer for the same reason: both are one surface's own overflow of actions, not a control the system offers. Seasons are deliberately **not** a `cm-segmented` — the strip on that route already carries the phase (ADR 0002), and seasons accumulate without bound while war days and activity windows are fixed small sets.
 
 ## What is deliberately not a component
 
 - **A success, caution or info notice.** The notice region takes danger only, and only two things can fill it (#19). Everything else that wants to announce itself is a mark on the thing it describes.
 - **A "no changes" or "all good" banner.** Rows and surfaces mark the exception, never the rule. Thirteen "Available" labels on fifteen rows is the happy-path banner again, one row at a time.
-- **A loading spinner, an empty-state illustration, an error card.** Not yet designed, and inventing them here would be guessing ahead of a surface that needs them. The empty state now has its surface — wave 4's resting phase ([#55](https://github.com/nswanger/clash-of-clans/issues/55)) — and is still not drawn here, because that wave is where it gets decided.
+- **A loading spinner and an error card.** Not yet designed, and inventing them here would be guessing ahead of a surface that needs them.
+- **An empty-state illustration — decided in [#55](https://github.com/nswanger/clash-of-clans/issues/55), and still not a component.** Wave 4's stand-down phase is the surface this was waiting for, and it produced a page-layer state rather than a system-layer one: the body is a countdown with one job and one occupant, not a reusable empty. What it did spend is [#24](https://github.com/nswanger/clash-of-clans/issues/24)'s third identity permission — "muted empty states" — which had never fired because no empty state existed. The mark is the cabossed head at 72px in `--cm-hairline`. Spec: [`prototype/cwl-resting.html`](prototype/cwl-resting.html).
 - **A modal dialog.** The panel covers every case both surfaces had. A second overlay form would need a reason neither has produced.
 - **A tooltip.** Nothing survived that needed one; evidence goes in the panel.
-- **A card.** `cm-row` and `cm-panel` cover the two real shapes. "Card" is a name for a box, not for a concept, and it is how the current CSS ended up with 43 distinct paddings (#14).
+- **A card.** `cm-row` and `cm-panel` cover the two real shapes. "Card" is a name for a box, not for a concept, and it is how the current CSS ended up with 43 distinct paddings (#14). **#55 tested this and it held.** The stand-down body is the first thing in the app that wanted a plain bordered box with prose in it — `cm-panel` is an overlay sheet and could not serve — and the answer was still no: it carries its own container in the page layer, because what it needs is that one state and not a box shape with a name. A second surface asking is what would change this.
 - **A tick and a cross for a data outcome.** #54 wanted them for a per-war-day record and used words instead. #40's line is that an affordance becomes an icon while everything else stays type, and a war day's outcome is not something you press — so the icon set stays at eight.
 - **Density or theme variants on any component.** Density follows `(pointer: coarse)` and theme follows the token layer, so surfaces inherit both rather than choosing (#17).
 

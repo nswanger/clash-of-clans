@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CWL stand down — mobile prototype</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="_prototype.css">
+<script src="_prototype.js" defer></script>
+<style>
+/* Clan Muster — the CWL stand-down phase (#55 prototype, wave 4).
+ *
+ * The third phase of the CWL route (ADR 0002). Lineup and review are exactly
+ * complementary in time; this is the third position, where neither has anything
+ * to say. It is where bare #/cwl lands once the bonuses are administered.
+ *
+ * THE TICKET'S GATING QUESTION ANSWERS NO. #55 asked whether a page-scale
+ * resting state is simply `.empty` at a larger size, and it is not — but the
+ * reason is not scale. Every one of the six live `.empty` uses is a slot filler
+ * inside a panel that already supplies a heading and a frame; it stands in for a
+ * list. There is no list here. The body IS the state, so it is one new
+ * page-layer component and nothing else.
+ *
+ * IT IS A COUNTDOWN, NOT A NOTICE, and that is a deliberate reading of ADR
+ * 0002's constraint rather than an exception to it. The ADR requires this
+ * surface to read as absence rather than reassurance, and #19 bans the
+ * happy-path banner. Both are aimed at a page telling you everything is fine.
+ * A countdown says something is coming, which is a different claim and a true
+ * one: CWL restarts on the 1st of every month whether or not this app exists.
+ * ADR 0002 wants an amendment naming that distinction.
+ *
+ * WHY THE COUNTDOWN CANNOT COME FROM DATA. `cwl_seasons` is populated by
+ * collection, so a season that has not started is not a row. The target is
+ * calendar arithmetic against the client clock — the 1st of the next month at
+ * 05:00 UTC, which is when Clash rolls its day. That is a forecast, so it gets
+ * a floor: at or past zero it stops counting and says CWL is starting soon,
+ * rather than running negative or claiming a season is live before one is
+ * collected. The floor is not an error state; it is the honest end of a guess.
+ *
+ * IT SELF-CLEARS. Once the new season is collected it becomes the current
+ * season with no war states, and `defaultCwlPhase` already returns lineup for
+ * exactly that case. Nothing here has to detect the season starting.
+ *
+ * THE CLOCK STAYS INSIDE THE LOCKED TYPE SCALE. #17 fixed seven sizes, and
+ * `--cm-text-display` is the largest. A drop countdown wants to be bigger than
+ * its surroundings, and at the top of that clamp it is 34px against 13px body,
+ * which is a 2.6x jump — enough. An eighth size would be a finding worth
+ * recording rather than something to invent here, so this asks whether the
+ * scale already carries the form. THAT IS THE QUESTION TO JUDGE ON THE PAGE.
+ *
+ * Tabular figures come free: wave 1 put `font-variant-numeric: tabular-nums` on
+ * :root in base.css, so the digits do not jitter as they tick.
+ *
+ * Page classes take the surface's own prefix on the port. The route is #/cwl
+ * and the lineup phase owns `cwl-`, so these become `cwl-rest-` beside
+ * `cwl-review-`. Bare here, as every prototype names them.
+ */
+
+/* ---------- season menu ----------
+ * Lifted from cwl-review.html UNCHANGED, and that is the finding rather than a
+ * convenience. In the app these are `.cwl-review-seasonmenu*` in
+ * `cwl-review.css` — review's page layer, because one phase used them.
+ *
+ * THEY MOVE TO `cwl-route.css` AS `.cwl-seasonmenu*`, NOT TO THE SYSTEM LAYER.
+ * components.md already ruled on this: "The route menu is system layer, where
+ * the day and season menus are page layer. Same shape, different scope: those
+ * are one surface's own overflow of actions, and this is the app's only way
+ * between routes." Stand down does not break that rule, because stand down and
+ * review are two PHASES OF ONE ROUTE rather than two surfaces — the menu is
+ * still the CWL route's own overflow. And `cwl-route.css` exists for precisely
+ * this case; its own header says it holds "what neither phase owns... so
+ * neither phase can be loaded without it and neither has to duplicate it."
+ *
+ * Worth resolving four incidental divergences while moving it, all of which are
+ * drift between two menus written months apart rather than intent: z-index
+ * 20 against `cm-routemenu`'s 40, min-width 240px against 200px, a `top: calc()`
+ * offset against a `margin-top`, and `radius-md` item corners against
+ * `radius-sm`. Two components disagreeing by accident is the thing a move like
+ * this is worth doing for.
+ *
+ * It also makes stand down the second consumer of #56: the earlier seasons stay
+ * disabled until a season-parameterised source exists, and off-season is when a
+ * leader is most likely to look back.
+ */
+.seasonmenu-wrap { position: relative; }
+.seasonmenu {
+  position: absolute; right: 0; top: calc(var(--cm-tap-min) + var(--cm-space-1)); z-index: 20;
+  min-width: 240px; padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.seasonmenu button {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  width: 100%; text-align: left;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-md); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.seasonmenu button[disabled] { color: var(--cm-fg-unknown); }
+.seasonmenu button small { font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase; }
+.seasonmenu .divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
+.seasonmenu p {
+  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
+  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
+}
+
+/* ---------- the stand-down body ----------
+ * A panel rather than a bare block, so the phase strip has something of the
+ * same weight beneath it as the other two phases do, and the page does not read
+ * as failed to load. Centred because there is exactly one thing on it — this is
+ * the one surface in the app with no list, no row and no control in the body.
+ */
+/* IT SUPPLIES ITS OWN CONTAINER, AND THAT IS THE INVENTORY RULE HOLDING RATHER
+ * THAN A GAP IN IT. The first draft wrapped this in `.panel` and it rendered
+ * pinned to the bottom of the viewport, because `.panel` is
+ * `position: fixed; bottom: 0` — an overlay sheet below 720px, which is the
+ * bench and the member detail. There is no plain card to use instead.
+ *
+ * That absence is DELIBERATE and components.md says so under "what is
+ * deliberately not a component": "A card. `cm-row` and `cm-panel` cover the two
+ * real shapes. 'Card' is a name for a box, not for a concept, and it is how the
+ * current CSS ended up with 43 distinct paddings (#14)."
+ *
+ * This surface is the first thing to want one, and the exclusion is still
+ * right: what this needs is not "a card", it is the stand-down state, which has
+ * one job and one occupant. So it carries its own surface, hairline and radius
+ * in the page layer and is NOT promoted. Naming it `cm-card` would re-open
+ * exactly the box-named-after-its-shape that #14 counted 43 paddings' worth of.
+ * A second surface wanting the same thing is what would change that, and one
+ * has not appeared. */
+.rest {
+  display: grid; justify-items: center; gap: var(--cm-space-2);
+  padding: var(--cm-space-6) var(--cm-space-4);
+  text-align: center;
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface);
+}
+
+/* Line one: the season that is over. Muted and small, because it is the part
+ * that recedes — #19's rule that an absence carries no hue, and the reason the
+ * page's largest object is the thing that is coming rather than the thing that
+ * finished. Named "August 2026" and not "2026-08": the season id is a key, and
+ * this is the one place it is read as a date rather than matched as one. */
+.rest-season { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
+
+/* The label above the clock. Without it the number means nothing, and it is a
+ * label rather than a line of copy, which is why the body still reads as two
+ * lines: what ended, and how long until the next one. */
+.rest-label {
+  margin: var(--cm-space-4) 0 0;
+  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label);
+  text-transform: uppercase; color: var(--cm-fg-muted);
+}
+
+/* Line two: the clock. Display size, bold, tight — the drop form. `min-height`
+ * is set from the same clamp so the floor state swapping in does not shift the
+ * page, and `font-variant-numeric` is restated rather than inherited because
+ * this is the one element where it is load-bearing rather than a nicety. */
+.rest-clock {
+  margin: 0;
+  font-size: var(--cm-text-display); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-display); line-height: 1.1;
+  color: var(--cm-fg-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The floor. Same slot, same size, no digits — so the transition at zero is a
+ * word replacing a number in place rather than the page rearranging. Muted
+ * because "starting soon" is the app admitting it does not know, which is the
+ * unknown mark's job (#19) and carries no hue. */
+.rest-clock.is-soon { color: var(--cm-fg-muted); font-weight: var(--cm-weight-semibold); }
+
+/* The one sentence under the clock, present only while counting: it names what
+ * the countdown is counting to, which a bare date cannot. */
+.rest-note { margin: var(--cm-space-3) 0 0; font-size: var(--cm-text-xs); color: var(--cm-fg-muted); max-width: 34ch; line-height: 1.5; }
+
+/* The mark, and it stays — #24's third permission is finally spent. That rule
+ * allows identity in exactly three places: the top bar, the favicon, and muted
+ * empty states. The third had never been used, because until now no empty state
+ * existed, so this surface was its only remaining opportunity: use it here or
+ * retire the permission as a rule that never fired. Muted to the hairline so it reads as
+ * watermark rather than illustration; #24 forbids it ever carrying a state
+ * colour, which is why it is a neutral and not the gold.
+ *
+ * `--cm-hairline` and NOT a raw ramp step. The first draft used `--cm-n-300`,
+ * which is a fixed light value and so rendered near-white on the dark theme —
+ * the mark became the loudest thing on the quietest page in the app. Hairline
+ * is the semantic token whose documented job is "decorative; intentionally
+ * below 3:1", which is precisely what a watermark is. */
+.rest-mark { width: 72px; height: 72px; color: var(--cm-hairline); margin-bottom: var(--cm-space-2); }
+
+/* Desktop does not widen this. There is nothing to reflow — one column of one
+ * thing — so the only change is more room around it. */
+@media (min-width: 720px) {
+  .rest { padding: var(--cm-space-7) var(--cm-space-4); }
+}
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <span>Prototype state</span>
+  <button type="button" data-state="soon" aria-pressed="false">Past zero</button>
+  <button type="button" data-state="near" aria-pressed="false">Under an hour</button>
+  <button type="button" data-state="reduced" aria-pressed="false">Reduced motion</button>
+  <button type="button" data-state="mark" aria-pressed="false">Show mark (#24)</button>
+</div>
+
+<div class="shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow" id="eyebrow">CWL · August 2026</p>
+      <h1>Stand down</h1>
+    </div>
+    <div class="topbar-side">
+      <span class="seasonmenu-wrap">
+        <button class="iconbutton" type="button" id="seasonbutton" aria-label="Season options" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+        <div id="seasonmenuslot"></div>
+      </span>
+    </div>
+  </header>
+
+  <nav class="segmented phase" id="phasestrip" aria-label="CWL phase"></nav>
+
+  <div class="rest" id="rest"></div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+ * The season that just closed. Field names mirror what `loadCwlSeasonPhase`
+ * would have to select — it reads only war_day and state today, so wave 4 adds
+ * bonuses_administered_at and the final war's end_time to that query. Those two
+ * are the marker ladder; nothing here needs them to render, which is the point.
+ */
+const SEASON = {
+  seasonId: "2026-08",
+  bonusesAdministeredAt: "2026-08-14T18:22:00Z",
+  earlierSeasonIds: ["2026-07", "2026-06", "2026-05"],
+};
+
+const MONTHS = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"];
+
+/* "2026-08" is a key everywhere else in the app and a date exactly here. */
+function seasonName(seasonId) {
+  const [year, month] = seasonId.split("-");
+  return `${MONTHS[Number(month) - 1]} ${year}`;
+}
+
+/* THE TARGET: 05:00 UTC on the 1st of the next month, which is when Clash rolls
+ * its day. Derived from the clock rather than from data, because a season that
+ * has not started has no row to read. Note this deliberately does NOT key off
+ * the closed season's id — if collection stalls for a whole month the id is
+ * stale, and counting to the next real 1st is right while counting to a date
+ * that has already passed is not. */
+function nextCwlStart(now) {
+  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 5, 0, 0));
+  return target;
+}
+
+const state = { soon: false, near: false, reduced: false, mark: false };
+
+function remaining() {
+  if (state.soon) return -1;
+  const now = new Date();
+  if (state.near) return 47 * 60 * 1000 + 12 * 1000;
+  return nextCwlStart(now).getTime() - now.getTime();
+}
+
+function pad(value) { return String(value).padStart(2, "0"); }
+
+/* Full DDd HH:MM:SS all the way through, rather than degrading by magnitude.
+ * The drop form is the decision; showing days only until the last hour would be
+ * a quieter countdown, which is the thing that was chosen against. */
+function clockText(ms) {
+  const total = Math.floor(ms / 1000);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const time = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  return days > 0 ? `${days}d ${time}` : time;
+}
+
+/* The reduced-motion fallback. A ticking number is not animation in the strict
+ * sense, but it is the same instinct, and the opt-out already exists as a
+ * standing rule in base.css. Coarse and static says the same thing. */
+/* FLOOR, not round. The strip's sub-label and the clock render the same
+ * remainder on the same screen, and rounding made them disagree — "10 days"
+ * above "9d 14:27:28". The clock truncates because that is what a clock does,
+ * so this has to as well. */
+function coarseText(ms) {
+  const days = Math.floor(ms / 86400000);
+  if (days <= 0) return "Later today";
+  if (days === 1) return "About a day";
+  return `About ${days} days`;
+}
+
+function reducedMotion() {
+  return state.reduced || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function renderRest() {
+  const ms = remaining();
+  const past = ms <= 0;
+  const reduced = reducedMotion();
+
+  /* The mark is a `use` of the cabossed head, not the shield: the shield is the
+     small-size variant and #24's rule is that the container is what survives
+     shrinking, so at 72px the bare head is the correct one. */
+  const mark = state.mark
+    ? `<svg class="rest-mark" viewBox="0 0 48 48" aria-hidden="true" style="--mark-bg: var(--cm-surface)"><use href="#mark-head" fill="currentColor"/></svg>`
+    : "";
+
+  /* Past zero the label goes with the digits. "Next CWL starts in" followed by
+     "CWL starting soon" would be the page contradicting itself in two lines. */
+  const label = past ? "" : `<p class="rest-label">Next CWL starts in</p>`;
+
+  const clock = past
+    ? `<p class="rest-clock is-soon">CWL starting soon</p>`
+    : `<p class="rest-clock" role="timer" aria-live="off">${reduced ? coarseText(ms) : clockText(ms)}</p>`;
+
+  /* The note is the only place the forecast is admitted as a forecast. It goes
+     when the countdown does, because past zero the page is no longer claiming
+     to know. */
+  const note = past
+    ? `<p class="rest-note">The new season appears here as soon as it is collected.</p>`
+    : `<p class="rest-note">Seasons open on the 1st of the month. This counts to 05:00 UTC.</p>`;
+
+  el("rest").innerHTML = `
+    ${mark}
+    <p class="rest-season">${seasonName(SEASON.seasonId)} is finished.</p>
+    ${label}
+    ${clock}
+    ${note}`;
+}
+
+/* Three segments now, which is what CwlPhaseStrip already takes a phase rather
+ * than a boolean for. The sub-label names the destination, as the other two do
+ * — and for this one the destination is a wait, so it names its length. */
+function renderPhase() {
+  const ms = remaining();
+  const sub = ms <= 0 ? "Soon" : coarseText(ms).replace("About ", "");
+  const phases = [["lineup", "Lineup", "Day 1"], ["review", "Review", "Season"], ["resting", "Stand down", sub]];
+  el("phasestrip").innerHTML = phases.map(([key, label, small]) =>
+    `<button type="button" data-phase="${key}" aria-current="${key === "resting"}">
+      <span>${label}</span><small>${small}</small></button>`).join("");
+}
+
+/* The season menu comes across from the review phase unchanged. Reopen review
+ * is the live control and the way back; the earlier seasons stay honestly
+ * disabled until #56 lands, at which point they light up here and on review
+ * with no further design. Stand down is arguably where reaching an old season
+ * is MOST natural, which makes this surface #56's second consumer. */
+function renderSeasonMenu(open) {
+  el("seasonmenuslot").innerHTML = open
+    ? `<div class="seasonmenu" role="menu">
+        <button type="button" role="menuitem">Reopen review</button>
+        <div class="divider"></div>
+        <button type="button" role="menuitem" aria-current="true">${SEASON.seasonId} <small>Current</small></button>
+        ${SEASON.earlierSeasonIds.map((id) => `<button type="button" role="menuitem" disabled>${id}</button>`).join("")}
+        <p>Earlier seasons are collected but not queryable: every CWL view is scoped to the latest season.</p>
+      </div>`
+    : "";
+  el("seasonbutton").setAttribute("aria-expanded", String(open));
+}
+
+function el(id) { return document.getElementById(id); }
+
+function renderAll() { renderRest(); renderPhase(); }
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderAll();
+  renderSeasonMenu(false);
+
+  let menuOpen = false;
+  el("seasonbutton").addEventListener("click", () => {
+    menuOpen = !menuOpen;
+    renderSeasonMenu(menuOpen);
+  });
+
+  document.querySelectorAll(".harness [data-state]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.state;
+      state[key] = !state[key];
+      button.setAttribute("aria-pressed", String(state[key]));
+      renderAll();
+    });
+  });
+
+  /* One second, and it stops while the tab is hidden — this page's entire
+     premise is being left open for days, so a timer that runs regardless is the
+     one real cost of the drop form and it is avoidable. */
+  let timer;
+  const start = () => { stop(); if (!reducedMotion()) timer = setInterval(renderAll, 1000); };
+  const stop = () => { if (timer) clearInterval(timer); timer = undefined; };
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : (renderAll(), start()));
+  start();
+});
+</script>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- The mark, lifted from app-chrome.html unchanged so the two cannot drift.
+       Only the cabossed head is needed: the shield is the small-size variant. -->
+  <path id="head-cabossed" d="M24 13 L18 6 L16 13 L4 2 L10 17 L5 23 L12 29 L15 38 L24 46 L33 38 L36 29 L43 23 L38 17 L44 2 L32 13 L30 6 Z"/>
+  <g id="head-cabossed-cuts">
+    <path d="M11 21 L20 25 L12 25.5 Z"/>
+    <path d="M37 21 L28 25 L36 25.5 Z"/>
+    <path d="M20 34 L28 34 L24 39 Z"/>
+  </g>
+  <symbol id="mark-head" viewBox="0 0 48 48">
+    <use href="#head-cabossed"/>
+    <use href="#head-cabossed-cuts" fill="var(--mark-bg,#fff)"/>
+  </symbol>
+</svg>
+
+</body>
+</html>
