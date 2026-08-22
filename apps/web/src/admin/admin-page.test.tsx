@@ -68,6 +68,23 @@ const healthyCollection: CollectionHealth = {
   attempts: [{ endpoint: "clan", status: "healthy", httpStatus: 200, errorCategory: null, startedAt: "2026-08-20T06:00:00Z", finishedAt: "2026-08-20T06:00:30Z" }],
 };
 
+/* The shape the collector actually writes between seasons: everything healthy
+   except the league group, which the Clash API answers with a 404 because no
+   league group exists until the next CWL starts. */
+const idleCwlCollection: CollectionHealth = {
+  runId: "run-idle-cwl",
+  status: "partial",
+  startedAt: "2026-08-22T16:48:14Z",
+  finishedAt: "2026-08-22T16:48:52Z",
+  lastFreshAt: "2026-08-22T16:48:29Z",
+  errorMessage: null,
+  attempts: [
+    { endpoint: "clan", status: "healthy", httpStatus: 200, errorCategory: null, startedAt: "2026-08-22T16:48:15Z", finishedAt: "2026-08-22T16:48:20Z" },
+    { endpoint: "members", status: "healthy", httpStatus: 200, errorCategory: null, startedAt: "2026-08-22T16:48:20Z", finishedAt: "2026-08-22T16:48:29Z" },
+    { endpoint: "league_group", status: "failed", httpStatus: 404, errorCategory: "not_found", startedAt: "2026-08-22T16:48:29Z", finishedAt: "2026-08-22T16:48:30Z" },
+  ],
+};
+
 function renderAccess(overrides: Partial<React.ComponentProps<typeof AdminPage>> = {}) {
   const props: React.ComponentProps<typeof AdminPage> = {
     snapshot,
@@ -139,6 +156,32 @@ describe("AdminPage", () => {
     await user.click(screen.getByRole("button", { name: "Promote to admin" }));
     expect(props.onPromote).toHaveBeenCalledWith("leader-one");
     expect(await screen.findByRole("status")).toHaveTextContent("Grace is now an admin");
+  });
+
+  it("says nothing about an idle CWL run beyond when the data was fresh", () => {
+    renderAccess({ collection: idleCwlCollection });
+    expect(screen.getByRole("heading", { name: "Collection health" })).toBeVisible();
+    expect(screen.queryByText(/The latest collection run was not healthy/)).not.toBeInTheDocument();
+    /* The breakdown closes with the banner. A league group that is merely
+       absent is the ordinary state between seasons, and listing it would put
+       the happy path back on the page in table form. */
+    expect(screen.queryByText("league_group")).not.toBeInTheDocument();
+    expect(screen.queryByText("not_found")).not.toBeInTheDocument();
+  });
+
+  it("still marks a run that failed an endpoint other than the absent league group", () => {
+    renderAccess({
+      collection: {
+        ...idleCwlCollection,
+        attempts: [
+          ...idleCwlCollection.attempts,
+          { endpoint: "player", status: "failed", httpStatus: 200, errorCategory: "normalization_error", startedAt: "2026-08-22T16:48:31Z", finishedAt: "2026-08-22T16:48:33Z" },
+        ],
+      },
+    });
+    expect(screen.getByText(/The latest collection run was not healthy/)).toBeVisible();
+    expect(screen.getByText("player")).toBeVisible();
+    expect(screen.getByText("normalization_error")).toBeVisible();
   });
 
   it("shows a recoverable row error after a failed mutation", async () => {

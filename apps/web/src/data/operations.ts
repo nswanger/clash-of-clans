@@ -121,30 +121,68 @@ export async function loadCollectionHealth(client: any): Promise<CollectionHealt
     finishedAt: typeof run.finished_at === "string" ? run.finished_at : null,
     lastFreshAt: typeof run.last_fresh_at === "string" ? run.last_fresh_at : null,
     errorMessage: typeof run.error_message === "string" ? run.error_message : null,
-    attempts: rows<{
-      endpoint: string; status: string; http_status: number | null;
-      error_category: string | null; started_at: string; finished_at: string | null;
-    }>(attemptsResult.data).map((row) => ({
-      endpoint: typeof row.endpoint === "string" ? row.endpoint : "unknown endpoint",
-      /* Absent evidence stays absent. An attempt with no recorded status is not
-         a healthy one — it is an attempt we cannot read, which the surface marks
-         rather than assumes away. */
-      status: typeof row.status === "string" ? row.status : "unknown",
-      httpStatus: typeof row.http_status === "number" ? row.http_status : null,
-      errorCategory: typeof row.error_category === "string" ? row.error_category : null,
-      startedAt: typeof row.started_at === "string" ? row.started_at : "",
-      finishedAt: typeof row.finished_at === "string" ? row.finished_at : null,
-    })),
+    attempts: attemptsFromEmbed(attemptsResult.data),
   };
+}
+
+/* One mapping for both readers: the Admin route queries `collection_attempts`
+ * directly and the CWL loaders embed it under the run, and both need the same
+ * row shape for the same predicate to judge it. */
+function attemptsFromEmbed(value: unknown): CollectionAttemptHealth[] {
+  return rows<{
+    endpoint: string; status: string; http_status: number | null;
+    error_category: string | null; started_at: string; finished_at: string | null;
+  }>(value).map((row) => ({
+    endpoint: typeof row.endpoint === "string" ? row.endpoint : "unknown endpoint",
+    /* Absent evidence stays absent. An attempt with no recorded status is not
+       a healthy one — it is an attempt we cannot read, which the surface marks
+       rather than assumes away. */
+    status: typeof row.status === "string" ? row.status : "unknown",
+    httpStatus: typeof row.http_status === "number" ? row.http_status : null,
+    errorCategory: typeof row.error_category === "string" ? row.error_category : null,
+    startedAt: typeof row.started_at === "string" ? row.started_at : "",
+    finishedAt: typeof row.finished_at === "string" ? row.finished_at : null,
+  }));
+}
+
+/* BETWEEN SEASONS THE LEAGUE GROUP DOES NOT EXIST, and the Clash API says so
+ * with a 404. The collector records that attempt as failed and the run as
+ * `partial`, which is true — an endpoint did fail — so this is read as the
+ * exception it is rather than rewritten at the source. `collection_runs.status`
+ * stays a record of what happened; deciding what it means to a reader is this
+ * function's job.
+ *
+ * The rule is `verify-collector.sh`'s, minus its final clause. The runbook also
+ * requires the healthy player attempts to match the live clan member count,
+ * which that script can check because it holds a Clash token and the browser
+ * never will. What survives is the shape: ONE failure, and it is the league
+ * group's 404. A second failed endpoint is not this situation and re-raises the
+ * banner, which is the whole point of not simply ignoring league-group 404s. */
+export function isExpectedIdleCwlPartial(health: Pick<CollectionHealth, "status" | "attempts">): boolean {
+  if (health.status !== "partial") return false;
+  const failing = health.attempts.filter((attempt) => attempt.status !== "healthy");
+  const [failure] = failing;
+  return failing.length === 1
+    && failure?.endpoint === "league_group"
+    && failure.httpStatus === 404
+    && failure.errorCategory === "not_found"
+    && health.attempts.some((attempt) => attempt.endpoint === "clan" && attempt.status === "healthy")
+    && health.attempts.some((attempt) => attempt.endpoint === "members" && attempt.status === "healthy");
 }
 
 /* A run is healthy or it is not, and only the latter is drawn. Rows and surfaces
  * mark the exception, never the rule (#19) — a green "collection is fine" panel
  * is the happy-path banner the whole design budget exists to remove. `running`
- * is not a fault: it is a run that has not finished. */
-export function isCollectionUnhealthy(health: Pick<CollectionHealth, "status">): boolean {
+ * is not a fault: it is a run that has not finished.
+ *
+ * ATTEMPTS ARE REQUIRED TO CLEAR A `partial`, never to condemn one. A caller
+ * that passes none gets the status-only judgement, so a surface that cannot see
+ * the attempts reports the fault it can see rather than assuming an absent
+ * exception applies. */
+export function isCollectionUnhealthy(health: Pick<CollectionHealth, "status"> & Partial<Pick<CollectionHealth, "attempts">>): boolean {
   if (health.status === null) return true;
-  return health.status !== "healthy" && health.status !== "running";
+  if (health.status === "healthy" || health.status === "running") return false;
+  return !isExpectedIdleCwlPartial({ status: health.status, attempts: health.attempts ?? [] });
 }
 
 export type CwlAvailability = "available" | "unavailable" | "unknown";
@@ -341,6 +379,9 @@ export interface CwlReviewSeasonSnapshot {
   freshness: {
     lastRefreshedAt: string | null;
     collectionStatus: string | null;
+    /* Carried so the caveat can apply the idle-CWL exception, which is a fact
+       about the run's attempts and not about its status. */
+    collectionAttempts: CollectionAttemptHealth[];
   };
 }
 
@@ -360,6 +401,9 @@ export interface CwlLineupWorkspaceSnapshot {
   freshness: {
     lastRefreshedAt: string | null;
     collectionStatus: string | null;
+    /* Carried so the caveat can apply the idle-CWL exception, which is a fact
+       about the run's attempts and not about its status. */
+    collectionAttempts: CollectionAttemptHealth[];
   };
 }
 
@@ -498,7 +542,10 @@ export async function loadCwlLineupWorkspace(
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
     client.from("audit_events").select("id,event_type,event_data,actor_id,occurred_at").eq("entity_type", "cwl_daily_lineup_plan").eq("entity_id", `${clanTag}:${seasonId}:${warDay}`).order("occurred_at", { ascending: false }).limit(25),
-    client.from("collection_runs").select("status,last_fresh_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    /* The attempts come back embedded rather than as a second round trip:
+       the caveat needs them to tell an absent league group from a real
+       fault, and they hang off the run by foreign key. */
+    client.from("collection_runs").select("status,last_fresh_at,collection_attempts(endpoint,status,http_status,error_category,started_at,finished_at)").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   for (const [result, context] of [
     [seasonResult, "Unable to load the CWL season"],
@@ -679,6 +726,7 @@ export async function loadCwlLineupWorkspace(
     freshness: {
       lastRefreshedAt,
       collectionStatus: typeof collection.status === "string" ? collection.status : null,
+      collectionAttempts: attemptsFromEmbed(collection.collection_attempts),
     },
   };
 }
@@ -761,7 +809,10 @@ export async function loadCwlReviewSeason(client: any, clanTag: string): Promise
     client.from("cwl_completed_missed_attacks")
       .select("war_day,player_tag,assigned_attacks,completed_assigned_attacks")
       .eq("clan_tag", clanTag).eq("season_id", seasonId),
-    client.from("collection_runs").select("status,last_fresh_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    /* The attempts come back embedded rather than as a second round trip:
+       the caveat needs them to tell an absent league group from a real
+       fault, and they hang off the run by foreign key. */
+    client.from("collection_runs").select("status,last_fresh_at,collection_attempts(endpoint,status,http_status,error_category,started_at,finished_at)").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   for (const [result, context] of [
     [membersResult, "Unable to load CWL members"],
@@ -854,6 +905,7 @@ export async function loadCwlReviewSeason(client: any, clanTag: string): Promise
     freshness: {
       lastRefreshedAt: typeof collection.last_fresh_at === "string" ? collection.last_fresh_at : null,
       collectionStatus: typeof collection.status === "string" ? collection.status : null,
+      collectionAttempts: attemptsFromEmbed(collection.collection_attempts),
     },
   };
 }

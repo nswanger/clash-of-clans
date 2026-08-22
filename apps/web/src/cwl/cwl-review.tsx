@@ -371,7 +371,10 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
   const clanStars = ranked.reduce((sum, entry) => sum + entry.record.stars, 0);
   /* The same predicate the Admin route reads, not a second copy of the rule:
      "which statuses count as unhealthy" is one fact and two surfaces ask it. */
-  const stale = snapshot !== undefined && isCollectionUnhealthy({ status: snapshot.freshness.collectionStatus });
+  const stale = snapshot !== undefined && isCollectionUnhealthy({
+    status: snapshot.freshness.collectionStatus,
+    attempts: snapshot.freshness.collectionAttempts,
+  });
 
   return <>
     <main className="cm-shell cwl-review-page" aria-busy={!snapshot && !error}>

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createInvitation,
+  isCollectionUnhealthy,
+  isExpectedIdleCwlPartial,
   demoteAdmin,
   loadAccessManagement,
   loadCurrentCwlLineupWorkspace,
@@ -199,5 +201,74 @@ describe("Supabase operations", () => {
     const rpc = vi.fn().mockResolvedValue({ error: { message: "Leader access required" } });
     await expect(setCwlBonusesAdministered({ rpc }, { clanTag: "#CLAN", seasonId: "2026-08", administered: true }))
       .rejects.toThrow("Unable to record whether the bonuses were handed out: Leader access required");
+  });
+
+  /* ---------------------------------------------------------------------
+   * The idle-CWL exception
+   * ------------------------------------------------------------------- */
+
+  const attempt = (
+    endpoint: string,
+    status: string,
+    httpStatus: number | null = 200,
+    errorCategory: string | null = null,
+  ) => ({ endpoint, status, httpStatus, errorCategory, startedAt: "2026-08-22T16:48:00Z", finishedAt: "2026-08-22T16:48:30Z" });
+
+  const idleCwlRun = {
+    status: "partial",
+    attempts: [
+      attempt("clan", "healthy"),
+      attempt("members", "healthy"),
+      attempt("player", "healthy"),
+      attempt("league_group", "failed", 404, "not_found"),
+    ],
+  };
+
+  it("reads a partial run whose only failure is the absent league group as healthy", () => {
+    expect(isExpectedIdleCwlPartial(idleCwlRun)).toBe(true);
+    expect(isCollectionUnhealthy(idleCwlRun)).toBe(false);
+  });
+
+  it("still reports a partial run that failed a second endpoint", () => {
+    const alsoBrokenMembers = {
+      status: "partial",
+      attempts: [...idleCwlRun.attempts, attempt("members", "failed", 200, "normalization_error")],
+    };
+    expect(isExpectedIdleCwlPartial(alsoBrokenMembers)).toBe(false);
+    expect(isCollectionUnhealthy(alsoBrokenMembers)).toBe(true);
+  });
+
+  /* The exception is the league group being ABSENT, not the league group
+     failing. A 500 there is an outage and has to keep reading as one. */
+  it("still reports a league group that failed for any reason but a 404", () => {
+    const leagueGroupOutage = {
+      status: "partial",
+      attempts: [attempt("clan", "healthy"), attempt("members", "healthy"), attempt("league_group", "failed", 500, "server_error")],
+    };
+    expect(isExpectedIdleCwlPartial(leagueGroupOutage)).toBe(false);
+    expect(isCollectionUnhealthy(leagueGroupOutage)).toBe(true);
+  });
+
+  it("still reports a partial run whose clan or member attempts did not succeed", () => {
+    const clanNeverRead = {
+      status: "partial",
+      attempts: [attempt("members", "healthy"), attempt("league_group", "failed", 404, "not_found")],
+    };
+    expect(isExpectedIdleCwlPartial(clanNeverRead)).toBe(false);
+    expect(isCollectionUnhealthy(clanNeverRead)).toBe(true);
+  });
+
+  /* A caller that cannot see the attempts gets the status-only judgement, so
+     the absence of evidence never clears a fault. */
+  it("reports a partial run when no attempts were loaded to excuse it", () => {
+    expect(isCollectionUnhealthy({ status: "partial" })).toBe(true);
+    expect(isCollectionUnhealthy({ status: "partial", attempts: [] })).toBe(true);
+  });
+
+  it("leaves the healthy, running and unreadable statuses as they were", () => {
+    expect(isCollectionUnhealthy({ status: "healthy", attempts: [] })).toBe(false);
+    expect(isCollectionUnhealthy({ status: "running", attempts: [] })).toBe(false);
+    expect(isCollectionUnhealthy({ status: null, attempts: [] })).toBe(true);
+    expect(isCollectionUnhealthy({ status: "failed", attempts: idleCwlRun.attempts })).toBe(true);
   });
 });
