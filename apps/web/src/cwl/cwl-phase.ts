@@ -15,6 +15,12 @@
  * window strands the leader on a stale lineup with no way out. Under a control
  * it is one tap.
  *
+ * WAVE 4 ADDS THE THIRD POSITION. Once the bonuses are administered neither of
+ * those two surfaces has anything to say, and the route rests rather than keep
+ * presenting a finished season as though something were outstanding. It is where
+ * bare `#/cwl` lands from then until the next season is collected, and lineup
+ * and review both stay reachable from the strip (#55).
+ *
  * This also fixes a live defect that predates the phase model:
  * `loadCurrentCwlLineupWorkspace` picks the current day by querying for a war in
  * `preparation` or `inWar` and falling back to day 1, so between cycles the
@@ -23,12 +29,17 @@
  */
 import type { CwlWarState } from "../data/operations.js";
 
-export type CwlPhase = "lineup" | "review";
+export type CwlPhase = "lineup" | "review" | "resting";
 
-
+/* The label a leader reads is `Stand down`; the model's word stays `resting`.
+ * The other two segments are `Lineup` and `Review`, which are what a leader
+ * calls those states — "resting" is how ADR 0002 and this union describe it, not
+ * what anyone says out loud. `Muster` was rejected outright: it is the product's
+ * own name in the auth shell's h1. */
 export const CWL_PHASE_LABELS: ReadonlyArray<readonly [CwlPhase, string]> = [
   ["lineup", "Lineup"],
   ["review", "Review"],
+  ["resting", "Stand down"],
 ];
 
 const PHASES: readonly CwlPhase[] = CWL_PHASE_LABELS.map(([phase]) => phase);
@@ -43,19 +54,81 @@ function namesAnEarlierMonth(seasonId: string, now: Date): boolean {
   return seasonId < currentMonth;
 }
 
-/* The marker is the war states already loaded, with a date guard.
+/* The elapsed-time backstop for a season nobody ever marks administered. ADR
+ * 0002 set the marker on this before #54 amended it to the observation; it
+ * survives as the fallback rather than the rule. */
+const RESTING_AFTER_FINAL_WAR_DAYS = 7;
+const RESTING_AFTER_FINAL_WAR_MS = RESTING_AFTER_FINAL_WAR_DAYS * 86400000;
+
+/* The day-of-month floor on the collection-failure backstop, and the reason it
+ * is not simply `namesAnEarlierMonth`. That guard flips at midnight on the 1st,
+ * which is roughly when the NEXT CWL starts — so on its own it would drop a
+ * leader into stand down at exactly the moment the new season begins. Past
+ * roughly day 8 with the previous season still current, the reading is safe:
+ * the new season should have been collected long since, and it has not. */
+const RESTING_DAY_OF_MONTH_FLOOR = 8;
+
+export interface CwlPhaseWarDay {
+  state: CwlWarState;
+  /* Null for a war day collection has seen but never timed, which is exactly the
+     case marker 2 has nothing to measure and marker 3 exists for. */
+  endTime: string | null;
+}
+
+function finalWarEndTime(warDays: readonly CwlPhaseWarDay[]): number | undefined {
+  const ends = warDays
+    .map((day) => day.endTime === null ? Number.NaN : Date.parse(day.endTime))
+    .filter((value) => Number.isFinite(value));
+  return ends.length ? Math.max(...ends) : undefined;
+}
+
+/* What the phase decision reads, which is what `loadCwlSeasonPhase` selects.
+ * An object rather than four positional arguments: the ladder grew from one
+ * marker to five and a call site of loose strings and dates is a bug waiting to
+ * be written the wrong way round. */
+export interface CwlPhaseMarkers {
+  seasonId: string;
+  warDays: readonly CwlPhaseWarDay[];
+  bonusesAdministeredAt: string | null;
+}
+
+/* THE LADDER, and the order is the whole of it.
  *
- * The date guard is NOT redundant: a missed collection run at the end of a
- * season leaves the final day never marked ended, and without it the app would
- * sit in the lineup phase indefinitely. It is checked first for that reason —
- * a stale `inWar` on a month that is over is exactly the case it exists for. */
-export function defaultCwlPhase(seasonId: string, warStates: readonly CwlWarState[], now: Date): CwlPhase {
-  if (namesAnEarlierMonth(seasonId, now)) return "review";
-  if (warStates.some((state) => state === "preparation" || state === "inWar")) return "lineup";
-  if (warStates.some((state) => state === "warEnded")) return "review";
+ * The first two rungs are the resting markers and they run BEFORE the war
+ * states, because both are observations that the season is over which the states
+ * cannot contradict: an administered bonus is a leader saying so, and a final
+ * war that ended more than a week ago is over whatever its row still claims.
+ *
+ * The rungs after them are unchanged from the two-phase model, with the earlier
+ * -month guard now forking on the day of the month rather than always reading
+ * review. That guard is NOT redundant with the states: a missed collection run
+ * at the end of a season leaves the final day never marked ended, and without it
+ * the app sits in the lineup phase indefinitely — presenting a stale, editable
+ * lineup for a war that finished weeks ago (ADR 0002). */
+export function defaultCwlPhase({ seasonId, warDays, bonusesAdministeredAt }: CwlPhaseMarkers, now: Date): CwlPhase {
+  /* Marker 1: the observation. Wave 3 shipped the column and the control that
+     writes it, so this is what someone did rather than a guess about when they
+     lost interest (#54). */
+  if (bonusesAdministeredAt !== null) return "resting";
+
+  /* Marker 2: elapsed time since the final war ended. */
+  const finalEnd = finalWarEndTime(warDays);
+  if (finalEnd !== undefined && now.getTime() - finalEnd >= RESTING_AFTER_FINAL_WAR_MS) return "resting";
+
+  /* Marker 3: the collection-failure backstop. A season whose end was never
+     collected has no `end_time` at all, so marker 2 has nothing to measure and
+     this is the only rung that can fire — which is why it carries the floor. */
+  if (namesAnEarlierMonth(seasonId, now)) {
+    return now.getUTCDate() >= RESTING_DAY_OF_MONTH_FLOOR ? "resting" : "review";
+  }
+
+  if (warDays.some((day) => day.state === "preparation" || day.state === "inWar")) return "lineup";
+  if (warDays.some((day) => day.state === "warEnded")) return "review";
   /* A season with no war state at all is one that has been created and not yet
      played, which is a lineup you are about to build rather than a season to
-     review. */
+     review. It is also how stand down self-clears: the new season is collected,
+     becomes the current one with no war states, and this returns lineup with
+     nothing having had to detect the season starting. */
   return "lineup";
 }
 

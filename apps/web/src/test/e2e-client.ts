@@ -25,17 +25,36 @@ function fixtureWarActivity(playerTag: string, warsParticipated: number, attacks
   };
 }
 
+/* THE CWL SEASON IS DATED FROM THE CLOCK, NOT WRITTEN OUT.
+ *
+ * The phase ladder reads three time-dependent markers (ADR 0002, #55), so a
+ * fixture with a written-out season is a fixture that changes phase as the
+ * calendar advances: the wave-3 dates put the final war more than seven days in
+ * the past, which is stand down, and the season id would have named an earlier
+ * month from the 1st onwards, which is stand down again. The suite would have
+ * gone red on a date rather than on a change.
+ *
+ * So the season is always the current month and the wars always ended
+ * yesterday-ish, which is what "a current season with a live war day" MEANS.
+ * Everything else in this file stays written out, because nothing else is read
+ * against the clock. */
+const fixtureNow = new Date();
+const fixtureSeasonId = `${fixtureNow.getUTCFullYear()}-${String(fixtureNow.getUTCMonth() + 1).padStart(2, "0")}`;
+function fixtureWarTime(daysAgo: number): string {
+  return new Date(fixtureNow.getTime() - daysAgo * 86400000).toISOString();
+}
+
 const defaultTableData: Record<string, unknown> = {
   profiles: { display_name: "E2E Leader" },
   /* A CURRENT season with a live war day, so the CWL route opens on the lineup
-     phase. The phase marker is the war states with a date guard (ADR 0002): a
-     season id naming an earlier month reads as review no matter what the states
-     say, which is the guard doing its job and not something to fixture around. */
-  cwl_seasons: { clan_tag: "#E2E", season_id: "2026-08", war_size: 15, bonuses_administered_at: null },
+     phase. The phase markers are the war states with a date guard (ADR 0002)
+     plus wave 4's two resting markers: the bonuses are not administered and the
+     final war ended well inside the seven-day window, so neither fires. */
+  cwl_seasons: { clan_tag: "#E2E", season_id: fixtureSeasonId, war_size: 15, bonuses_administered_at: null },
   cwl_wars: [
-    { war_tag: "#WAR1", war_day: 1, state: "warEnded", preparation_start_time: null, start_time: null, end_time: "2026-08-11T23:59:59.000Z", updated_at: "2026-08-12T00:00:00.000Z", attacks_per_member: 1 },
-    { war_tag: "#WAR2", war_day: 2, state: "warEnded", preparation_start_time: null, start_time: null, end_time: "2026-08-12T23:59:59.000Z", updated_at: "2026-08-13T00:00:00.000Z", attacks_per_member: 1 },
-    { war_tag: "#WAR3", war_day: 3, state: "inWar", preparation_start_time: null, start_time: null, end_time: "2026-08-13T23:59:59.000Z", updated_at: "2026-08-13T06:00:00.000Z", attacks_per_member: 1 },
+    { war_tag: "#WAR1", war_day: 1, state: "warEnded", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(2), updated_at: fixtureWarTime(2), attacks_per_member: 1 },
+    { war_tag: "#WAR2", war_day: 2, state: "warEnded", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(1), updated_at: fixtureWarTime(1), attacks_per_member: 1 },
+    { war_tag: "#WAR3", war_day: 3, state: "inWar", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(0), updated_at: fixtureWarTime(0), attacks_per_member: 1 },
   ],
   /* The review phase's assignment record. Already scoped to `warEnded` by the
      view, so days 1 and 2 only — day 3 contributes nothing at all, which is what
@@ -238,7 +257,7 @@ export function createE2EClient(): any {
       }
       if (name === "set_cwl_bonuses_administered") {
         const season = tableData.cwl_seasons as Record<string, unknown>;
-        season.bonuses_administered_at = args.administered ? "2026-08-20T10:00:00.000Z" : null;
+        season.bonuses_administered_at = args.administered ? fixtureNow.toISOString() : null;
         persistFixture?.();
         recordMutation(`rpc:${name}`, args);
         return { data: { clanTag: "#E2E", seasonId: String(season.season_id), bonusesAdministeredAt: season.bonuses_administered_at }, error: null };

@@ -1,0 +1,115 @@
+/* CWL stand-down phase — page layer.
+ *
+ * Ported from the <style> block of design/prototype/cwl-resting.html, which is
+ * the spec (#55). Everything here is what only this phase uses; everything it
+ * stands on is `cm-`-prefixed and comes from @cwl/design.
+ *
+ * The prefix is `cwl-rest-`, not `cwl-`: the route is `#/cwl` and the lineup
+ * phase already owns `cwl-` in the file beside this one, so three phases of one
+ * route would collide inside a single stylesheet. It sits beside `cwl-review-`,
+ * and the season menu both phases use is neither — it is `cwl-seasonmenu-` in
+ * cwl-route.css, which holds what no single phase owns.
+ *
+ * The class name keeps the model's word rather than the label a leader reads.
+ * `resting` is what ADR 0002 and `CwlPhase` call this state; `Stand down` is
+ * what the strip and the h1 say.
+ */
+
+/* ---------- the stand-down body ----------
+ * IT SUPPLIES ITS OWN CONTAINER, AND THAT IS THE INVENTORY RULE HOLDING RATHER
+ * THAN A GAP IN IT. The first draft wrapped this in `cm-panel` and it rendered
+ * pinned to the bottom of the viewport, because `cm-panel` is
+ * `position: fixed; bottom: 0` below 720px — the bench and the member detail
+ * sheet. There is no plain card to use instead, and that absence is deliberate:
+ * components.md lists it under what is not a component, because "'Card' is a
+ * name for a box, not for a concept, and it is how the current CSS ended up with
+ * 43 distinct paddings (#14)".
+ *
+ * This surface is the first thing to want one and the exclusion is still right.
+ * What it needs is not "a card", it is the stand-down state, which has one job
+ * and one occupant — so it carries its own surface, hairline and radius here in
+ * the page layer and is NOT promoted. A second surface wanting the same thing is
+ * what would change that, and one has not appeared.
+ *
+ * A container rather than a bare block so the phase strip has something of the
+ * same weight beneath it as the other two phases do, and the page does not read
+ * as failed to load. Centred because there is exactly one thing on it: this is
+ * the only surface in the app with no list, no row and no control in its body.
+ */
+.cwl-rest {
+  display: grid; justify-items: center; gap: var(--cm-space-2);
+  padding: var(--cm-space-6) var(--cm-space-4);
+  text-align: center;
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface);
+}
+
+/* Line one: the season that is over. Muted and small, because it is the part
+ * that recedes — #19's rule that an absence carries no hue, and the reason the
+ * page's largest object is the thing that is coming rather than the thing that
+ * finished. Named "August 2026" and not "2026-08": the season id is a key, and
+ * this is the one place it is read as a date rather than matched as one. */
+.cwl-rest-season { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
+
+/* The label above the clock. Without it the number means nothing, and it is a
+ * label rather than a line of copy, which is why the body still reads as two
+ * lines: what ended, and how long until the next one. */
+.cwl-rest-label {
+  margin: var(--cm-space-4) 0 0;
+  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label);
+  text-transform: uppercase; color: var(--cm-fg-muted);
+}
+
+/* Line two: the clock. Display size, bold, tight — the drop form.
+ *
+ * `--cm-text-display` IS THE LARGEST OF #17'S SEVEN SIZES AND THERE IS NO
+ * EIGHTH. A drop countdown wants to be bigger than its surroundings, and at the
+ * top of that clamp it is 34px against 13px body, a 2.6x jump. The scale carries
+ * the form; a new size would have been a finding to record rather than a token
+ * to add inside one surface.
+ *
+ * `min-height` comes off the same clamp so the floor state swapping in does not
+ * shift the page, and `font-variant-numeric` is restated rather than inherited
+ * from :root because this is the one element where it is load-bearing rather
+ * than a nicety. */
+.cwl-rest-clock {
+  margin: 0; min-height: var(--cm-text-display);
+  font-size: var(--cm-text-display); font-weight: var(--cm-weight-bold);
+  letter-spacing: var(--cm-tracking-display); line-height: 1.1;
+  color: var(--cm-fg-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The floor. Same slot, same size, no digits — so the transition at zero is a
+ * word replacing a number in place rather than the page rearranging. Muted
+ * because "starting soon" is the app admitting it does not know, which is the
+ * unknown mark's job (#19) and carries no hue. */
+.cwl-rest-clock.is-soon { color: var(--cm-fg-muted); font-weight: var(--cm-weight-semibold); }
+
+/* The one sentence under the clock: it names what the countdown is counting to,
+ * which a bare date cannot. */
+.cwl-rest-note {
+  margin: var(--cm-space-3) 0 0;
+  font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); max-width: 34ch;
+}
+
+/* The mark, muted to `--cm-hairline` and NOT to a raw ramp step. The prototype's
+ * first draft used `--cm-n-300`, which is a fixed light value and so rendered
+ * near-white on the dark theme — the mark became the loudest thing on the
+ * quietest page in the app. Hairline is the semantic token whose documented job
+ * is "decorative; intentionally below 3:1", which is precisely a watermark. */
+.cwl-rest-mark { width: 72px; height: 72px; margin-bottom: var(--cm-space-2); }
+
+/* The status region is for a failed reopen and nothing else: there is no
+ * success message, because success is a phase change the leader can see. */
+.cwl-rest-live {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden; white-space: nowrap;
+  clip-path: inset(50%); border: 0;
+}
+
+/* Desktop does not widen this. There is nothing to reflow — one column of one
+ * thing — so the only change is more room around it. */
+@media (min-width: 720px) {
+  .cwl-rest { padding: var(--cm-space-7) var(--cm-space-4); }
+}

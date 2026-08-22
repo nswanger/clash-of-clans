@@ -154,7 +154,7 @@ The prediction this section carried — that two of the four routes might not wa
 
 **The rule that produced the answer was "one route per question a leader actually asks."** Under it, a page whose content is a view that happens to exist is not a page. That is what caught `overview` (duplicate numbers), `season` (no data, and none coming), `dashboard` (a grab bag around one genuinely useful signal), and — prospectively — a regular-war page, which was considered and rejected on the same test before it was ever built.
 
-### Wave 4 — the resting phase
+### Wave 4 — the resting phase — **landed**
 
 Deferred deliberately, not left over. After review has been available for a while the CWL route should rest rather than keep presenting a finished season as though something were outstanding, and it becomes the default phase position while lineup and review stay reachable.
 
@@ -184,6 +184,21 @@ Deferred deliberately, not left over. After review has been available for a whil
 **The clock stays inside the locked type scale.** `--cm-text-display` is the largest of #17's seven sizes, 26px on a phone against 13px body. An eighth size would be a finding worth recording rather than something to invent inside a surface, and the scale carried the form.
 
 It waited because it depends on nothing else in wave 3, and because it is the one piece here that wanted a design decision rather than a port. See [ADR 0002](../docs/adr/0002-app-surfaces-and-cwl-phase.md).
+
+#### What landed, and where it differs from the plan above
+
+- **The phase ladder takes an object, not four arguments.** `defaultCwlPhase(seasonId, warStates, now)` grew from one marker to three and would have become four loose positional arguments, two of them nullable timestamps — the shape a call site gets the wrong way round. It reads `{ seasonId, warDays, bonusesAdministeredAt }` now, which is the snapshot the loader already returns, and the war days carry their own `end_time` rather than being flattened to states first.
+- **The two resting markers run BEFORE the war states, and the month guard forks rather than moving.** Both are observations the states cannot contradict: an administered bonus is a leader saying the season is done, and a final war that ended more than a week ago is over whatever its row still claims. The earlier-month guard stayed exactly where it was and now answers `resting` past day 8 of the month and `review` before it, which is the floor the plan asked for in the place the plan left it.
+- **The countdown's target was wrong in the prototype on the one day it matters, and is fixed here.** `nextCwlStart` always named the *following* month. On the 1st before 05:00 UTC that claims a month's wait when the season starts in hours; on the 1st after 05:00 it claims a month's wait at the moment CWL is actually starting, where the surface should be showing its floor. The built version targets that day's own roll on the 1st — ahead or behind — and the following month's on every other day, so the floor state can be reached at all.
+- **The loader returns the earlier season ids too, which is one more field than "the whole of it" allowed.** Stand down carries the season menu byte-for-byte and the menu lists the earlier seasons; the phase snapshot knew only the latest. It costs nothing — the seasons query already ran, and this is the same query without its `limit(1)`, exactly as `loadCwlReviewSeason` already does it — and it is what let stand down render from the snapshot the route had already loaded rather than opening a second load on the quietest page in the app.
+- **`Mark` takes the colour behind it.** The head's cuts are knocked out to `--mark-bg`, which was pinned to `--cm-bg` because the mark had only ever sat in the topbar. This surface puts it on `--cm-surface`, which is the case the component's own comment predicted would come; a wrong value there shows as three pale slivers on the head.
+- **Stand down cannot be reached when the phase load failed, and a link to it falls back to the lineup.** It renders from the snapshot rather than loading its own data, so without a season there is nothing to say is finished — and the lineup reports the load failure with the real message. The strip agrees with what is on screen, because the fallback changes the phase and not just the branch.
+- **The e2e fixture's CWL season is dated from the clock now.** Its written-out August dates put the final war more than seven days in the past, so marker 2 fired and the default fixture stood down — a suite that would have gone red on a date rather than on a change, and would have done so again on the 1st of any month when the season id started naming an earlier one. The season is the current month and the wars ended yesterday-ish, which is what "a current season with a live war day" means. Everything else in that file stays written out, because nothing else is read against the clock.
+- **The third phase has browser coverage, and it earned it.** It is the one surface whose body is a live clock, and the dispatch, the countdown and the strip's sub-label all have to agree on one screen — a unit test can only assert two of them against a fake clock. The spec walks the countdown's shape, the sub-label agreeing to the day, and Reopen review landing back on the review phase.
+- **The type scale held.** `--cm-text-display` carries the drop form at 2.6x body and no eighth size was added, which is the question #55 said to judge on the page.
+- **Verified in the preview against the prototype**, at 375px and 1280px in both themes: the counting state, the floor state past zero with its label and note swapped in place, the mark on `--cm-surface`, and the season menu at its resolved `cm-routemenu` values on both phases that render it. Reduced motion is asserted in the unit suite rather than the preview, which has no control for the preference.
+
+**The Clan Muster migration is done.**
 
 ### The app chrome — in no wave, and landed with wave 3
 

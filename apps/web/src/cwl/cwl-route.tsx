@@ -5,15 +5,20 @@
  * body, because the eyebrow and the side controls belong to the phase: the
  * lineup's lock chip and day menu are not the review phase's season menu.
  *
+ * Three phases since wave 4. Stand down is where bare `#/cwl` lands once the
+ * season is done with (#55), and it is the one phase that reads the snapshot
+ * itself rather than loading its own data.
+ *
  * The phase snapshot is a deliberately tiny load rather than a field on either
  * phase's own data. The decision has to be made BEFORE either phase fetches
  * anything, and fetching the lineup workspace to discover the season is over is
  * precisely the stale-lineup defect the phase model exists to fix.
  */
 import { useEffect, useState } from "react";
-import { loadCwlSeasonPhase, type CwlSeasonPhaseSnapshot } from "../data/operations.js";
+import { loadCwlSeasonPhase, type CwlSeasonPhaseSnapshot, type CwlWarState } from "../data/operations.js";
 import { CwlLineupWorkspacePage } from "./cwl-lineup-workspace.js";
 import { CwlReviewPage } from "./cwl-review.js";
+import { CwlStandDownPage } from "./cwl-rest.js";
 import { defaultCwlPhase, hashForPhase, phaseFromHash, type CwlPhase } from "./cwl-phase.js";
 
 /* The day the lineup phase would open on, mirroring what
@@ -21,7 +26,7 @@ import { defaultCwlPhase, hashForPhase, phaseFromHash, type CwlPhase } from "./c
  * in preparation or in war, and day 1 when there is none. It is the phase
  * strip's sub-label, so switching phase is a choice with a stated destination
  * rather than a jump. */
-export function currentLineupDay(warDays: CwlSeasonPhaseSnapshot["warDays"]): number {
+export function currentLineupDay(warDays: ReadonlyArray<{ warDay: number; state: CwlWarState }>): number {
   return warDays
     .filter((day) => day.state === "preparation" || day.state === "inWar")
     .map((day) => day.warDay)
@@ -50,8 +55,16 @@ export function CwlRoutePage({ client, clanTag, hash }: { client: any; clanTag: 
      is that a wait under the threshold is not a wait. */
   if (!snapshot && !failed) return null;
 
-  const phase: CwlPhase = requested
-    ?? (snapshot ? defaultCwlPhase(snapshot.seasonId, snapshot.warDays.map((day) => day.state), new Date()) : "lineup");
+  const requestedOrDefault: CwlPhase = requested
+    ?? (snapshot ? defaultCwlPhase(snapshot, new Date()) : "lineup");
+  /* Stand down reads the snapshot itself rather than loading its own data — the
+     season it names and the menu's earlier seasons are both in the load that
+     chose the phase. It is therefore the one phase a failed load cannot render,
+     and a link to it falls back to the lineup rather than to an empty frame:
+     without a season there is nothing to say is finished, and the lineup reports
+     the failure with the real message. The strip must agree with what is on
+     screen, which is why this is the phase and not just the branch. */
+  const phase: CwlPhase = requestedOrDefault === "resting" && !snapshot ? "lineup" : requestedOrDefault;
   /* Resolved once, here, and handed to both the strip's sub-label and the
      workspace itself — so the label names the day the workspace will actually
      open on rather than a second opinion about it. */
@@ -60,6 +73,16 @@ export function CwlRoutePage({ client, clanTag, hash }: { client: any; clanTag: 
      and the back button walks the phases the leader actually visited. */
   const onPhase = (next: CwlPhase) => { window.location.hash = hashForPhase(next); };
 
+  if (phase === "resting" && snapshot) {
+    return <CwlStandDownPage
+      client={client}
+      clanTag={clanTag}
+      snapshot={snapshot}
+      phase={phase}
+      onPhase={onPhase}
+      lineupDayLabel={`Day ${lineupDay}`}
+    />;
+  }
   if (phase === "review") {
     return <CwlReviewPage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} lineupDayLabel={`Day ${lineupDay}`} />;
   }

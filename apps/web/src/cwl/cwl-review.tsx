@@ -381,7 +381,7 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
               row-marking rule at page scale: "still to do" is the state this
               surface exists in, so it goes unmarked. */}
           {administered ? <span className="cm-statuschip is-on">Bonuses administered</span> : null}
-          <span className="cwl-review-seasonmenu-wrap">
+          <span className="cwl-seasonmenu-wrap">
             <button
               className="cm-iconbutton"
               type="button"
@@ -392,11 +392,11 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
               onClick={() => setSeasonMenuOpen((open) => !open)}
             ><Icon name="more" /></button>
             {seasonMenuOpen && snapshot
-              ? <div className="cwl-review-seasonmenu" role="menu">
+              ? <div className="cwl-seasonmenu" role="menu">
                   <button type="button" role="menuitem" onClick={() => void toggleAdministered()}>
                     {administered ? "Reopen review" : "Mark bonuses administered"}
                   </button>
-                  <div className="cwl-review-divider" />
+                  <div className="cwl-seasonmenu-divider" />
                   <button type="button" role="menuitem" aria-current="true">
                     {snapshot.season.seasonId} <small>Current</small>
                   </button>

@@ -110,7 +110,7 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | `cm-topbar-side` | — | The right-hand slot. |
 | `cm-statuschip` | `is-on` | Renamed from `lockchip`, which named its first use rather than the concept. #54 is the second use — "bonuses administered" — which is what makes the rename right rather than speculative. |
 | `cm-iconbutton` | `is-small` | 44px by default; `is-small` is still 44px of tap target. |
-| `cm-mark` | — | The app mark at 24px, first slot in `cm-topbar`. Once per screen (#24). |
+| `cm-mark` | — | The app mark at 24px, first slot in `cm-topbar`. Once per screen (#24). Its React component takes the colour behind it, because the head's cuts are knocked out to that colour and wave 4 put the mark on `--cm-surface` for the first time. |
 | `cm-account` | — | The display name as a control. The initial travels, not the name — the name is the widest unbounded string in the chrome and the one piece nobody reads twice; it stays the button's accessible name. Opens sign-out, which the app had no route to at all (#58). |
 
 `cm-topbar` carries four slots after #58: the mark, the route control, the flexible middle, and `cm-topbar-side`. It is the app's only bar.
@@ -222,7 +222,9 @@ Not components. Listed so the boundary is legible.
 
 **Members:** metric tile, list header, facts grid, evidence list, freshness line, filter choices, window row.
 
-**Review:** season menu, war-day record, coverage caveat, list header, facts grid, freshness line.
+**Review:** war-day record, coverage caveat, list header, facts grid, freshness line. The season menu left this list in wave 4 — it is the CWL route's now, not review's.
+
+**Stand down:** the stand-down state itself, and nothing else. One container, a muted mark, a season line, a label, the clock and a note; the surface has no list, no row and no control in its body, which is why it is the only page in the app whose body is a single page-layer block.
 
 **Admin:** collection-health facts list, the invitation token block, the audit list, the per-row error line, the control row. Conformed against this inventory rather than against a prototype, because wave 3 has none for it — which makes it the inventory's third test and the one that produced the two component changes above.
 
@@ -230,7 +232,7 @@ Not components. Listed so the boundary is legible.
 
 **Auth:** the shell that carries the three session states. One surface, three states, and the only place the mark appears large; it is page layer because exactly one route renders it.
 
-**#55 confirmed the season menu stays page layer, and moved it up one level within that.** Stand down needs it byte-for-byte, which looks like the second use that promoted `cm-summary` and is not: stand down and review are two *phases of one route*, so the menu is still one surface's own overflow. It moves from `cwl-review.css` to `cwl-route.css` as `.cwl-seasonmenu*`, which is where what neither phase owns already lives.
+**#55 confirmed the season menu stays page layer, and wave 4 moved it up one level within that.** Stand down needs it byte-for-byte, which looks like the second use that promoted `cm-summary` and is not: stand down and review are two *phases of one route*, so the menu is still one surface's own overflow. It moved from `cwl-review.css` to `cwl-route.css` as `.cwl-seasonmenu*`, which is where what no single phase owns already lives — and took `cm-routemenu`'s values for the four properties the two menus had drifted apart on.
 
 The season menu is the lineup's day menu at a different scope, and stays page layer for the same reason: both are one surface's own overflow of actions, not a control the system offers. Seasons are deliberately **not** a `cm-segmented` — the strip on that route already carries the phase (ADR 0002), and seasons accumulate without bound while war days and activity windows are fixed small sets.
 

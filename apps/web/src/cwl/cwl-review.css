@@ -9,6 +9,11 @@
  * route would collide inside a single stylesheet. This is the same collision the
  * members roster hit with `.metric` and the lineup hit with `.lineup-actions`.
  *
+ * The season menu is NOT here either, and for the same shape of reason one wave
+ * on: stand down needs it byte-for-byte, so it moved to `cwl-route.css` as
+ * `.cwl-seasonmenu*` — the route layer, not the system layer, because two phases
+ * of one route are still one surface's own overflow of actions (#55).
+ *
  * The summary strip is NOT here, and that absence is the finding #54 produced:
  * it was members page layer because one surface used it, and a second surface
  * needing exactly the same aggregate read is what promoted it to `cm-summary`
@@ -20,40 +25,6 @@
  * tie — the members roster found this the hard way when `display: flex` on
  * `cm-row-stats` beat a page-layer `display: none`.
  */
-
-/* ---------- the season menu ----------
- * The lineup's day menu at a different scope, and deliberately not a segmented
- * strip: seasons accumulate without bound while war days and phases are fixed
- * small sets, and the strip above already carries the phase (ADR 0002).
- *
- * ADR 0002 requires a previous season to stay reachable; this is where that
- * lives, and where a real data gap shows. Every CWL view routes through
- * `cwl_current_seasons`, so an earlier season is not queryable today — the
- * entries are honestly disabled rather than silently missing.
- */
-.cwl-review-seasonmenu-wrap { position: relative; }
-.cwl-review-seasonmenu {
-  position: absolute; right: 0; top: calc(var(--cm-tap-min) + var(--cm-space-1)); z-index: 20;
-  min-width: 240px; padding: var(--cm-space-1);
-  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
-  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
-}
-.cwl-review-seasonmenu button {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
-  width: 100%; text-align: left;
-  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
-  border: 0; border-radius: var(--cm-radius-md); background: none;
-  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
-}
-.cwl-review-seasonmenu button[disabled] { color: var(--cm-fg-unknown); cursor: not-allowed; }
-.cwl-review-seasonmenu button small {
-  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
-}
-.cwl-review-divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
-.cwl-review-seasonmenu p {
-  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
-  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
-}
 
 /* ---------- ranked list ----------
  * Progressive disclosure through the row's own stats slot, gated on a CONTAINER

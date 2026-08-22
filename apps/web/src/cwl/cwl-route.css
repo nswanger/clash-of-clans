@@ -1,13 +1,67 @@
-/* The CWL route's own layer — what neither phase owns.
+/* The CWL route's own layer — what no single phase owns.
  *
- * One rule, and it exists because the route has two `cm-segmented` strips on the
- * lineup phase and one on the review phase (ADR 0002). The gap under the phase
- * strip is what stops the pair reading as a single two-row control; the
+ * The phase strip's gap exists because the route has two `cm-segmented` strips
+ * on the lineup phase and one on each of the others (ADR 0002). The gap under
+ * the phase strip is what stops the pair reading as a single two-row control;
+ * the
  * component cannot own it, because on the review phase a bottom margin would
  * leave a hole under a strip with nothing beneath it.
  *
- * It lives beside the strip component that needs it rather than in either
- * phase's stylesheet, so neither phase can be loaded without it and neither has
- * to duplicate it.
+ * It lives beside the strip component that needs it rather than in any phase's
+ * stylesheet, so no phase can be loaded without it and none has to duplicate it.
+ * The season menu below is here for the same reason: two phases render it.
  */
 .cwl-phasestrip { margin-bottom: var(--cm-space-3); }
+
+/* ---------- the season menu ----------
+ * The lineup's day menu at a different scope, and deliberately not a segmented
+ * strip: seasons accumulate without bound while war days and phases are fixed
+ * small sets, and the strip above already carries the phase (ADR 0002).
+ *
+ * IT IS HERE RATHER THAN IN THE SYSTEM LAYER, and that is not the promotion #54
+ * made for the summary strip. components.md already ruled on this: "the route
+ * menu is system layer, where the day and season menus are page layer… those are
+ * one surface's own overflow of actions." Wave 4 does not break that rule,
+ * because stand down and review are two PHASES OF ONE ROUTE rather than two
+ * surfaces — the menu is still the CWL route's own overflow. It was
+ * `.cwl-review-seasonmenu*` while one phase used it; two do now, so it moves to
+ * the file that exists for exactly this case.
+ *
+ * ADR 0002 requires a previous season to stay reachable; this is where that
+ * lives, and where a real data gap shows. Every CWL view routes through
+ * `cwl_current_seasons`, so an earlier season is not queryable today — the
+ * entries are honestly disabled rather than silently missing (#56).
+ *
+ * FOUR VALUES NOW MATCH `cm-routemenu` THAT DID NOT BEFORE: z-index 40 rather
+ * than 20, min-width 200px rather than 240px, a `margin-top` offset rather than
+ * a `top: calc()`, and `radius-sm` item corners rather than `radius-md`. All
+ * four were drift between two menus written months apart rather than intent, and
+ * two components disagreeing by accident is the thing a move like this is worth
+ * doing for. The offset is the substantive one: `margin-top` positions the menu
+ * under the control that opened it whatever height that control is, where the
+ * `top: calc()` restated the tap target's size and would have been wrong the
+ * moment it changed.
+ */
+.cwl-seasonmenu-wrap { position: relative; }
+.cwl-seasonmenu {
+  position: absolute; right: 0; margin-top: 4px; z-index: 40;
+  min-width: 200px; padding: var(--cm-space-1);
+  border: 1px solid var(--cm-hairline); border-radius: var(--cm-radius-lg);
+  background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
+}
+.cwl-seasonmenu button {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  width: 100%; text-align: left;
+  min-height: var(--cm-tap-min); padding: 0 var(--cm-space-3);
+  border: 0; border-radius: var(--cm-radius-sm); background: none;
+  font-size: var(--cm-text-sm); font-weight: var(--cm-weight-medium); color: var(--cm-fg);
+}
+.cwl-seasonmenu button[disabled] { color: var(--cm-fg-unknown); cursor: not-allowed; }
+.cwl-seasonmenu button small {
+  font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
+}
+.cwl-seasonmenu-divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
+.cwl-seasonmenu p {
+  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
+  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
+}
