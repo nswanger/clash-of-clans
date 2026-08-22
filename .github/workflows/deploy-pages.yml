@@ -19,6 +19,11 @@ jobs:
     uses: ./.github/workflows/checks.yml
     with:
       upload-pages-artifact: true
+    # The migrations job needs SUPABASE_MIGRATION_AUDIT_URL; a reusable workflow
+    # is handed nothing unless the caller says so. `deploy` needs `build`, so an
+    # unapplied migration blocks the publish rather than shipping a surface
+    # against schema the database does not have (#65).
+    secrets: inherit
 
   deploy:
     needs: build

@@ -15,11 +15,39 @@ on:
           build works and throws the output away.
         type: boolean
         default: false
+    secrets:
+      SUPABASE_MIGRATION_AUDIT_URL:
+        description: >-
+          Read-only migration_auditor connection string for the unapplied-
+          migration check (#65). Callers pass it with `secrets: inherit`.
+        required: true
 
 permissions:
   contents: read
 
 jobs:
+  # A JOB OF ITS OWN, not a step in `checks`. This is the only part of CI that
+  # holds a credential, and it must never sit in the job that runs
+  # `pnpm install` -- the guarantee the Pages build makes is that it handles
+  # nothing but the four public VITE_ values, and a dependency in that job being
+  # able to read a database credential would end it. This job installs no
+  # project dependencies and runs no project code.
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      # Pages deploys on merge and the database does not (#65). The runbooks
+      # have carried the rule since 2026-08-20; this is the rule with teeth.
+      # It fails a pull request as readily as a deploy, which is the point: the
+      # fix is to push the migration, and the schema going first is the order
+      # docs/runbooks/supabase.md already requires.
+      - name: Assert every migration is applied to the remote database
+        env:
+          SUPABASE_MIGRATION_AUDIT_URL: ${{ secrets.SUPABASE_MIGRATION_AUDIT_URL }}
+        run: sh scripts/check-migrations.sh
+
   checks:
     runs-on: ubuntu-latest
     env:
