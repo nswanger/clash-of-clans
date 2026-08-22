@@ -184,6 +184,17 @@ describe("AdminPage", () => {
     expect(screen.getByText("normalization_error")).toBeVisible();
   });
 
+  /* #74: the empty health is what `loadCollectionHealth` returns when the table
+     has no rows, and naming a run in that state sent the reader looking for one
+     that does not exist. It is still a fault, stated as the fault it is. */
+  it("names the absence rather than a run when no collection run exists", () => {
+    renderAccess({
+      collection: { runId: null, status: null, startedAt: null, finishedAt: null, lastFreshAt: null, errorMessage: null, attempts: [] },
+    });
+    expect(screen.getByText("No collection run has been recorded")).toBeVisible();
+    expect(screen.queryByText(/The latest collection run was not healthy/)).not.toBeInTheDocument();
+  });
+
   it("shows a recoverable row error after a failed mutation", async () => {
     const user = userEvent.setup();
     const onRevokeInvitation = vi.fn().mockRejectedValue(new Error("Invitation is no longer pending"));

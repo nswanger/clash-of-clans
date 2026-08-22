@@ -431,8 +431,15 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
         : stale
           ? <div className="cm-notice" role="alert">
               <div className="cm-grow">
+                {/* A NULL STATUS IS NOT A STATUS. It means no run row could be
+                    read at all, and interpolating it produced "reported ." —
+                    a sentence whose missing word was the only evidence it
+                    claimed to carry (#74). The two cases are different facts
+                    and read as different sentences. */}
                 <strong>Collection data is stale</strong>
-                <p>The last collection run reported {snapshot?.freshness.collectionStatus}. Attacks made since then are not in this record.</p>
+                {snapshot?.freshness.collectionStatus
+                  ? <p>The last collection run reported {snapshot.freshness.collectionStatus}. Attacks made since then are not in this record.</p>
+                  : <p>No collection run has been recorded, so nothing here can be shown to be current.</p>}
               </div>
               <button type="button" onClick={() => void load()}>Retry</button>
             </div>

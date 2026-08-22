@@ -259,6 +259,16 @@ describe("CwlReviewPage", () => {
     expect(screen.queryByText("Collection data is stale")).not.toBeInTheDocument();
   });
 
+  /* #74: a null status interpolated into the sentence rendered "reported ." —
+     the one word carrying the evidence was the one that was missing. */
+  it("states the absence rather than an empty status when no run was read", async () => {
+    render(<CwlReviewPage client={reviewClient({ collection_runs: [] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByText("Collection data is stale")).toBeVisible();
+    expect(screen.getByText(/No collection run has been recorded/)).toBeVisible();
+    expect(screen.queryByText(/The last collection run reported/)).not.toBeInTheDocument();
+  });
+
   it("still calls the season record stale when a real endpoint failed", async () => {
     const brokenRun = {
       ...IDLE_CWL_RUN,
