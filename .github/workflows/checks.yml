@@ -1,0 +1,116 @@
+name: Checks
+
+# The single definition of what "the checks pass" means. Two triggers call it:
+# pr.yml on pull_request, deploy-pages.yml on push to main. Keeping it in one
+# file is the point of the extraction (#68) — a second copy of these steps would
+# drift, which is how #63 shipped a comment asserting "both Playwright projects
+# are Chromium" while playwright.config.ts said otherwise.
+on:
+  workflow_call:
+    inputs:
+      upload-pages-artifact:
+        description: >-
+          Configure GitHub Pages and upload apps/web/dist as the Pages artifact.
+          Only the deploy caller needs this; a pull request builds to prove the
+          build works and throws the output away.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      VITE_CLAN_TAG: ${{ vars.VITE_CLAN_TAG }}
+      VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Validate public build configuration
+        shell: bash
+        run: |
+          missing_configuration=0
+          for variable_name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_CLAN_TAG; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "::error::Required GitHub Actions repository variable ${variable_name} is not configured."
+              missing_configuration=1
+            fi
+          done
+          exit "${missing_configuration}"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The half-finished rename is the one failure mode the test suite
+      # structurally cannot see: no test queries by class name, which is exactly
+      # what makes a restyle invisible to it (#25).
+      - name: Assert the Clan Muster migration left no legacy prefix
+        shell: bash
+        run: |
+          legacy_prefix="cwl-$(printf 'proto')-"
+          if grep -rqF "${legacy_prefix}" apps/web/src; then
+            echo "::error::${legacy_prefix} survives in apps/web/src; the wave-2 rename is incomplete."
+            grep -rnF "${legacy_prefix}" apps/web/src
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      # Nothing ran this suite until now, which is how two specs sat stale
+      # through a whole wave of rebuilds while the app's default route lost all
+      # browser-level coverage (#63). The two Playwright projects need two
+      # engines: Desktop Chrome is Chromium, but the iPhone 13 descriptor
+      # carries defaultBrowserType: webkit, so installing Chromium alone failed
+      # all 13 mobile tests on the first CI run. The 26 tests take under ten
+      # seconds; the browser download is the slow part.
+      - name: Install the Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: End-to-end test
+        run: pnpm e2e
+
+      - name: Build
+        run: pnpm build
+
+      # Runs on every caller, not just the uploading one: the guarantee is about
+      # what the build produces, and a pull request is where finding a leaked
+      # secret name is cheapest.
+      - name: Scan Pages artifact for collector secrets
+        shell: bash
+        run: |
+          forbidden_pattern='SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|CLASH_API_TOKEN|sb_secret_'
+          if grep --recursive --files-with-matches --binary-files=text --extended-regexp "${forbidden_pattern}" apps/web/dist >/dev/null; then
+            echo "::error::The Pages artifact contains a collector-only secret name or secret-key prefix."
+            exit 1
+          fi
+
+      - name: Configure GitHub Pages
+        if: inputs.upload-pages-artifact
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        if: inputs.upload-pages-artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: apps/web/dist
