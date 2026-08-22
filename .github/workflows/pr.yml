@@ -1,0 +1,21 @@
+name: Pull request
+
+# Testing and deploying used to be the same event: the only way to learn whether
+# CI passed was to merge and watch main, which meant validating a workflow edit
+# cost a production deploy (#68). This runs the same checks on the branch.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push supersedes the run it interrupted; nothing downstream depends on a
+# pull request's build, so cancelling it costs nothing.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
