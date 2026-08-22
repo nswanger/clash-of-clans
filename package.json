@@ -7,8 +7,9 @@
   },
   "scripts": {
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test && sh scripts/tests/verify-collector.test.sh",
+    "test": "pnpm -r test && sh scripts/tests/verify-collector.test.sh && sh scripts/tests/check-migrations.test.sh",
     "e2e": "playwright test",
+    "migrations:check": "sh scripts/check-migrations.sh",
     "build": "pnpm -r build"
   },
   "devDependencies": {

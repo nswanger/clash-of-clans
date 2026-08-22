@@ -99,7 +99,38 @@ supabase migration list
 
 Every local entry must have a matching remote entry. A row with an empty `remote` is unapplied, and any frontend code that reads it will break the moment it deploys. Push it first, following the validate-and-dry-run procedure above.
 
-**Observed 2026-08-20.** `202608200001_cwl_bonus_administration.sql` merged with [#61](https://github.com/nswanger/clash-of-clans/issues/61) and was never pushed. The Clan Muster migration's wave 3 then shipped the review phase, whose loader selects `cwl_seasons.bonuses_administered_at`, and the CWL route's review phase failed to load in production. The migration file being present in the repository was mistaken for the column being present in the database; `supabase migration list` is what distinguishes them. A durable check is tracked in [#65](https://github.com/nswanger/clash-of-clans/issues/65).
+**Observed 2026-08-20.** `202608200001_cwl_bonus_administration.sql` merged with [#61](https://github.com/nswanger/clash-of-clans/issues/61) and was never pushed. The Clan Muster migration's wave 3 then shipped the review phase, whose loader selects `cwl_seasons.bonuses_administered_at`, and the CWL route's review phase failed to load in production. The migration file being present in the repository was mistaken for the column being present in the database; `supabase migration list` is what distinguishes them.
+
+### CI enforces this rule
+
+The check is no longer only a habit ([#65](https://github.com/nswanger/clash-of-clans/issues/65), [ADR 0003](../adr/0003-ci-reads-the-migration-ledger.md)). A `migrations` job in `checks.yml` reads the remote ledger and fails when a local migration has no matching entry. It runs on every pull request and on the push to `main`, and because the Pages `deploy` job needs the checks, an unapplied migration blocks the publish.
+
+A red check is not noise. The remedy is `supabase db push` — the same order this section already requires — and the pull request is where obeying it is cheapest.
+
+Run the same check locally against the same credential:
+
+```sh
+SUPABASE_MIGRATION_AUDIT_URL='<migration-auditor-connection-string>' pnpm migrations:check
+```
+
+Exit `1` means a migration is unapplied. Exit `2` means the check could not reach the database and is deliberately distinct: "cannot tell" must never read as "nothing is unapplied".
+
+### Provision the migration auditor credential
+
+The check connects as `migration_auditor`, created by `202608220001_migration_audit_role.sql` with column-level `SELECT (version, name)` on `supabase_migrations.schema_migrations` and no grant on any application table. It cannot read `statements`, cannot write, and cannot see application data. This is why CI holds a database credential at all: `supabase migration list --linked` would need `SUPABASE_ACCESS_TOKEN`, which Supabase issues account-wide — a more privileged value than the collector secret this workflow is built to exclude.
+
+1. Apply the migrations so the role exists, then generate a password and store it in the password manager.
+2. In the production SQL Editor, run `supabase/production/enable_migration_auditor_login.sql` with that password substituted. It grants `LOGIN`, which no local database ever gets. It ends with one verification row: expect `can_log_in` and `can_read_version` true and every other column false. The check uses `has_*_privilege` rather than attempting a denied read on purpose — the SQL Editor submits the script as one batch, so a deliberate permission error would abort it and roll back the `ALTER ROLE`, leaving the password unset behind a message that looks like the test working.
+3. Build the connection string from the Supabase **Connect** dialog, replacing the username and password with the auditor's. Use the **pooler** host: GitHub Actions runners are IPv4-only and the direct database host is IPv6.
+4. Add it under **Settings > Secrets and variables > Actions > Secrets**:
+
+   | Repository secret | Value |
+   | --- | --- |
+   | `SUPABASE_MIGRATION_AUDIT_URL` | The `migration_auditor` pooler connection string |
+
+This is the only secret either workflow holds, and it is confined to the `migrations` job, which installs no dependencies and runs no project code. The rule against putting `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `CLASH_API_TOKEN`, or any `sb_secret_...` value into Actions is unchanged.
+
+To rotate it, `ALTER ROLE migration_auditor WITH PASSWORD '<new>'`, update the secret, and re-run the workflow.
 
 ## Configure GitHub Pages
 

@@ -19,3 +19,6 @@ concurrency:
 jobs:
   checks:
     uses: ./.github/workflows/checks.yml
+    # The migrations job needs SUPABASE_MIGRATION_AUDIT_URL; a reusable workflow
+    # is handed nothing unless the caller says so.
+    secrets: inherit
