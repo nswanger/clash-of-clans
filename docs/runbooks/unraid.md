@@ -225,6 +225,27 @@ A failed normalized write presents as a *healthy* Clash attempt. The endpoint re
 
 Do not use the production SQL Editor to patch data or schema while diagnosing. Schema changes belong in a migration.
 
+### Diagnose a container that cannot reach anything
+
+Both `Clash connectivity` and `Supabase connectivity` failing at once is a network fault, not an API, token, or schema fault. A token or key-IP problem reaches Clash and comes back `http_403`; a schema problem reports healthy Clash attempts. Two dead endpoints means the requests never left the host.
+
+Check DNS from inside the container first:
+
+```sh
+docker exec cwl-collector cat /etc/resolv.conf
+docker exec cwl-collector node -e 'fetch("https://api.ipify.org",{signal:AbortSignal.timeout(8000)}).then(r=>console.log(r.status)).catch(e=>console.log("ERR",e.cause?.code||e.message))'
+```
+
+`EAI_AGAIN` together with `# NO EXTERNAL NAMESERVERS DEFINED` in the container's resolv.conf is the known failure: Docker snapshots the host's `/etc/resolv.conf` when the container is **created**, and a container created during a dhcpcd lease renewal inherits a file with no nameserver. The embedded resolver at `127.0.0.11` then has no upstream for the container's whole life, and every collection fails until it is recreated. Compare `stat -c '%y' /etc/resolv.conf` on the host against `docker inspect --format '{{.State.StartedAt}}' cwl-collector` to confirm the race; the host file itself will look correct.
+
+Recreating the container fixes it, because it re-reads the host file:
+
+```sh
+cd /mnt/user/appdata/cwl-collector && docker compose up -d --force-recreate collector
+```
+
+A healthy container's resolv.conf names its upstream, for example `# ExtServers: [host(<gateway>)]`. The Compose service also pins public resolvers under `dns:`, which prevents the race from recurring; a deployment running an older `docker-compose.yml` should be updated to the current one.
+
 ## Public WAN IP and Clash key
 
 Clash API keys are managed in the official [Clash of Clans developer portal](https://developer.clashofclans.com/). Immediately before deployment, obtain the current public egress address from UnRaid:

@@ -15,6 +15,13 @@ services:
     security_opt:
       - no-new-privileges:true
     stop_grace_period: 30s
+    # Pinned so a container start cannot inherit an empty host resolv.conf.
+    # Docker snapshots /etc/resolv.conf at container creation; starting during a
+    # dhcpcd lease renewal once left the embedded resolver with no upstream, and
+    # every Clash and Supabase request failed EAI_AGAIN until the next recreate.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     healthcheck:
       test: ["CMD", "node", "dist/main.js", "--healthcheck"]
       interval: 5m
