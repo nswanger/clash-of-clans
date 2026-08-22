@@ -94,6 +94,34 @@ test("opens the CWL route on the phase the season is actually in", async ({ page
   await expect(page.getByRole("heading", { name: /Below eight stars/ })).toBeVisible();
 });
 
+/* The third phase gets browser coverage where the other two have it, because it
+   is the one surface whose body is a live clock: the dispatch, the countdown and
+   the strip's sub-label all have to agree on one screen, and a unit test can
+   only assert two of them against a fake clock. */
+test("stands down on the third phase, with the clock and the strip agreeing", async ({ page }) => {
+  await page.goto("/#/cwl?phase=resting");
+
+  await expect(page.getByRole("heading", { level: 1, name: "Stand down" })).toBeVisible();
+  await expect(page.getByText(/is finished\./)).toBeVisible();
+  await expect(page.getByText("Next CWL starts in")).toBeVisible();
+
+  /* The drop form at full granularity, and the strip's sub-label floored to the
+     same day the clock shows — the prototype's own bug was "10 days" above a
+     clock reading "9d". */
+  const clock = page.getByRole("timer");
+  await expect(clock).toHaveText(/^(\d+d )?\d{2}:\d{2}:\d{2}$/);
+  const days = (await clock.innerText()).match(/^(\d+)d/)?.[1];
+  const standDown = page.getByRole("button", { name: /^Stand down/ });
+  await expect(standDown).toHaveAttribute("aria-current", "true");
+  if (days) await expect(standDown).toContainText(days === "1" ? "a day" : `${days} days`);
+
+  /* Reopen review is the live control and the way back. */
+  await page.getByRole("button", { name: "Season options" }).click();
+  await page.getByRole("menuitem", { name: "Reopen review" }).click();
+  await expect.poll(() => lastMutation(page)).toContain("rpc:set_cwl_bonuses_administered");
+  await expect(page.getByRole("heading", { level: 1, name: "Review" })).toBeVisible();
+});
+
 test("records the one fact the review phase keeps", async ({ page }) => {
   await page.goto("/#/cwl?phase=review");
 

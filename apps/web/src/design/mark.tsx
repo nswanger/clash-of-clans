@@ -21,15 +21,18 @@
 
 /* `--mark-bg` is what the cuts are knocked out to, so it must be the colour
  * actually behind the mark rather than a fixed white: the shield sits on
- * `--cm-bg` in the topbar and on `--cm-surface` nowhere yet, and a wrong value
- * shows as three pale slivers on the head. */
-export function Mark({ variant, className, fill }: {
+ * `--cm-bg` in the topbar, and since wave 4 the head sits on `--cm-surface` in
+ * the stand-down state. A wrong value shows as three pale slivers on the head,
+ * which is why `background` is a prop rather than a constant — the caller is the
+ * only thing that knows what is actually behind it. */
+export function Mark({ variant, className, fill, background = "var(--cm-bg)" }: {
   variant: "shield" | "head";
   className: string;
   fill: string;
+  background?: string;
 }) {
   return (
-    <svg className={className} aria-hidden="true" style={{ ["--mark-bg" as string]: "var(--cm-bg)", fill }}>
+    <svg className={className} aria-hidden="true" style={{ ["--mark-bg" as string]: background, fill }}>
       <use href={`#cm-mark-${variant}`} />
     </svg>
   );

@@ -279,14 +279,21 @@ export interface CwlBonusAdministration {
  * decision has to be made BEFORE either phase's own data is fetched — the
  * workspace snapshot is the lineup phase's data, and fetching it to discover
  * that the season is over is the stale-lineup defect the phase model fixes. */
-/* Deliberately no `bonusesAdministeredAt`. It is wave 4's resting marker and
- * nothing in wave 3 reads it here — the review phase loads it with the rest of
- * the season, where the control that writes it lives. Fetching it a wave early
- * would be a field kept warm for a caller that does not exist. */
+/* `bonusesAdministeredAt` and each day's `endTime` are here because wave 4's
+ * stand-down phase reads them. Wave 3 left them out on the grounds that
+ * fetching the administered marker early would be "a field kept warm for a
+ * caller that does not exist"; the caller exists now — it is the first two rungs
+ * of `defaultCwlPhase`'s ladder — and the two columns cost nothing beyond the
+ * queries this loader already makes. */
 export interface CwlSeasonPhaseSnapshot {
   clanTag: string;
   seasonId: string;
-  warDays: Array<{ warDay: number; state: CwlWarState }>;
+  bonusesAdministeredAt: string | null;
+  /* The season menu's honestly-disabled entries, which the stand-down phase
+     carries as well as the review phase (#55). They cost nothing: the seasons
+     query already runs, and this is the same query without its `limit(1)`. */
+  earlierSeasonIds: string[];
+  warDays: Array<{ warDay: number; state: CwlWarState; endTime: string | null }>;
 }
 
 /* One member's record on one ENDED war day. A war day that never reached
@@ -680,19 +687,21 @@ export async function loadCwlLineupWorkspace(
  * `defaultCwlPhase` in cwl/cwl-phase.ts, which is pure and tested there; this
  * only fetches what it reads. */
 export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<CwlSeasonPhaseSnapshot> {
+  /* Every season the clan has rather than only the latest, as the review
+     loader already does: the head of the list is the current season and the
+     rest are the season menu's entries. */
   const seasonResult = await client.from("cwl_seasons")
-    .select("clan_tag,season_id")
+    .select("clan_tag,season_id,bonuses_administered_at")
     .eq("clan_tag", clanTag)
-    .order("season_id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("season_id", { ascending: false });
   ensureSuccess(seasonResult, "Unable to load the current CWL season");
-  if (!seasonResult.data) throw new Error("No CWL season is available.");
-  const season = record(seasonResult.data);
+  const seasonRows = rows<{ season_id: string }>(seasonResult.data);
+  if (!seasonRows[0]) throw new Error("No CWL season is available.");
+  const season = record(seasonRows[0]);
   const seasonId = String(season.season_id);
 
   const warsResult = await client.from("cwl_wars")
-    .select("war_day,state")
+    .select("war_day,state,end_time")
     .eq("clan_tag", clanTag)
     .eq("season_id", seasonId)
     .order("war_day");
@@ -701,8 +710,16 @@ export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<
   return {
     clanTag,
     seasonId,
-    warDays: rows<{ war_day: number; state: string }>(warsResult.data)
-      .flatMap((row) => typeof row.war_day === "number" ? [{ warDay: row.war_day, state: warState(row.state) }] : []),
+    bonusesAdministeredAt: typeof season.bonuses_administered_at === "string" ? season.bonuses_administered_at : null,
+    earlierSeasonIds: seasonRows.slice(1).map((row) => String(row.season_id)),
+    warDays: rows<{ war_day: number; state: string; end_time: string | null }>(warsResult.data)
+      .flatMap((row) => typeof row.war_day === "number"
+        ? [{
+            warDay: row.war_day,
+            state: warState(row.state),
+            endTime: typeof row.end_time === "string" ? row.end_time : null,
+          }]
+        : []),
   };
 }
 
