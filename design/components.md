@@ -248,6 +248,6 @@ The season menu is the lineup's day menu at a different scope, and stays page la
 - **A tick and a cross for a data outcome.** #54 wanted them for a per-war-day record and used words instead. #40's line is that an affordance becomes an icon while everything else stays type, and a war day's outcome is not something you press — so the icon set stays at eight.
 - **Density or theme variants on any component.** Density follows `(pointer: coarse)` and theme follows the token layer, so surfaces inherit both rather than choosing (#17).
 
-## What this replaces
+## What this replaced
 
-`apps/web` today carries 382 lines of CSS across two global files — 57 `cwl-proto-*` classes and 65 in `styles.css` — with no custom properties. Migration mechanics are [#25](https://github.com/nswanger/clash-of-clans/issues/25).
+`apps/web` carried 382 lines of CSS across two global files — 57 classes under the old prototype prefix and 65 in `styles.css` — with no custom properties, 43 distinct paddings and no theme. All of it is gone: the migration ([#25](https://github.com/nswanger/clash-of-clans/issues/25)) finished in wave 4, `styles.css` is one rule, and every surface is built from this inventory. The rules that outlived the migration are in [`README.md`](README.md).

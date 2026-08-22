@@ -48,6 +48,17 @@ GitHub Issues in `nswanger/clash-of-clans`, managed with `gh`. See `docs/agents/
 
 Use the default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
 
+### Web app conventions
+
+`apps/web` is built on the Clan Muster design system in `design/`. Four rules bind on every change to it, and three of them fail silently:
+
+- **No query in any test suite may name a class.** All queries are `getByRole` or `getByText`, which is what lets a surface be restyled or rebuilt without touching the tests guarding every other surface.
+- **Page CSS takes its surface's prefix, and a page rule overriding a `cm-` component needs an ancestor in the selector** — page stylesheets load *before* the component layer and lose every tie.
+- **`apps/web/src/test/e2e-client.ts` is a hand-maintained stub, not a database.** Filters are honoured only where the fixture models the column, and anything read against the clock must be dated from the clock rather than written out.
+- **A surface that needs a new component or a new token is a finding to record in `design/components.md`, not a licence to invent one.**
+
+Full statements, with the failures that produced them, are in `design/README.md` and `design/components.md`. Appearance is verified by hand against the prototypes in `design/prototype/` at 375px and 1280px in both themes; there is no visual-regression tooling.
+
 ### Domain docs
 
 Single-context documentation uses root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.

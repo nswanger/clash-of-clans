@@ -14,8 +14,8 @@
  * derivations and this file tests the surface they drive.
  *
  * NO QUERY HERE MAY NAME A CLASS. Every Clan Muster class is `cm-` prefixed and
- * a restyle must stay invisible to this suite (design/migration.md, "What proves
- * a surface is correct"). Rows are located by their accessible name, which for a
+ * a restyle must stay invisible to this suite (design/README.md, "The migration
+ * onto this system is finished"). Rows are located by their accessible name, which for a
  * planned row begins with its position — `/^1\s*Sam/` is the lineup's first row and
  * nothing else, since bench rows carry no position.
  */
