@@ -70,6 +70,17 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # Nothing ran this suite until now, which is how two specs sat stale
+      # through a whole wave of rebuilds while the app's default route lost all
+      # browser-level coverage (#63). Both Playwright projects — Desktop Chrome
+      # and iPhone 13 — are Chromium, so one browser covers the matrix, and the
+      # 26 tests take under ten seconds.
+      - name: Install the Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: End-to-end test
+        run: pnpm e2e
+
       - name: Build
         run: pnpm build
 
