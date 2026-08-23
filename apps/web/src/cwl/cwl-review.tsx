@@ -217,13 +217,14 @@ function MemberPanel({ entry, loggedWarDays, seasonId, wide, onClose }: {
           <h2>{member.name}</h2>
           <p className="cm-panel-evidence">
             {roleLabel(member.role)} <span className="cm-sep">·</span> TH{member.townHallLevel} <span className="cm-sep">·</span>{" "}
-            joined {record.warsParticipated} of {countLabel(loggedWarDays, "logged war day")}
-            {/* The rating sits where the lineup workspace puts it -- in the
-                lede -- so a leader reading both surfaces finds the same number
-                in the same place (#89). */}
-            <span className="cm-sep">·</span>{" "}
+            joined {record.warsParticipated} of {countLabel(loggedWarDays, "war")}
+            {/* A LINE BREAK, not another separator. The rating sits where the
+                lineup workspace puts it -- on the lede's own second line -- and
+                a `·` here let it wrap to wherever the identity line happened to
+                end, which on a phone is a different place for every member. */}
+            <br />
             {member.rating.overallRating === null
-              ? "no rating yet"
+              ? "No rating yet"
               : <><b>{Math.round(member.rating.overallRating)}</b> rating</>}
           </p>
         </div>

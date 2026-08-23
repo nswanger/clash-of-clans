@@ -15,6 +15,19 @@
 }
 .cwl-rating-terms dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); overflow-wrap: anywhere; }
 
+/* The counts the two scores came from, set as prose beneath them rather than as
+ * a second `<dl>` row. In the grid they took the same treatment as the scores
+ * and the group read as four figures; here the frame recedes and the numbers
+ * stay legible, which is the same `b` treatment `.cm-panel-evidence` uses. */
+.cwl-rating-evidence {
+  margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-xs); line-height: 1.5;
+  color: var(--cm-fg-muted);
+}
+.cwl-rating-evidence b {
+  color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Muted, like every other line that qualifies a figure rather than being one. */
 .cwl-rating-note { margin: 0 0 var(--cm-space-4); font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
 .cwl-rating-note + .cm-panel-label { margin-top: 0; }

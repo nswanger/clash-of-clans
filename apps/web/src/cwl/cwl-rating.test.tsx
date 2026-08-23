@@ -2,23 +2,42 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { memberRating } from "../data/operations.js";
 import type { CwlMemberRating } from "../data/operations.js";
-import { CwlRatingBreakdown, ratingBasisNote, ratingWindowLabel } from "./cwl-rating.js";
+import { CwlRatingBreakdown, ratingBasisNote, ratingWindowLabel, ratingWindowLabelShort } from "./cwl-rating.js";
 
 function rating(overrides: Partial<CwlMemberRating> = {}): CwlMemberRating {
   return { ...memberRating(undefined), ...overrides };
 }
 
 describe("the window label", () => {
-  it("names the previous CWL when that is what bounded the window", () => {
+  /* `window_from` is the previous CWL's last war end, so its month IS that
+     CWL's month -- which is a claim a leader can check against their own
+     memory in a way "the last 30 days" never was. */
+  it("names the month of the CWL that closed the window", () => {
+    expect(ratingWindowLabel(rating({
+      regularWindowFromBasis: "previous_cwl_end",
+      regularWindowFrom: "2026-07-05T12:00:00.000Z",
+    }))).toBe("since the July CWL");
+  });
+
+  it("reads the month in UTC, so a leader east of the line does not see the previous one", () => {
+    expect(ratingWindowLabel(rating({
+      regularWindowFromBasis: "previous_cwl_end",
+      regularWindowFrom: "2026-07-31T23:30:00.000Z",
+    }))).toBe("since the July CWL");
+  });
+
+  it("falls back to the unnamed form when the bound cannot be read as a date", () => {
     expect(ratingWindowLabel(rating({ regularWindowFromBasis: "previous_cwl_end" })))
-      .toBe("since the last CWL");
+      .toBe("since last CWL");
   });
 
   /* The two bounds are not the same claim, and the fallback has to say it is a
      fallback rather than borrow the rule's wording (#89, and #91's lesson). */
   it("does not claim a previous CWL when it fell back to thirty days", () => {
     expect(ratingWindowLabel(rating({ regularWindowFromBasis: "fixed_30_days" })))
-      .toBe("the 30 days before this CWL");
+      .toBe("in the 30 days before this CWL");
+    expect(ratingWindowLabelShort(rating({ regularWindowFromBasis: "fixed_30_days" })))
+      .toBe("in the 30 days before");
   });
 });
 
@@ -28,8 +47,14 @@ describe("the basis note", () => {
   });
 
   it("explains a rating that exists before any CWL attack was assigned", () => {
-    expect(ratingBasisNote(rating({ ratingBasis: "regular_only", regularWindowFromBasis: "previous_cwl_end" })))
-      .toMatch(/regular-war activity since the last CWL alone/);
+    const note = ratingBasisNote(rating({
+      ratingBasis: "regular_only",
+      regularWindowFromBasis: "previous_cwl_end",
+      regularWindowFrom: "2026-07-05T12:00:00.000Z",
+    }));
+    expect(note).toMatch(/regular-war activity alone/);
+    /* The window belongs to the evidence line above it, once. */
+    expect(note).not.toMatch(/July/);
   });
 
   it("explains a rating whose window observed no regular wars", () => {
@@ -45,6 +70,7 @@ describe("the breakdown", () => {
       regularWarsObserved: 6, regularWarsParticipated: 4,
       regularAvailableAttacks: 12, regularAttacksMade: 8,
       regularWindowFromBasis: "previous_cwl_end",
+      regularWindowFrom: "2026-07-05T12:00:00.000Z",
     })} />);
 
     expect(screen.getByText("CWL attacks")).toBeTruthy();
@@ -62,11 +88,29 @@ describe("the breakdown", () => {
       regularWarsObserved: 6, regularWarsParticipated: 0,
       regularAvailableAttacks: 12, regularAttacksMade: 0,
       regularWindowFromBasis: "previous_cwl_end",
+      regularWindowFrom: "2026-07-05T12:00:00.000Z",
     })} />);
 
     expect(screen.getByText("0")).toBeTruthy();
-    expect(screen.getByText(/0 of 6 since the last CWL/)).toBeTruthy();
-    expect(screen.getByText(/0 of 12 available/)).toBeTruthy();
+    const evidence = screen.getByText(/wars since the July CWL/);
+    expect(evidence.textContent).toContain("0 of 6");
+    expect(evidence.textContent).toContain("0 of 12 attacks used");
+  });
+
+  /* The evidence sits OUTSIDE the score list, which is the whole point of
+     moving it: in the grid it took the same treatment as the two scores and the
+     group read as four figures rather than two and their provenance. */
+  it("keeps the counts out of the score list so the group reads as two scores", () => {
+    const { container } = render(<CwlRatingBreakdown rating={rating({
+      ratingBasis: "blended", cwlScore: 72, regularScore: 45,
+      regularWarsObserved: 6, regularWarsParticipated: 4,
+      regularAvailableAttacks: 12, regularAttacksMade: 8,
+      regularWindowFromBasis: "previous_cwl_end",
+      regularWindowFrom: "2026-07-05T12:00:00.000Z",
+    })} />);
+
+    expect(container.querySelectorAll("dl")).toHaveLength(1);
+    expect(container.querySelectorAll("dl dd")).toHaveLength(2);
   });
 
   /* An empty window is a coverage gap, not a zero. Absence of evidence is never

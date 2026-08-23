@@ -157,6 +157,8 @@
 .days .day { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); }
 .days .outcome { font-size: var(--cm-text-sm); }
 .days .figure { font-weight: var(--cm-weight-semibold); }
+.rating-evidence { margin: 0 0 var(--cm-space-2); font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+.rating-evidence b { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); font-variant-numeric: tabular-nums; }
 .freshness { margin: 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
 .caveat { margin: 0 0 var(--cm-space-4); font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-caution-ink); }
 
@@ -467,7 +469,8 @@ function memberPanelHtml(m, wide) {
       <div class="grow">
         <h2>${esc(m.name)}</h2>
         <p class="panel-evidence">${roleLabel(m.role)} · TH${m.townHallLevel} ·
-          joined ${r.warsParticipated} of ${state.loggedDays} logged war days</p>
+          joined ${r.warsParticipated} of ${state.loggedDays} wars<br>
+          <b>${cwlScore === null ? g.score : Math.round(0.6 * cwlScore + 0.4 * g.score)}</b> rating</p>
       </div>
       ${wide ? "" : '<button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>'}
     </div>
@@ -493,10 +496,11 @@ function memberPanelHtml(m, wide) {
         <div><dt>CWL attacks</dt><dd>${cwlScore === null ? "—" : cwlScore}</dd></div>
         <div><dt>Regular wars</dt><dd>${g.score}</dd></div>
       </dl>
-      <dl class="facts">
-        <div><dt>Wars joined</dt><dd>${g.joined} of ${g.observed} since the last CWL</dd></div>
-        <div><dt>Attacks used</dt><dd>${g.made} of ${g.available} available</dd></div>
-      </dl>
+      <!-- The counts the two scores came from, in prose beneath them. As a
+           second `facts` row they took the same treatment as the scores and the
+           group read as four figures rather than two and their provenance. -->
+      <p class="rating-evidence">Joined <b>${g.joined} of ${g.observed}</b> wars since the July CWL ·
+        <b>${g.made} of ${g.available}</b> attacks used</p>
       <p class="freshness">Weighted 60% CWL attacks, 40% regular wars. The rating does not rank this list; the season
         record above does. It is here because a role change is a judgement about the whole year, not about one
         season (ADR 0023).</p>
