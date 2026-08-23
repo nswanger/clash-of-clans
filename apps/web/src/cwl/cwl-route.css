@@ -61,7 +61,3 @@
   font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase;
 }
 .cwl-seasonmenu-divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
-.cwl-seasonmenu p {
-  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
-  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
-}

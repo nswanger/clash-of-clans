@@ -39,7 +39,15 @@ function fixtureWarActivity(playerTag: string, warsParticipated: number, attacks
  * Everything else in this file stays written out, because nothing else is read
  * against the clock. */
 const fixtureNow = new Date();
-const fixtureSeasonId = `${fixtureNow.getUTCFullYear()}-${String(fixtureNow.getUTCMonth() + 1).padStart(2, "0")}`;
+function fixtureMonthId(monthsAgo: number): string {
+  const month = new Date(Date.UTC(fixtureNow.getUTCFullYear(), fixtureNow.getUTCMonth() - monthsAgo, 1));
+  return `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+const fixtureSeasonId = fixtureMonthId(0);
+/* The season menu's second entry, and the clan's history (#56). Dated from the
+   clock for the same reason the current one is: a written-out previous season
+   becomes the current month once the calendar reaches it. */
+const fixturePreviousSeasonId = fixtureMonthId(1);
 function fixtureWarTime(daysAgo: number): string {
   return new Date(fixtureNow.getTime() - daysAgo * 86400000).toISOString();
 }
@@ -50,20 +58,46 @@ const defaultTableData: Record<string, unknown> = {
      phase. The phase markers are the war states with a date guard (ADR 0002)
      plus wave 4's two resting markers: the bonuses are not administered and the
      final war ended well inside the seven-day window, so neither fires. */
-  cwl_seasons: { clan_tag: "#E2E", season_id: fixtureSeasonId, war_size: 15, bonuses_administered_at: null },
+  /* TWO SEASONS, AND `season_id` IS MODELLED ON EVERY CWL TABLE BELOW (#56).
+     Before #56 one season was the honest fixture, because the views were scoped
+     to the latest season and a second one was not reachable. Now that a
+     previous season IS queryable, a fixture carrying only the current one would
+     let the season menu appear to work while every loader returned the current
+     season's rows under the previous season's heading — which is precisely the
+     defect the disabled menu entries existed to prevent. The stub's rule does
+     the rest: a filter binds where the fixture models the column. */
+  cwl_seasons: [
+    { clan_tag: "#E2E", season_id: fixtureSeasonId, war_size: 15, bonuses_administered_at: null },
+    { clan_tag: "#E2E", season_id: fixturePreviousSeasonId, war_size: 15, bonuses_administered_at: null },
+  ],
   cwl_wars: [
-    { war_tag: "#WAR1", war_day: 1, state: "warEnded", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(2), updated_at: fixtureWarTime(2), attacks_per_member: 1 },
-    { war_tag: "#WAR2", war_day: 2, state: "warEnded", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(1), updated_at: fixtureWarTime(1), attacks_per_member: 1 },
-    { war_tag: "#WAR3", war_day: 3, state: "inWar", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(0), updated_at: fixtureWarTime(0), attacks_per_member: 1 },
+    { season_id: fixtureSeasonId, war_tag: "#WAR1", war_day: 1, state: "warEnded", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(2), updated_at: fixtureWarTime(2), attacks_per_member: 1 },
+    { season_id: fixtureSeasonId, war_tag: "#WAR2", war_day: 2, state: "warEnded", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(1), updated_at: fixtureWarTime(1), attacks_per_member: 1 },
+    { season_id: fixtureSeasonId, war_tag: "#WAR3", war_day: 3, state: "inWar", preparation_start_time: null, start_time: null, end_time: fixtureWarTime(0), updated_at: fixtureWarTime(0), attacks_per_member: 1 },
+    /* The previous season, complete: all seven days logged, so its review says
+       nothing about coverage where the current season's says two of seven. That
+       difference is what makes an assertion about which season is on screen an
+       assertion rather than a coincidence. */
+    ...[1, 2, 3, 4, 5, 6, 7].map((warDay) => ({
+      season_id: fixturePreviousSeasonId, war_tag: `#PREVWAR${warDay}`, war_day: warDay, state: "warEnded",
+      preparation_start_time: null, start_time: null,
+      end_time: fixtureWarTime(30 + (7 - warDay)), updated_at: fixtureWarTime(30 + (7 - warDay)), attacks_per_member: 1,
+    })),
   ],
   /* The review phase's assignment record. Already scoped to `warEnded` by the
      view, so days 1 and 2 only — day 3 contributes nothing at all, which is what
      the coverage caveat is about. */
   cwl_completed_missed_attacks: [
-    { war_day: 1, player_tag: "#MASON", assigned_attacks: 1, completed_assigned_attacks: 1 },
-    { war_day: 2, player_tag: "#MASON", assigned_attacks: 1, completed_assigned_attacks: 1 },
-    { war_day: 1, player_tag: "#SAM", assigned_attacks: 1, completed_assigned_attacks: 1 },
-    { war_day: 2, player_tag: "#SAM", assigned_attacks: 1, completed_assigned_attacks: 0 },
+    { season_id: fixtureSeasonId, war_day: 1, player_tag: "#MASON", assigned_attacks: 1, completed_assigned_attacks: 1 },
+    { season_id: fixtureSeasonId, war_day: 2, player_tag: "#MASON", assigned_attacks: 1, completed_assigned_attacks: 1 },
+    { season_id: fixtureSeasonId, war_day: 1, player_tag: "#SAM", assigned_attacks: 1, completed_assigned_attacks: 1 },
+    { season_id: fixtureSeasonId, war_day: 2, player_tag: "#SAM", assigned_attacks: 1, completed_assigned_attacks: 0 },
+    /* Kira turned up last season and has not this one. A member whose record
+       differs between the two is the only way a test can tell which season the
+       page is actually rendering. */
+    ...[1, 2, 3, 4, 5, 6, 7].map((warDay) => ({
+      season_id: fixturePreviousSeasonId, war_day: warDay, player_tag: "#KIRA", assigned_attacks: 1, completed_assigned_attacks: 1,
+    })),
   ],
   member_roster_overview: [
     fixtureMember("#MASON", "Mason", "admin", 1, 15),
@@ -71,9 +105,10 @@ const defaultTableData: Record<string, unknown> = {
     fixtureMember("#KIRA", "Kira", "coLeader", 3, 14),
   ],
   cwl_members: [
-    { player_tag: "#MASON", name: "Mason", town_hall_level: 15 },
-    { player_tag: "#SAM", name: "Sam", town_hall_level: 16 },
-    { player_tag: "#KIRA", name: "Kira", town_hall_level: 14 },
+    { season_id: fixtureSeasonId, player_tag: "#MASON", name: "Mason", town_hall_level: 15 },
+    { season_id: fixtureSeasonId, player_tag: "#SAM", name: "Sam", town_hall_level: 16 },
+    { season_id: fixtureSeasonId, player_tag: "#KIRA", name: "Kira", town_hall_level: 14 },
+    { season_id: fixturePreviousSeasonId, player_tag: "#KIRA", name: "Kira", town_hall_level: 14 },
   ],
   cwl_war_members: [{ player_tag: "#MASON", assigned_attacks: 1 }],
   cwl_attacks: [
@@ -81,15 +116,24 @@ const defaultTableData: Record<string, unknown> = {
     { war_tag: "#WAR2", attacker_tag: "#MASON", stars: 3 },
     { war_tag: "#WAR3", attacker_tag: "#MASON", stars: 3 },
     { war_tag: "#WAR1", attacker_tag: "#SAM", stars: 2 },
+    /* Scoped by war tag rather than by season, which is how the loader reads
+       them — so the previous season's attacks need only their own tags. */
+    ...[1, 2, 3, 4, 5, 6, 7].map((warDay) => ({ war_tag: `#PREVWAR${warDay}`, attacker_tag: "#KIRA", stars: 2 })),
   ],
   cwl_member_stars: [
-    { player_tag: "#MASON", stars: 8 }, { player_tag: "#SAM", stars: 5 }, { player_tag: "#KIRA", stars: 2 },
+    { season_id: fixtureSeasonId, player_tag: "#MASON", stars: 8 },
+    { season_id: fixtureSeasonId, player_tag: "#SAM", stars: 5 },
+    { season_id: fixtureSeasonId, player_tag: "#KIRA", stars: 2 },
+    { season_id: fixturePreviousSeasonId, player_tag: "#KIRA", stars: 14 },
   ],
   member_availability: [
     { player_tag: "#MASON", status: "available" }, { player_tag: "#SAM", status: "available" }, { player_tag: "#KIRA", status: "unknown" },
   ],
   cwl_eight_star_eligibility: [
-    { player_tag: "#MASON", stars: 8, eight_star_eligible: true }, { player_tag: "#SAM", stars: 5, eight_star_eligible: false }, { player_tag: "#KIRA", stars: 2, eight_star_eligible: false },
+    { season_id: fixtureSeasonId, player_tag: "#MASON", stars: 8, eight_star_eligible: true },
+    { season_id: fixtureSeasonId, player_tag: "#SAM", stars: 5, eight_star_eligible: false },
+    { season_id: fixtureSeasonId, player_tag: "#KIRA", stars: 2, eight_star_eligible: false },
+    { season_id: fixturePreviousSeasonId, player_tag: "#KIRA", stars: 14, eight_star_eligible: true },
   ],
   /* The row shape the Admin route's collection health actually reads, not just
      the `run_id` the deleted dashboard needed to find the run. */
@@ -286,7 +330,12 @@ export function createE2EClient(): any {
         };
       }
       if (name === "set_cwl_bonuses_administered") {
-        const season = tableData.cwl_seasons as Record<string, unknown>;
+        /* By requested season, not "the season": the review surface can be
+           looking at a previous one (#56), and marking its bonuses administered
+           must not write through to the current season's row. */
+        const seasons = tableData.cwl_seasons as Array<Record<string, unknown>>;
+        const season = seasons.find((row) => String(row.season_id) === String(args.requested_season_id)) ?? seasons[0];
+        if (!season) return { data: null, error: { message: "No CWL season is available." } };
         season.bonuses_administered_at = args.administered ? fixtureNow.toISOString() : null;
         persistFixture?.();
         recordMutation(`rpc:${name}`, args);

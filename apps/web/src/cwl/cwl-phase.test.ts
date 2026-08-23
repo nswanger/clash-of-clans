@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultCwlPhase, hashForPhase, phaseFromHash, type CwlPhaseWarDay } from "./cwl-phase.js";
+import { defaultCwlPhase, hashForPhase, phaseFromHash, seasonFromHash, type CwlPhaseWarDay } from "./cwl-phase.js";
 import type { CwlWarState } from "../data/operations.js";
 import { currentLineupDay } from "./cwl-route.js";
 
@@ -130,6 +130,34 @@ describe("hashForPhase", () => {
       expect(hashForPhase(phase)).not.toBe("#/cwl");
       expect(phaseFromHash(hashForPhase(phase))).toBe(phase);
     }
+  });
+
+  /* #56. The season rides beside the phase rather than replacing it, so the
+     strip still knows which phase it is in on a previous season's link. */
+  it("carries the season beside the phase, and round-trips it", () => {
+    const hash = hashForPhase("review", "2026-07");
+
+    expect(hash).toBe("#/cwl?phase=review&season=2026-07");
+    expect(phaseFromHash(hash)).toBe("review");
+    expect(seasonFromHash(hash)).toBe("2026-07");
+  });
+
+  it("omits the season when none is named", () => {
+    expect(hashForPhase("review")).toBe("#/cwl?phase=review");
+    expect(seasonFromHash(hashForPhase("review"))).toBeUndefined();
+  });
+});
+
+describe("seasonFromHash", () => {
+  it("is absent on a hash with no query and on one that does not name a season", () => {
+    expect(seasonFromHash("#/cwl")).toBeUndefined();
+    expect(seasonFromHash("#/cwl?phase=review")).toBeUndefined();
+  });
+
+  /* Unvalidated on purpose: which seasons exist is the loader's answer, and it
+     falls back to the current one rather than rejecting a bad link. */
+  it("reports a season it cannot vouch for rather than dropping it", () => {
+    expect(seasonFromHash("#/cwl?phase=review&season=1999-01")).toBe("1999-01");
   });
 });
 

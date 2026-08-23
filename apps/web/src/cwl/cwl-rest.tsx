@@ -81,7 +81,7 @@ export function useCwlCountdown(): { remainingMs: number; reduced: boolean } {
   return { remainingMs: remainingUntilNextCwl(new Date(now)), reduced };
 }
 
-export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, lineupDayLabel }: {
+export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, onSeason, lineupDayLabel }: {
   client: any;
   clanTag: string;
   /* The phase snapshot the route already loaded, rather than a load of its own.
@@ -90,6 +90,7 @@ export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, li
   snapshot: CwlSeasonPhaseSnapshot;
   phase: CwlPhase;
   onPhase: (next: CwlPhase) => void;
+  onSeason: (seasonId: string) => void;
   lineupDayLabel: string;
 }) {
   const { remainingMs, reduced } = useCwlCountdown();
@@ -134,15 +135,17 @@ export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, li
               ? <div className="cwl-seasonmenu" role="menu">
                   <button type="button" role="menuitem" onClick={() => void reopenReview()}>Reopen review</button>
                   <div className="cwl-seasonmenu-divider" />
-                  <button type="button" role="menuitem" aria-current="true">
-                    {snapshot.seasonId} <small>Current</small>
-                  </button>
                   {/* Off-season is when a leader is most likely to look back,
-                      which makes this surface #56's second consumer — and the
-                      reason the entries are honestly disabled rather than
-                      missing: every CWL view is scoped to the latest season. */}
-                  {snapshot.earlierSeasonIds.map((seasonId) => <button key={seasonId} type="button" role="menuitem" disabled>{seasonId}</button>)}
-                  <p>Earlier seasons are collected but not queryable: every CWL view is scoped to the latest season.</p>
+                      which made this surface #56's second consumer. The entries
+                      were disabled until #56 removed the latest-season scoping;
+                      each one now opens that season's review. */}
+                  {snapshot.seasonIds.map((seasonId, index) => seasonId === snapshot.seasonId
+                    ? <button key={seasonId} type="button" role="menuitem" aria-current="true" onClick={() => setSeasonMenuOpen(false)}>
+                        {seasonId} {index === 0 ? <small>Current</small> : null}
+                      </button>
+                    : <button key={seasonId} type="button" role="menuitem" onClick={() => { setSeasonMenuOpen(false); onSeason(seasonId); }}>
+                        {seasonId} {index === 0 ? <small>Current</small> : null}
+                      </button>)}
                 </div>
               : null}
           </span>
