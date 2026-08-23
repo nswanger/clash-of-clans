@@ -14,7 +14,7 @@ This runbook covers the human-operated CWL workflow. Record operational evidence
 
 - [ ] Confirm collector scheduling and deployment health using the [UnRaid runbook](unraid.md).
 - [ ] Confirm Supabase connectivity, migrations, and expected tables using the [Supabase runbook](supabase.md).
-- [ ] Run `supabase migration list` and confirm every local migration has a matching remote entry. Pages deploys on merge and the database does not, so an unapplied migration surfaces as a runtime failure on whichever route reads it. CI now fails on this too ([ADR 0003](../adr/0003-ci-reads-the-migration-ledger.md)); the checklist item still matters for the collector, whose UnRaid deploy no workflow gates.
+- [ ] Run `supabase migration list` and confirm every local migration has a matching remote entry. Pages deploys on merge and the database does not, so an unapplied migration surfaces as a runtime failure on whichever route reads it. CI now fails on this too ([ADR 0003](../decisions/0003-ci-reads-the-migration-ledger.md)); the checklist item still matters for the collector, whose UnRaid deploy no workflow gates.
 - [ ] Verify the collector's last successful run and data freshness before using any recommendation.
 - [ ] Confirm Balanced is selected and the roster size maps to 10 core + 5 rotation for 15, or 20 core + 10 rotation for 30.
 - [ ] If Standings-first is needed, obtain and record an explicit leader policy override.

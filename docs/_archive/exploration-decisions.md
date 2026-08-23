@@ -1,3 +1,5 @@
+> Archived 2026-08-23 — exploration notes from 2026-07; durable choices are decision records 0005–0008, the rest is code or was superseded. History only.
+
 # Exploration Decisions
 
 Last updated: 2026-07-10

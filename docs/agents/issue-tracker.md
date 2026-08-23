@@ -23,7 +23,7 @@ Create or update a GitHub Issue using `gh`.
 
 ## Existing local planning artifacts
 
-The existing `.scratch/cwl-lineup-planning/` map and tickets are preserved as prior planning work. They are not the active issue tracker for new skill workflows and should not be deleted or migrated automatically.
+The 2026-07 `cwl-lineup-planning` map is archived under `docs/_archive/`; its resolved decisions are records 0009–0011.
 
 ## Wayfinding operations
 

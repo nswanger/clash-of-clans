@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-08-22
+deciders: [Nick]
+type: structural
+supersedes:
+---
 # CI reads the migration ledger with a narrow database role
-
-Status: accepted
 
 **Pages deploys itself and the database does not.** `deploy-pages.yml` builds and publishes `apps/web` on every push to `main`; migrations are applied by hand with `supabase db push`. The two paths were connected by nothing, so a commit merging a migration *and* a surface that reads it shipped the surface immediately and the schema never. Observed 2026-08-20: `202608200001_cwl_bonus_administration.sql` merged with [#61](https://github.com/nswanger/clash-of-clans/issues/61) and was never pushed, and the CWL review phase then failed in production against a column the database did not have. The migration file being present in the repository was mistaken for the column being present in the database.
 

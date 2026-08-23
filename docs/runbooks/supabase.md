@@ -103,7 +103,7 @@ Every local entry must have a matching remote entry. A row with an empty `remote
 
 ### CI enforces this rule
 
-The check is no longer only a habit ([#65](https://github.com/nswanger/clash-of-clans/issues/65), [ADR 0003](../adr/0003-ci-reads-the-migration-ledger.md)). A `migrations` job in `checks.yml` reads the remote ledger and fails when a local migration has no matching entry. It runs on every pull request and on the push to `main`, and because the Pages `deploy` job needs the checks, an unapplied migration blocks the publish.
+The check is no longer only a habit ([#65](https://github.com/nswanger/clash-of-clans/issues/65), [ADR 0003](../decisions/0003-ci-reads-the-migration-ledger.md)). A `migrations` job in `checks.yml` reads the remote ledger and fails when a local migration has no matching entry. It runs on every pull request and on the push to `main`, and because the Pages `deploy` job needs the checks, an unapplied migration blocks the publish.
 
 A red check is not noise. The remedy is `supabase db push` — the same order this section already requires — and the pull request is where obeying it is cheapest.
 

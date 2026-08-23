@@ -1,3 +1,5 @@
+> Archived 2026-08-23 — implemented; the decision is [0004](../decisions/0004-member-history-two-daily-tables.md). History only.
+
 # Member History and Roster Overview — Schema Proposal
 
 Status: Approved by Nick on 2026-07-19; implemented locally in migration `202607190012_member_history.sql`

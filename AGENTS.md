@@ -61,7 +61,7 @@ Full statements, with the failures that produced them, are in `design/README.md`
 
 ### Domain docs
 
-Single-context documentation uses root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
+Single-context documentation uses root `CONTEXT.md` and `docs/decisions/`. See `docs/agents/domain.md`.
 
 ### Collector deployment
 

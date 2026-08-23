@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-08-18
+deciders: [Nick]
+type: design
+supersedes:
+---
 # App surfaces and the CWL phase
-
-Status: accepted
 
 The app collapses from six routes to three: **CWL**, **Members**, and **Admin**. `#/overview`, `#/season` and `#/dashboard` are deleted rather than conformed to the design system, and `#/access` widens into Admin. This settles the question [#25](https://github.com/nswanger/clash-of-clans/issues/25) deferred out of the Clan Muster migration — that map decided how a surface moves onto the system and explicitly refused to decide which surfaces deserve to exist.
 

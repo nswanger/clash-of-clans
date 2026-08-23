@@ -5,7 +5,7 @@ Engineering skills should consume this repository's domain documentation as foll
 ## Before exploring
 
 - Read `CONTEXT.md` at the repository root when it exists.
-- Read relevant decisions under `docs/adr/` when they exist.
+- Read relevant decisions under `docs/decisions/` when they exist.
 - If either location does not exist, proceed silently. The `domain-modeling` skill creates them lazily when terms or decisions are resolved.
 
 ## File structure
@@ -15,7 +15,7 @@ This repository uses a single-context layout:
 ```text
 /
 ├── CONTEXT.md
-├── docs/adr/
+├── docs/decisions/
 └── apps/ and packages/
 ```
 
