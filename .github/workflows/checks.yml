@@ -59,6 +59,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      # Documentation framework invariants (links resolve, decision frontmatter,
+      # no status docs, guide under cap). Stdlib Python only.
+      - name: Lint documentation
+        run: python3 scripts/doc_lint.py --strict
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
