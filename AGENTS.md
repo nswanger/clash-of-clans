@@ -1,68 +1,38 @@
 # Clash of Clans War Ops Assistant
 
-## Project Context
-- This project exists to pull data from the Clash of Clans API and turn it into practical decision support for clan operations.
-- The first priority is Clan War League (CWL), especially the first week of each month when lineup choices, participation tracking, and post-war promotion decisions are time-sensitive.
-- The current manual pain point is gathering enough trustworthy information to answer questions like:
-  - Who should be included in CWL lineups?
-  - How should rosters shift between war days?
-  - Who should be promoted, demoted, benched, or followed up with after the war?
-  - What member behavior or performance patterns are easy to miss manually?
-- The project may eventually include API services, scheduled data pulls, dashboards, and lightweight HTML pages for reviewing recommendations.
+## Purpose
 
-## Current API Assumptions
-- Treat the Clash of Clans API as the source of truth for available game data, but verify endpoint availability against the official Supercell developer documentation before building around it.
-- Do not assume the API exposes war signups, clan chat, direct messages, or in-game response data unless the official API confirms it.
-- If signups or chat responses are unavailable through the official API, design around alternate inputs such as manual CSV uploads, forms, Discord exports, Google Sheets, or a small custom signup page.
-- Keep API token handling secure. Never commit real API tokens, player tags, clan tags, or private member notes unless the user explicitly confirms the data is safe to store.
+Pull Clash of Clans API data and turn it into decision support for clan leaders: CWL lineups and rotation, post-CWL bonus and role review, and a year-round roster. The app explains tradeoffs; a human makes every lineup, promotion, demotion, and benching decision.
 
-## Guiding Principles
-- Build for actionable clan decisions, not just data collection.
-- Prefer simple, auditable scoring and summaries before adding complex automation or AI-generated recommendations.
-- Preserve human review for lineup, promotion, demotion, and benching decisions. The tool should explain tradeoffs, not silently decide for the clan.
-- Design around CWL timing: scheduled pulls, repeatable reports, and clear daily deltas matter more than one-off analysis.
-- Keep raw pulls separate from derived metrics so calculations can be inspected, corrected, and rerun.
-- Favor small, composable pieces: API client, storage layer, metrics, recommendation logic, and UI should have clear boundaries.
-- Make uncertainty visible. If data is missing, stale, rate-limited, or inferred, the UI/reporting should say so.
+## Principles
 
-## Engineering Preferences
-- Start with the smallest useful slice: authenticate, fetch clan/member/war data, persist snapshots, and produce a readable report.
-- Use environment variables or local ignored config for secrets.
-- Add tests around scoring and recommendation logic once those rules exist.
-- Prefer boring, maintainable tools over clever frameworks until the project shape is clearer.
-- Document decisions that affect clan policy, scoring weights, or promotion logic.
+- Actionable clan decisions, not data collection. Every surface answers a question a leader actually asks.
+- Simple, auditable scoring before clever automation. Recommendations are previews with visible reasons and uncertainty.
+- Raw pulls stay separate from derived metrics so calculations can be inspected and rerun.
+- Make uncertainty visible: missing, stale, rate-limited, or inferred data says so. Absence of evidence is never a penalty.
+- Design around CWL timing: scheduled pulls, repeatable reports, clear daily deltas.
+- Verify API behaviour against the official Supercell docs or live responses, never memory. The API exposes no chat, signups, or DMs.
+- Ask Nick before irreversible choices about storage, hosting, auth, or member-facing workflows.
 
-## Collaboration Notes For Future Agents
-- Before implementing new features, inspect the current repo structure and follow established patterns.
-- When API behavior matters, verify it against official Supercell documentation or live API responses instead of relying on memory.
-- Ask Nick before making irreversible choices about data storage, hosting, authentication, or member-facing workflows.
-- Keep responses concise and practical. Nick prefers direct, useful output over theoretical discussion.
+## Hard rules
 
-## Agent skills
+- **Secrets and identity.** Never commit API tokens, player or clan tags, private member notes, or production credentials. Server credentials never appear under a `VITE_` name. This repo is public.
+- **Collector host.** Connection details are in gitignored `deploy/unraid/target.env` (load with `set -a; . deploy/unraid/target.env; set +a`; create from the `.example`). Changes to the host need Nick's explicit authorization; procedure is `docs/runbooks/unraid.md`.
+- **Schema before artifact.** A migration is applied (`supabase db push`) before any surface or collector image that reads it ships; CI enforces this for Pages, the UnRaid runbook for the collector.
+- **Web app.** `apps/web` is built on the Clan Muster system in `design/`. No test query may name a class (use `getByRole`/`getByText`). Page CSS takes its surface's prefix, and a page rule overriding a `cm-` component needs an ancestor in the selector. `apps/web/src/test/e2e-client.ts` is a hand-maintained stub: filters hold only where the fixture models the column, and anything read against the clock is dated from the clock. A surface that needs a new component or token is a finding for `design/components.md`, not a licence to invent one. Appearance is checked by hand against `design/prototype/` at 375px and 1280px in both themes.
 
-### Issue tracker
+## Directory map
 
-GitHub Issues in `nswanger/clash-of-clans`, managed with `gh`. See `docs/agents/issue-tracker.md`.
+| Path | Role | Detail |
+|---|---|---|
+| `apps/web/` | Browser app (Vite/React; GitHub Pages) — three routes: CWL, Members, Admin | — |
+| `apps/collector/` | Outbound-only Clash API collector (Docker on UnRaid) | `docs/runbooks/unraid.md` |
+| `packages/domain/`, `packages/recommendations/`, `packages/database/` | Domain contracts, explainable recommendation rules, database client | — |
+| `supabase/` | Migrations, functions, pgTAP tests, production-only bootstrap SQL | `docs/runbooks/supabase.md` |
+| `design/` | Clan Muster design system: tokens, component layer, prototypes | `design/README.md` |
+| `deploy/unraid/`, `docker/` | Collector compose and Dockerfile | `docs/runbooks/unraid.md` |
+| `scripts/` | `check-migrations.sh`, `verify-collector.sh`, `doc_lint.py` | — |
+| `tests/e2e/` | Playwright workflows | — |
+| `docs/` | Decisions, runbooks, product direction, API inventory, ephemera, archive | adapter below |
 
-### Triage labels
-
-Use the default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Web app conventions
-
-`apps/web` is built on the Clan Muster design system in `design/`. Four rules bind on every change to it, and three of them fail silently:
-
-- **No query in any test suite may name a class.** All queries are `getByRole` or `getByText`, which is what lets a surface be restyled or rebuilt without touching the tests guarding every other surface.
-- **Page CSS takes its surface's prefix, and a page rule overriding a `cm-` component needs an ancestor in the selector** — page stylesheets load *before* the component layer and lose every tie.
-- **`apps/web/src/test/e2e-client.ts` is a hand-maintained stub, not a database.** Filters are honoured only where the fixture models the column, and anything read against the clock must be dated from the clock rather than written out.
-- **A surface that needs a new component or a new token is a finding to record in `design/components.md`, not a licence to invent one.**
-
-Full statements, with the failures that produced them, are in `design/README.md` and `design/components.md`. Appearance is verified by hand against the prototypes in `design/prototype/` at 375px and 1280px in both themes; there is no visual-regression tooling.
-
-### Domain docs
-
-Single-context documentation uses root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
-
-### Collector deployment
-
-The collector runs on Nick's UnRaid host. Connection details live in `deploy/unraid/target.env`, which is gitignored because this repository is public — load it with `set -a; . deploy/unraid/target.env; set +a` rather than asking where the host is. Create it from `deploy/unraid/target.env.example` if it is missing. Deployment and upgrade procedure is `docs/runbooks/unraid.md`; changes to the host still require Nick's explicit authorization.
+Where things live, the tracker, and validation: `.github/instructions/ai-workflow.instructions.md`. Terms: `CONTEXT.md`. Decisions: `docs/decisions/`.

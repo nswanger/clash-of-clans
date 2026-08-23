@@ -4,21 +4,21 @@ This runbook covers the human-operated CWL workflow. Record operational evidence
 
 ## Operating policy
 
-- **Default strategy:** use **Balanced**. A 15-player lineup uses 10 core and 5 rotation places; a 30-player lineup uses 20 core and 10 rotation places.
+- **Default strategy:** use **Balanced** with the season defaults — 10 core + 5 rotation for 15-player, 20 core + 10 rotation for 30-player ([0007](../decisions/0007-cwl-war-size-policy-defaults.md)).
 - **Standings-first:** use only when a leader explicitly approves it as a policy override. Record who approved it, when, and why.
 - **Human control:** recommendations explain reasons, tradeoffs, freshness, and uncertainty. A leader must approve or override each consequential decision; the system must not silently assign, bench, promote, or demote anyone.
-- **Availability:** enter availability through the dashboard availability route. Players marked `Unknown` or `Unavailable` are never recommended into a lineup. Capture notes carefully: keep them operational, minimal, and free of sensitive personal information.
+- **Availability:** enter availability on the CWL route (`#/cwl`). Players marked `Unknown` or `Unavailable` are never recommended into a lineup. Capture notes carefully: keep them operational, minimal, and free of sensitive personal information.
 - **Authority:** admins maintain access, service configuration, and operational health. Clan leaders approve lineup policy, invitations, promotions, demotions, and membership decisions. Admin access does not confer clan-policy authority.
 
 ## Pre-season checklist
 
 - [ ] Confirm collector scheduling and deployment health using the [UnRaid runbook](unraid.md).
 - [ ] Confirm Supabase connectivity, migrations, and expected tables using the [Supabase runbook](supabase.md).
-- [ ] Run `supabase migration list` and confirm every local migration has a matching remote entry. Pages deploys on merge and the database does not, so an unapplied migration surfaces as a runtime failure on whichever route reads it. CI now fails on this too ([ADR 0003](../adr/0003-ci-reads-the-migration-ledger.md)); the checklist item still matters for the collector, whose UnRaid deploy no workflow gates.
+- [ ] Run `supabase migration list` and confirm every local migration has a matching remote entry. Pages deploys on merge and the database does not, so an unapplied migration surfaces as a runtime failure on whichever route reads it. CI now fails on this too ([ADR 0003](../decisions/0003-ci-reads-the-migration-ledger.md)); the checklist item still matters for the collector, whose UnRaid deploy no workflow gates.
 - [ ] Verify the collector's last successful run and data freshness before using any recommendation.
 - [ ] Confirm Balanced is selected and the roster size maps to 10 core + 5 rotation for 15, or 20 core + 10 rotation for 30.
 - [ ] If Standings-first is needed, obtain and record an explicit leader policy override.
-- [ ] Ask members to update availability through the dashboard route; review `Unknown` and `Unavailable` entries before lineup work.
+- [ ] Record member availability on the CWL route; review `Unknown` and `Unavailable` entries before lineup work.
 - [ ] Confirm the raw-snapshot cleanup schedule is enabled and Cron shows the expected next run.
 - [ ] Confirm the canonical and leader-decision history remains outside the cleanup scope.
 
@@ -26,7 +26,7 @@ Evidence to record: season label, collector completion time, freshness check, ag
 
 ## Season creation and freshness
 
-After a successful CWL collection, the collector automatically creates the season record when needed. There is no manual season-creation control, and no season surface to read one from: `#/season` was deleted in the Clan Muster migration's wave 3 because only `opponent_tag` is collected and there is no league-group standings data (ADR 0002).
+After a successful CWL collection, the collector creates the season record when needed. There is no manual season-creation control and no season surface ([0002](../decisions/0002-app-surfaces-and-cwl-phase.md)).
 
 Before making decisions:
 
@@ -48,9 +48,7 @@ Evidence to record: run timestamp, freshness state, aggregate availability chang
 
 ## Elder review
 
-Elder eligibility is based on completion of assigned attacks in the current CWL. Under the current policy, six or more completed CWL attacks qualifies a member for review. Qualification is not an automatic promotion, and fewer than six attacks is not an automatic demotion.
-
-Leaders review the current-CWL evidence, exceptions, and clan context before approving any promotion or demotion. Record the final leader decision and a concise reason without private member information.
+Six or more completed CWL attacks qualifies a member for review; qualification is not an automatic promotion and fewer than six is not an automatic demotion ([0008](../decisions/0008-promotion-review-signals.md)). Leaders review the current-CWL evidence, exceptions, and clan context before approving any promotion or demotion. Record the final leader decision and a concise reason without private member information.
 
 ## Invitations, promotions, and access revocation
 
@@ -62,7 +60,7 @@ Leaders review the current-CWL evidence, exceptions, and clan context before app
 
 ## Audit evidence
 
-The Access page shows invitation and application-role history under **Recent access activity**. For broader operational evidence, use the dashboard and Supabase table viewer to correlate:
+The Admin route (`#/admin`) shows invitation and application-role history under **Recent access activity**. For broader operational evidence, use the Supabase table viewer to correlate:
 
 - `recommendations` for the generated proposal and its reasons or uncertainty;
 - `leader_decisions` for approvals, overrides, and the leader's recorded rationale;
@@ -131,6 +129,6 @@ Do not delete containers, databases, volumes, or raw snapshots as part of an ima
 
 Raw snapshots have a 90-day scheduled cleanup window. Canonical history, recommendation history, and leader-decision history are retained indefinitely under the current policy. Verify the cleanup Cron schedule, last result, and next run; do not manually bulk-delete production data to compensate for a missed job.
 
-## Regular-war fast-follow
+## Regular-war evidence
 
-Regular-war support reuses the raw-to-derived history pipeline. Regular-war records are identifiable and auditable; observed member appearances, attack usage, and stars-per-attack contribute to separate activity and performance gauges used for CWL and broader member review. Signup owns regular-war opportunity, so absence from a regular war is not inferred as poor performance. The authorized `warlog` endpoint probe returned only war-level summaries, so it cannot backfill member activity. Missing collection windows remain limited evidence rather than inferred history. Review the activity, CWL-rating, and bonus-priority explanations before approving a lineup or bonus decision.
+Regular-war records feed separate activity and performance gauges used for CWL and member review; signup owns opportunity, so absence is not poor performance, and the war log cannot backfill member activity ([0001](../decisions/0001-cwl-evidence-and-bonus-priority.md)). Review the activity, CWL-rating, and bonus-priority explanations before approving a lineup or bonus decision.

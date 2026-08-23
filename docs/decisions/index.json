@@ -1,0 +1,244 @@
+{
+  "0001-cwl-evidence-and-bonus-priority": {
+    "title": "CWL evidence rating and bonus priority",
+    "status": "accepted",
+    "date": "2026-08-09",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0001-cwl-evidence-and-bonus-priority.md"
+  },
+  "0002-app-surfaces-and-cwl-phase": {
+    "title": "App surfaces and the CWL phase",
+    "status": "accepted",
+    "date": "2026-08-18",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0002-app-surfaces-and-cwl-phase.md"
+  },
+  "0003-ci-reads-the-migration-ledger": {
+    "title": "CI reads the migration ledger with a narrow database role",
+    "status": "accepted",
+    "date": "2026-08-22",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "structural",
+    "supersedes": null,
+    "path": "docs/decisions/0003-ci-reads-the-migration-ledger.md"
+  },
+  "0004-member-history-two-daily-tables": {
+    "title": "Member history is two normalized daily tables, not retained raw snapshots",
+    "status": "accepted",
+    "date": "2026-07-19",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "structural",
+    "supersedes": null,
+    "path": "docs/decisions/0004-member-history-two-daily-tables.md"
+  },
+  "0005-auth-discord-oauth-and-invitations": {
+    "title": "Access is Discord OAuth through Supabase with single-use invitation links",
+    "status": "accepted",
+    "date": "2026-07-10",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0005-auth-discord-oauth-and-invitations.md"
+  },
+  "0006-hosting-topology-pages-supabase-unraid": {
+    "title": "Pages hosts the static app, Supabase holds data and auth, UnRaid runs an outbound-only collector",
+    "status": "accepted",
+    "date": "2026-07-10",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "structural",
+    "supersedes": null,
+    "path": "docs/decisions/0006-hosting-topology-pages-supabase-unraid.md"
+  },
+  "0007-cwl-war-size-policy-defaults": {
+    "title": "CWL core/rotation defaults are season settings, and eight stars makes a member rotation-eligible",
+    "status": "accepted",
+    "date": "2026-07-10",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "business_rule",
+    "supersedes": null,
+    "path": "docs/decisions/0007-cwl-war-size-policy-defaults.md"
+  },
+  "0008-promotion-review-signals": {
+    "title": "Promotion review uses six completed CWL attacks and missed assigned attacks as its signals",
+    "status": "accepted",
+    "date": "2026-07-10",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "business_rule",
+    "supersedes": null,
+    "path": "docs/decisions/0008-promotion-review-signals.md"
+  },
+  "0009-planned-and-observed-lineups-stay-distinct": {
+    "title": "The planned lineup and the API-observed lineup are separate state; planning history is not archived",
+    "status": "accepted",
+    "date": "2026-08-01",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0009-planned-and-observed-lineups-stay-distinct.md"
+  },
+  "0010-elder-is-a-tie-breaker-only": {
+    "title": "Verified Elder status is only a final tie-breaker among otherwise comparable eligible candidates",
+    "status": "accepted",
+    "date": "2026-07-31",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "business_rule",
+    "supersedes": null,
+    "path": "docs/decisions/0010-elder-is-a-tie-breaker-only.md"
+  },
+  "0011-optimistic-concurrency-reload-not-merge": {
+    "title": "Shared lineup editing uses a per-war-day revision; stale saves fail and the user reloads",
+    "status": "accepted",
+    "date": "2026-08-01",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0011-optimistic-concurrency-reload-not-merge.md"
+  },
+  "0012-design-color-gold-fills-never-writes": {
+    "title": "Clan Muster color: one warm ramp, gold as a surface in light mode, unknown carries no hue",
+    "status": "accepted",
+    "date": "2026-08-15",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0012-design-color-gold-fills-never-writes.md"
+  },
+  "0013-design-type-density-and-structure": {
+    "title": "Clan Muster type, density, spacing, radius, depth, and breakpoints",
+    "status": "accepted",
+    "date": "2026-08-15",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0013-design-type-density-and-structure.md"
+  },
+  "0014-design-semantic-states-and-notice-budget": {
+    "title": "Five semantic marks, info never raises a notice, one notice region per screen",
+    "status": "accepted",
+    "date": "2026-08-15",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0014-design-semantic-states-and-notice-budget.md"
+  },
+  "0015-design-lineup-surface-swap-not-drag": {
+    "title": "The mobile lineup surface works by tap-to-swap with a separate reorder mode, not drag-and-drop",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0015-design-lineup-surface-swap-not-drag.md"
+  },
+  "0016-design-pending-changes-two-baselines": {
+    "title": "Pending changes track two baselines — unsaved against the plan, and the plan against the game",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0016-design-pending-changes-two-baselines.md"
+  },
+  "0017-design-members-roster-row-and-panel": {
+    "title": "The members roster is a 62px row plus a shared detail panel, with a 1- and 7-day activity window",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0017-design-members-roster-row-and-panel.md"
+  },
+  "0018-design-component-layers-and-api": {
+    "title": "Components sit in three concept-defined layers with cm- prefixed classes, is-* states, and data-attribute behaviour",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0018-design-component-layers-and-api.md"
+  },
+  "0019-design-identity-mark-once-per-screen": {
+    "title": "One original dragon mark, badge variant by transform, once per screen, never carrying a state colour",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0019-design-identity-mark-once-per-screen.md"
+  },
+  "0020-design-icons-inline-svg-sprite": {
+    "title": "Icons are eight inline SVG symbols, em-sized and currentColor; affordances become icons, text stays characters",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0020-design-icons-inline-svg-sprite.md"
+  },
+  "0021-design-loading-no-copy-250ms": {
+    "title": "Loading has no copy, renders nothing for 250ms, and uses one skeleton primitive",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0021-design-loading-no-copy-250ms.md"
+  },
+  "0022-design-post-cwl-review-surface": {
+    "title": "Post-CWL review is one ranked list in two groups, records one fact, and has no action bar",
+    "status": "accepted",
+    "date": "2026-08-20",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0022-design-post-cwl-review-surface.md"
+  }
+}
