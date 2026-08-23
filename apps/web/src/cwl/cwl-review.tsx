@@ -6,12 +6,12 @@
  * list is the same `cm-segmented` the day strip uses, one level up.
  *
  * THREE DECISIONS, ONE LIST. Bonus medals, role changes and follow-ups share a
- * roster and a season, and ADR 0001's ranking serves all three from opposite
+ * roster and a season, and ADR 0023's ranking serves all three from opposite
  * ends: the top of the list is who contributed most, the foot is who did not
  * turn up. A second section for follow-ups would put the same rows on the page
  * twice, which is what `#/overview` was deleted for.
  *
- * The two groups are ADR 0001's eight-star boundary made visible. They are NOT
+ * The two groups are ADR 0023's eight-star boundary made visible. They are NOT
  * a bonus cutoff: the game grants a league-dependent number of bonuses and
  * nothing in the schema knows it — checked against stored `raw_snapshots` on
  * #54, neither CWL payload carries any bonus, medal or reward field. The list
@@ -30,7 +30,6 @@ import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
 import { Metric, SkeletonRows, SKELETON_DELAY_MS, useWide } from "../design/layout.js";
 import { Sheet } from "../design/sheet.js";
-import { loadWarActivityWindow, type MemberWarActivity } from "../members/member-history.js";
 import {
   isCollectionUnhealthy,
   loadCwlReviewSeason,
@@ -41,18 +40,13 @@ import {
 } from "../data/operations.js";
 import { seasonName } from "./cwl-countdown.js";
 import { CwlPhaseStrip } from "./cwl-phase-strip.js";
+import { CwlRatingBreakdown } from "./cwl-rating.js";
 import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-review.css";
 
-/* ADR 0001's threshold, shared with the lineup workspace's own bonus predicate.
+/* ADR 0023's threshold, shared with the lineup workspace's own bonus predicate.
  * It is a rank boundary here rather than a cutoff — see the header. */
 export const CWL_BONUS_STAR_THRESHOLD = 8;
-/* Thirty days here where the members roster refuses it, and the difference is
- * the question. The roster asks "who stopped turning up this week", which a long
- * window cannot answer. A role change is a judgement about the whole year, not
- * about one week (ADR 0001), so the gauge beside a season record wants the long
- * read. */
-const REGULAR_WINDOW_DAYS = 30;
 
 /* ---------------------------------------------------------------------------
  * Derivations
@@ -92,7 +86,7 @@ const ROLE_RANK: Record<CwlMemberRole, number> = { leader: 0, coLeader: 1, elder
 
 export interface RankedReviewMember { member: CwlReviewMember; record: CwlSeasonRecord; rank: number }
 
-/* ADR 0001's order and nothing else: eight or more stars first, then total
+/* ADR 0023's order and nothing else: eight or more stars first, then total
  * stars, with stars per war and wars participated as the supporting context —
  * which is what the tie-breaks are. Elder is the last resort, as CONTEXT.md has
  * it. CWL RATING NEVER SORTS THIS LIST: it is not a lineup, and rating floats
@@ -208,16 +202,14 @@ function DayOutcome({ inLineup, completed }: { inLineup: boolean; completed: num
   return <span className="cwl-review-outcome cm-statustext is-unavailable">Missed</span>;
 }
 
-function MemberPanel({ entry, activity, loggedWarDays, seasonId, wide, onClose }: {
+function MemberPanel({ entry, loggedWarDays, seasonId, wide, onClose }: {
   entry: RankedReviewMember;
-  activity: MemberWarActivity | undefined;
   loggedWarDays: number;
   seasonId: string;
   wide: boolean;
   onClose: () => void;
 }) {
   const { member, record } = entry;
-  const starsPerAttack = activity && activity.attacksMade > 0 ? activity.stars / activity.attacksMade : null;
   return (
     <div className="cm-panel" {...(wide ? {} : { role: "dialog", "aria-modal": true })} aria-label={member.name}>
       <div className="cm-panel-head">
@@ -225,7 +217,15 @@ function MemberPanel({ entry, activity, loggedWarDays, seasonId, wide, onClose }
           <h2>{member.name}</h2>
           <p className="cm-panel-evidence">
             {roleLabel(member.role)} <span className="cm-sep">·</span> TH{member.townHallLevel} <span className="cm-sep">·</span>{" "}
-            joined {record.warsParticipated} of {countLabel(loggedWarDays, "logged war day")}
+            joined {record.warsParticipated} of {countLabel(loggedWarDays, "war")}
+            {/* A LINE BREAK, not another separator. The rating sits where the
+                lineup workspace puts it -- on the lede's own second line -- and
+                a `·` here let it wrap to wherever the identity line happened to
+                end, which on a phone is a different place for every member. */}
+            <br />
+            {member.rating.overallRating === null
+              ? "No rating yet"
+              : <><b>{Math.round(member.rating.overallRating)}</b> rating</>}
           </p>
         </div>
         {wide ? null : <button className="cm-iconbutton" type="button" aria-label="Close" onClick={onClose}><Icon name="close" /></button>}
@@ -259,15 +259,14 @@ function MemberPanel({ entry, activity, loggedWarDays, seasonId, wide, onClose }
             </ul>
           : <p className="cwl-review-freshness">No war day in this season has been recorded as ended yet.</p>}
 
-        <p className="cm-panel-label">Regular wars · last {REGULAR_WINDOW_DAYS} days</p>
-        <dl className="cwl-review-facts">
-          <div><dt>Wars joined</dt><dd>{activity ? `${activity.warsParticipated} of ${activity.warsObserved} observed` : "—"}</dd></div>
-          <div><dt>Attacks used</dt><dd>{activity ? `${activity.attacksMade} of ${activity.assignedAttacks}` : "—"}</dd></div>
-          <div><dt>Stars</dt><dd>{activity ? activity.stars : "—"}</dd></div>
-          <div><dt>Stars per attack</dt><dd>{starsPerAttack === null ? "—" : starsPerAttack.toFixed(1)}</dd></div>
-        </dl>
-        <p className="cwl-review-freshness">Regular-war evidence is a separate gauge and does not rank this list. It is
-          here because a role change is a judgement about the whole year, not about one week (ADR 0001).</p>
+        {/* One rating from one view, replacing this panel's own thirty-day
+            gauge. That gauge was anchored to `now()`, so on a previous season's
+            review it reported the last thirty days beside a months-old season
+            -- and it showed the same evidence the rating is now made of, under
+            a second definition (#89). */}
+        <CwlRatingBreakdown rating={member.rating} />
+        <p className="cwl-review-freshness">The rating does not rank this list; the season record above does. It is here
+          because a role change is a judgement about the whole year, not about one season.</p>
       </div>
     </div>
   );
@@ -292,7 +291,6 @@ export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSea
 }) {
   const wide = useWide();
   const [snapshot, setSnapshot] = useState<CwlReviewSeasonSnapshot>();
-  const [activity, setActivity] = useState<Map<string, MemberWarActivity>>(new Map());
   const [error, setError] = useState<string>();
   const [showSkeleton, setShowSkeleton] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -302,15 +300,10 @@ export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSea
   const load = useCallback(async () => {
     setError(undefined);
     try {
-      /* Two loads, not one: the season record is the surface, and the
-         regular-war gauge is a separate question that only the panel asks. A
-         failure of the second must not blank the first. */
-      const [season, gauge] = await Promise.all([
-        loadCwlReviewSeason(client, clanTag, seasonId),
-        loadWarActivityWindow(client, clanTag, REGULAR_WINDOW_DAYS).catch(() => new Map<string, MemberWarActivity>()),
-      ]);
-      setSnapshot(season);
-      setActivity(gauge);
+      /* One load where there were two. The second fetched a `now()`-anchored
+         thirty-day gauge; the rating it duplicated is now part of the season
+         snapshot, scoped to the same season the rest of this surface shows. */
+      setSnapshot(await loadCwlReviewSeason(client, clanTag, seasonId));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to load the CWL season record.");
     }
@@ -371,7 +364,6 @@ export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSea
   const panelBody = active
     ? <MemberPanel
         entry={active}
-        activity={activity.get(active.member.playerTag)}
         loggedWarDays={snapshot?.loggedWarDays ?? 0}
         seasonId={snapshot?.season.seasonId ?? ""}
         wide={wide}
@@ -487,7 +479,7 @@ export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSea
 }
 
 /* Two groups, one continuous ranking — the numbers do not restart. The boundary
- * is ADR 0001's eight-star threshold and says so in its own heading. */
+ * is ADR 0023's eight-star threshold and says so in its own heading. */
 function Group({ title, entries, selectedTag, onOpen }: {
   title: string;
   entries: RankedReviewMember[];

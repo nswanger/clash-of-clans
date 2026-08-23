@@ -1,7 +1,7 @@
 {
   "0001-cwl-evidence-and-bonus-priority": {
     "title": "CWL evidence rating and bonus priority",
-    "status": "accepted",
+    "status": "superseded",
     "date": "2026-08-09",
     "deciders": [
       "Nick"
@@ -240,5 +240,16 @@
     "type": "design",
     "supersedes": null,
     "path": "docs/decisions/0022-design-post-cwl-review-surface.md"
+  },
+  "0023-cwl-rating-blends-a-bounded-regular-war-window": {
+    "title": "The CWL rating blends this CWL's attack completion with a bounded regular-war window",
+    "status": "accepted",
+    "date": "2026-08-23",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": "0001-cwl-evidence-and-bonus-priority",
+    "path": "docs/decisions/0023-cwl-rating-blends-a-bounded-regular-war-window.md"
   }
 }

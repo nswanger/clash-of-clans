@@ -131,6 +131,73 @@ const defaultTableData: Record<string, unknown> = {
     { season_id: fixtureSeasonId, player_tag: "#KIRA", stars: 2 },
     { season_id: fixturePreviousSeasonId, player_tag: "#KIRA", stars: 14 },
   ],
+  /* The rating, and the three bases it can be built from (#89). `season_id` is
+     modelled because both loaders filter on it and the previous season must
+     carry ITS OWN window -- a fixture where every season showed the same
+     regular-war figures is the defect this models the fix for.
+
+     Dated from the clock like everything else here, so the window bounds stay
+     in the past however long the fixture lives.
+
+     #MASON is blended: CWL attacks and regular wars both observed.
+     #SAM is regular_only, which is the day-one case -- no assigned CWL attack
+       yet, and a rating that exists anyway.
+     #KIRA is a real ZERO, not a gap: six wars observed in the window and she
+       joined none of them. Before #89 she had no row at all here. */
+  cwl_member_overall_rating: [
+    {
+      season_id: fixtureSeasonId, player_tag: "#MASON",
+      regular_window_from: fixtureWarTime(40), regular_window_to: fixtureWarTime(10),
+      regular_window_from_basis: "previous_cwl_end",
+      regular_wars_observed: 6, regular_wars_participated: 6, regular_available_attacks: 12,
+      regular_assigned_attacks: 12, regular_attacks_made: 11, regular_stars: 30,
+      regular_wars_incomplete: 0, regular_activity_score: 92, regular_performance_score: 91,
+      regular_stars_per_attack: 2.73, regular_opportunity_score: 92, regular_quality_score: 91,
+      regular_score: 92, regular_last_observed_at: fixtureWarTime(11),
+      cwl_score: 100, rating_basis: "blended", overall_rating: 97,
+      cwl_wars_participated: 3, bonus_priority_score: null,
+    },
+    {
+      season_id: fixtureSeasonId, player_tag: "#SAM",
+      regular_window_from: fixtureWarTime(40), regular_window_to: fixtureWarTime(10),
+      regular_window_from_basis: "previous_cwl_end",
+      regular_wars_observed: 6, regular_wars_participated: 2, regular_available_attacks: 12,
+      regular_assigned_attacks: 4, regular_attacks_made: 4, regular_stars: 12,
+      regular_wars_incomplete: 0, regular_activity_score: 100, regular_performance_score: 100,
+      regular_stars_per_attack: 3, regular_opportunity_score: 33, regular_quality_score: 100,
+      regular_score: 53, regular_last_observed_at: fixtureWarTime(14),
+      cwl_score: null, rating_basis: "regular_only", overall_rating: 53,
+      cwl_wars_participated: 1, bonus_priority_score: 40,
+    },
+    {
+      season_id: fixtureSeasonId, player_tag: "#KIRA",
+      regular_window_from: fixtureWarTime(40), regular_window_to: fixtureWarTime(10),
+      regular_window_from_basis: "previous_cwl_end",
+      regular_wars_observed: 6, regular_wars_participated: 0, regular_available_attacks: 12,
+      regular_assigned_attacks: 0, regular_attacks_made: 0, regular_stars: 0,
+      regular_wars_incomplete: 0, regular_activity_score: null, regular_performance_score: null,
+      regular_stars_per_attack: null, regular_opportunity_score: 0, regular_quality_score: 0,
+      regular_score: 0, regular_last_observed_at: null,
+      cwl_score: null, rating_basis: "regular_only", overall_rating: 0,
+      cwl_wars_participated: 0, bonus_priority_score: 10,
+    },
+    /* The previous season has no regular-war collection behind it, which is
+       exactly production's 2026-08: the window predates the first collected
+       regular war, so the rating falls back to CWL completion rather than
+       scoring anybody zero on evidence that does not exist. */
+    {
+      season_id: fixturePreviousSeasonId, player_tag: "#KIRA",
+      regular_window_from: fixtureWarTime(70), regular_window_to: fixtureWarTime(40),
+      regular_window_from_basis: "fixed_30_days",
+      regular_wars_observed: 0, regular_wars_participated: 0, regular_available_attacks: 0,
+      regular_assigned_attacks: 0, regular_attacks_made: 0, regular_stars: 0,
+      regular_wars_incomplete: 0, regular_activity_score: null, regular_performance_score: null,
+      regular_stars_per_attack: null, regular_opportunity_score: null, regular_quality_score: null,
+      regular_score: null, regular_last_observed_at: null,
+      cwl_score: 86, rating_basis: "reliability_only", overall_rating: 86,
+      cwl_wars_participated: 7, bonus_priority_score: null,
+    },
+  ],
   member_availability: [
     { player_tag: "#MASON", status: "available" }, { player_tag: "#SAM", status: "available" }, { player_tag: "#KIRA", status: "unknown" },
   ],

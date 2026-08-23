@@ -43,12 +43,29 @@ export const memberFactsSchema = z.object({
   eightStarEligible: z.boolean(),
   regularWarsObserved: z.number().int().nonnegative().default(0),
   regularWarsParticipated: z.number().int().nonnegative().default(0),
+  /* Every attack the window's wars offered, sat-out wars included. It is the
+     denominator that makes a non-participant a real zero rather than a missing
+     row, so it is NOT `regularAssignedAttacks` -- that one counts only the wars
+     the member actually appeared in (#89). */
+  regularAvailableAttacks: z.number().int().nonnegative().default(0),
   regularAssignedAttacks: z.number().int().nonnegative().default(0),
   regularAttacksMade: z.number().int().nonnegative().default(0),
+  regularStars: z.number().int().nonnegative().default(0),
   regularActivityScore: z.number().min(0).max(100).nullable().default(null),
   regularPerformanceScore: z.number().min(0).max(100).nullable().default(null),
   regularStarsPerAttack: z.number().min(0).max(3).nullable().default(null),
+  regularOpportunityScore: z.number().min(0).max(100).nullable().default(null),
+  regularQualityScore: z.number().min(0).max(100).nullable().default(null),
+  regularScore: z.number().min(0).max(100).nullable().default(null),
   regularLastObservedAt: z.string().datetime().nullable().default(null),
+  regularWindowFrom: z.string().datetime().nullable().default(null),
+  regularWindowTo: z.string().datetime().nullable().default(null),
+  cwlScore: z.number().min(0).max(100).nullable().default(null),
+  /* Which evidence `overallRating` is made of, recorded rather than inferred:
+     a persisted recommendation is re-read later, and "ranked on regular-war
+     history alone" is a materially different claim from "ranked on this CWL's
+     attacks". */
+  ratingBasis: z.enum(["blended", "reliability_only", "regular_only"]).nullable().default(null),
   overallRating: z.number().min(0).max(100).nullable().default(null),
   bonusPriorityScore: z.number().min(0).max(100).nullable().default(null),
 }).superRefine((value, context) => {
@@ -96,7 +113,12 @@ export const reasonCodeSchema = z.enum([
   "forced_core_replacement",
   "eight_star_rotation",
   "current_cwl_reliability",
-  "overall_rating",
+  /* Two codes where there was one. The rating can now be made of two different
+     kinds of evidence, and a recommendation persisted on day 1 -- ranked purely
+     on regular-war history, because no CWL attack had been assigned yet -- must
+     not read back as though it were ranked on CWL attacks (#89). */
+  "overall_rating_blended",
+  "overall_rating_regular_only",
   "opportunity_count",
   "town_hall_fit",
   "elder_tiebreaker",

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { memberRating } from "../data/operations.js";
 import type { CwlMemberRole, CwlReviewMember } from "../data/operations.js";
 import { CwlReviewPage, rankReviewMembers, seasonRecord } from "./cwl-review.js";
 
@@ -11,6 +12,7 @@ function member(overrides: Partial<CwlReviewMember> & { name: string }): CwlRevi
     role: "member" as CwlMemberRole,
     days: [],
     unloggedWarDays: 0,
+    rating: memberRating(undefined),
     ...overrides,
   };
 }
@@ -46,7 +48,7 @@ describe("seasonRecord", () => {
     expect(record.assignedAttacks).toBe(2);
   });
 
-  /* Eight stars is ADR 0001's threshold and a rank boundary, not a bonus cutoff:
+  /* Eight stars is ADR 0023's threshold and a rank boundary, not a bonus cutoff:
      the game grants a league-dependent number of bonuses and nothing in the
      schema knows it. */
   it("marks eight or more stars as secured", () => {
@@ -60,7 +62,7 @@ describe("seasonRecord", () => {
 });
 
 describe("rankReviewMembers", () => {
-  /* ADR 0001's order and nothing else. Rating never sorts this list — it is not
+  /* ADR 0023's order and nothing else. Rating never sorts this list — it is not
      a lineup, and ranking by strength floats the already-secured members to the
      top, which is backwards for a page whose foot is the follow-up
      conversation. */

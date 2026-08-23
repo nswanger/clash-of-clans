@@ -12,7 +12,8 @@ export type PortableReasonCode =
   | "forced_core_replacement"
   | "eight_star_rotation"
   | "current_cwl_reliability"
-  | "overall_rating"
+  | "overall_rating_blended"
+  | "overall_rating_regular_only"
   | "opportunity_count"
   | "town_hall_fit"
   | "elder_tiebreaker"
@@ -32,12 +33,21 @@ export interface PortableMemberFacts {
   reliability: number | null;
   regularWarsObserved?: number;
   regularWarsParticipated?: number;
+  regularAvailableAttacks?: number;
   regularAssignedAttacks?: number;
   regularAttacksMade?: number;
+  regularStars?: number;
   regularActivityScore?: number | null;
   regularPerformanceScore?: number | null;
   regularStarsPerAttack?: number | null;
+  regularOpportunityScore?: number | null;
+  regularQualityScore?: number | null;
+  regularScore?: number | null;
   regularLastObservedAt?: string | null;
+  regularWindowFrom?: string | null;
+  regularWindowTo?: string | null;
+  cwlScore?: number | null;
+  ratingBasis?: "blended" | "reliability_only" | "regular_only" | null;
   overallRating?: number | null;
   bonusPriorityScore?: number | null;
 }
@@ -122,7 +132,8 @@ const explanations: Record<PortableReasonCode, string> = {
   forced_core_replacement: "A core position requires replacement because a higher-priority rule applies.",
   eight_star_rotation: "The assigned member has reached eight stars and is eligible to rotate.",
   current_cwl_reliability: "Substitutes are ranked by assigned-attack completion in this CWL.",
-  overall_rating: "CWL rating is based on observed current-CWL attack completion.",
+  overall_rating_blended: "The rating combines this CWL's attack completion with regular-war activity in the window before the season.",
+  overall_rating_regular_only: "No CWL attack has been assigned yet, so the rating is regular-war activity in the window before the season.",
   opportunity_count: "Fewer assigned opportunities break a reliability tie.",
   town_hall_fit: "Town Hall level is matched to the open map position.",
   elder_tiebreaker: "Verified current clan Elder status breaks an otherwise equal recommendation tie.",
@@ -149,7 +160,15 @@ function selectCandidate(candidates: PortableMemberFacts[], outgoing: PortableMe
     const bestRating = Math.max(...ratings);
     const lowestRating = Math.min(...ratings);
     if (bestRating !== lowestRating) {
-      reachedRules.push("overall_rating");
+      /* Which code depends on what the WINNING candidate's rating is made of,
+         because that is the claim the persisted recommendation is making about
+         why it picked them (#89). A day-1 recommendation ranks on regular-war
+         history alone; a day-5 one does not, and reading them back later has to
+         be able to tell those apart. */
+      const best = tied.find((candidate) => rating(candidate) === bestRating);
+      reachedRules.push(best?.ratingBasis === "regular_only"
+        ? "overall_rating_regular_only"
+        : "overall_rating_blended");
       tied = tied.filter((candidate) => rating(candidate) === bestRating);
     }
   }
