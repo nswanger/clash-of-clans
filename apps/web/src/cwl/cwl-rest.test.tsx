@@ -133,7 +133,7 @@ describe("CwlStandDownPage", () => {
     render(standDown({ onSeason }));
 
     fireEvent.click(screen.getByRole("button", { name: "Season options" }));
-    const earlier = screen.getByRole("menuitem", { name: "2026-07-01" });
+    const earlier = screen.getByRole("menuitem", { name: "July 2026" });
     expect(earlier).toBeEnabled();
 
     fireEvent.click(earlier);
@@ -147,6 +147,6 @@ describe("CwlStandDownPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Season options" }));
 
-    expect(screen.getByRole("menuitem", { name: /2026-08-01/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("menuitem", { name: /August 2026/ })).toHaveAttribute("aria-current", "true");
   });
 });

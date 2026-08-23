@@ -141,10 +141,10 @@ export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, on
                       each one now opens that season's review. */}
                   {snapshot.seasonIds.map((seasonId, index) => seasonId === snapshot.seasonId
                     ? <button key={seasonId} type="button" role="menuitem" aria-current="true" onClick={() => setSeasonMenuOpen(false)}>
-                        {seasonId} {index === 0 ? <small>Current</small> : null}
+                        {seasonName(seasonId)} {index === 0 ? <small>Current</small> : null}
                       </button>
                     : <button key={seasonId} type="button" role="menuitem" onClick={() => { setSeasonMenuOpen(false); onSeason(seasonId); }}>
-                        {seasonId} {index === 0 ? <small>Current</small> : null}
+                        {seasonName(seasonId)} {index === 0 ? <small>Current</small> : null}
                       </button>)}
                 </div>
               : null}

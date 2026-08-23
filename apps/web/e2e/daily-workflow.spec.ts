@@ -194,17 +194,20 @@ test("reaches a previous season's review from the season menu", async ({ page })
   await expect(page.getByText(/2 of 7 war days logged/)).toBeVisible();
 
   await page.getByRole("button", { name: "Season options" }).click();
+  /* The entries READ AS MONTHS while the route carries the id, so the label no
+     longer spells the season the click will request. The entry for the season
+     already on screen carries a "Current" suffix; a bare month is an earlier
+     season, and the id it resolves to is asserted on the url rather than
+     derived from the text. */
   const seasons = await page.getByRole("menuitem").allInnerTexts();
-  /* The season id is the API's own `YYYY-MM-DD` (#91). The entry for the season
-     already on screen carries a "Current" suffix, so a bare id is an earlier
-     season. */
-  const previous = seasons.find((entry) => /^\d{4}-\d{2}-\d{2}$/.test(entry.trim()));
+  const previous = seasons.find((entry) => /^[A-Z][a-z]+ \d{4}$/.test(entry.trim()));
   expect(previous).toBeTruthy();
   await page.getByRole("menuitem", { name: previous!.trim() }).click();
 
-  await expect.poll(() => currentUrl(page)).toContain(`season=${previous!.trim()}`);
-  /* The eyebrow says which season this is, because the id is a month and a
-     leader has no other way to tell a finished record from the live one. */
+  await expect.poll(() => currentUrl(page)).toMatch(/season=\d{4}-\d{2}-\d{2}/);
+  await expect.poll(() => currentUrl(page)).toContain("phase=review");
+  /* The eyebrow says which season this is, because a month name alone gives a
+     leader no way to tell a finished record from the live one. */
   await expect(page.getByText(/Previous season/)).toBeVisible();
   /* Complete coverage, so the caveat is silent — the current season's is not. */
   await expect(page.getByText(/war days logged/)).toBeHidden();

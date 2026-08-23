@@ -246,9 +246,11 @@ describe("CwlReviewPage", () => {
      be true for: the menu reaches a previous season, the surface says which
      season it is showing, and a season the clan never collected is a bad link
      rather than an error screen. */
+  /* The API's own date-shaped ids (#91), because these tests assert on what the
+     surface RENDERS from them. */
   const TWO_SEASONS = [
-    { clan_tag: "#CLAN", season_id: "2026-08", war_size: 15, bonuses_administered_at: null },
-    { clan_tag: "#CLAN", season_id: "2026-07", war_size: 15, bonuses_administered_at: "2026-07-20T10:00:00Z" },
+    { clan_tag: "#CLAN", season_id: "2026-08-01", war_size: 15, bonuses_administered_at: null },
+    { clan_tag: "#CLAN", season_id: "2026-07-01", war_size: 15, bonuses_administered_at: "2026-07-20T10:00:00Z" },
   ];
 
   it("opens an earlier season's review from the menu", async () => {
@@ -257,23 +259,23 @@ describe("CwlReviewPage", () => {
     render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={onSeason} lineupDayLabel="Day 7" />);
 
     await user.click(await screen.findByRole("button", { name: "Season options" }));
-    await user.click(screen.getByRole("menuitem", { name: "2026-07" }));
+    await user.click(screen.getByRole("menuitem", { name: "July 2026" }));
 
-    expect(onSeason).toHaveBeenCalledWith("2026-07");
+    expect(onSeason).toHaveBeenCalledWith("2026-07-01");
   });
 
   /* The season id is a month, so `2026-07` on screen in July is indistinguishable
      from the live season unless the surface says otherwise. */
   it("states in the eyebrow that a previous season is not the current one", async () => {
-    render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" seasonId="2026-07" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" seasonId="2026-07-01" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
-    expect(await screen.findByText(/2026-07 · Previous season/)).toBeVisible();
+    expect(await screen.findByText(/July 2026 · Previous season/)).toBeVisible();
   });
 
   it("says nothing about a previous season when showing the current one", async () => {
     render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
-    expect(await screen.findByText(/2026-08/)).toBeVisible();
+    expect(await screen.findByText(/August 2026/)).toBeVisible();
     expect(screen.queryByText(/Previous season/)).not.toBeInTheDocument();
   });
 
@@ -283,7 +285,7 @@ describe("CwlReviewPage", () => {
   it("falls back to the current season when the link names one the clan never had", async () => {
     render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" seasonId="1999-01" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
-    expect(await screen.findByText(/2026-08/)).toBeVisible();
+    expect(await screen.findByText(/August 2026/)).toBeVisible();
     expect(screen.queryByText(/Previous season/)).not.toBeInTheDocument();
   });
 
