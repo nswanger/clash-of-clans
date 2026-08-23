@@ -39,6 +39,7 @@ import {
   type CwlReviewMember,
   type CwlReviewSeasonSnapshot,
 } from "../data/operations.js";
+import { seasonName } from "./cwl-countdown.js";
 import { CwlPhaseStrip } from "./cwl-phase-strip.js";
 import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-review.css";
@@ -232,7 +233,7 @@ function MemberPanel({ entry, activity, loggedWarDays, seasonId, wide, onClose }
       <div className="cm-panel-body">
         {/* Scoped, like every other label in this panel: "Season record" alone
             is ambiguous once the season menu can move you between seasons. */}
-        <p className="cm-panel-label">Season record <span className="cm-sep">·</span> CWL {seasonId}</p>
+        <p className="cm-panel-label">Season record <span className="cm-sep">·</span> CWL {seasonName(seasonId)}</p>
         <dl className="cwl-review-facts">
           <div><dt>Stars</dt><dd>{record.stars}</dd></div>
           <div><dt>Stars per war</dt><dd>{record.starsPerWar === null ? "—" : record.starsPerWar.toFixed(1)}</dd></div>
@@ -360,7 +361,7 @@ export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSea
   const previous = snapshot !== undefined
     && snapshot.seasonIds[0] !== undefined
     && snapshot.seasonIds[0] !== snapshot.season.seasonId;
-  const eyebrow = `CWL${snapshot ? ` · ${snapshot.season.seasonId}` : ""}${previous ? " · Previous season" : ""}${coverage}`;
+  const eyebrow = `CWL${snapshot ? ` · ${seasonName(snapshot.season.seasonId)}` : ""}${previous ? " · Previous season" : ""}${coverage}`;
 
   /* Where the panel is docked it opens on the top-ranked member — an empty
      column is dead space that also hides the fact that rows do anything. The
@@ -419,10 +420,10 @@ export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSea
                       where you already are. */}
                   {snapshot.seasonIds.map((entry, index) => entry === snapshot.season.seasonId
                     ? <button key={entry} type="button" role="menuitem" aria-current="true" onClick={() => setSeasonMenuOpen(false)}>
-                        {entry} {index === 0 ? <small>Current</small> : null}
+                        {seasonName(entry)} {index === 0 ? <small>Current</small> : null}
                       </button>
                     : <button key={entry} type="button" role="menuitem" onClick={() => { setSeasonMenuOpen(false); onSeason(entry); }}>
-                        {entry} {index === 0 ? <small>Current</small> : null}
+                        {seasonName(entry)} {index === 0 ? <small>Current</small> : null}
                       </button>)}
                 </div>
               : null}

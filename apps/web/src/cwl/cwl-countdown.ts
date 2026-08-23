@@ -11,15 +11,23 @@
  * state; it is the honest end of a guess.
  */
 
+import { seasonMonth } from "./cwl-season-id.js";
+
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 
-/* `"2026-08"` is a key everywhere else in the app and a date exactly here: this
- * is the one place the season id is read rather than matched. */
+/* The season id is a key everywhere else in the app and a date exactly here:
+ * this is the one place it is read rather than matched.
+ *
+ * An id that cannot be read as a month falls back to the id itself, which is
+ * the right failure for a LABEL — a raw key on screen is poor but true, where a
+ * guessed month would be a confident lie about which season finished. It read
+ * that fallback in production for the whole of 2026-08 (#91), because the real
+ * ids are `YYYY-MM-DD` and the pattern here only accepted `YYYY-MM`. */
 export function seasonName(seasonId: string): string {
-  const match = /^(\d{4})-(\d{2})$/.exec(seasonId);
-  if (!match) return seasonId;
-  return `${MONTHS[Number(match[2]) - 1]} ${match[1]}`;
+  const month = seasonMonth(seasonId);
+  if (!month) return seasonId;
+  return `${MONTHS[month.month - 1]} ${month.year}`;
 }
 
 /* DERIVED FROM `now`, NOT FROM THE CLOSED SEASON'S ID. If collection stalls for

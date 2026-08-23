@@ -36,6 +36,12 @@ function currentUrl(page: Page) {
   return page.evaluate(() => window.location.href);
 }
 
+/* The hash alone, for the redirect test, which has to assert on the WHOLE route
+   rather than on a substring of it — see the comment there. */
+function currentHash(page: Page) {
+  return page.evaluate(() => window.location.hash);
+}
+
 function lastMutation(page: Page) {
   return page.evaluate(() => localStorage.getItem("e2e:last-mutation"));
 }
@@ -62,17 +68,30 @@ test("opens the route menu from the page name and moves between routes", async (
  * when it is needed. */
 const REDIRECT_TIMEOUT = { timeout: 15_000 };
 
+/* EQUALITY, NOT `toContain`, AND THAT IS THE WHOLE OF THE #75 FLAKE.
+ *
+ * `"#/cwl-lineup".includes("#/cwl")` is true. So the first poll passed on the
+ * PRE-redirect url, immediately, without ever waiting for the redirect it
+ * exists to assert. The redirect is applied in an effect, so it was still
+ * pending when the next `goto` ran — and then it landed, replacing `#/access`
+ * with `#/cwl`. The second poll then waited out its timeout against a url the
+ * first navigation had put there.
+ *
+ * That is why the failure reads "Expected #/admin, received #/cwl" rather than
+ * naming `#/access` at all, and why it only ever bit on a slow runner: locally
+ * the effect wins the race. #78 fixed a different cause (Playwright's cached
+ * frame url) and could not fix this one. */
 test("redirects the routes ADR 0002 renamed", async ({ page }) => {
   await page.goto("/#/cwl-lineup");
-  await expect.poll(() => currentUrl(page), REDIRECT_TIMEOUT).toContain("#/cwl");
+  await expect.poll(() => currentHash(page), REDIRECT_TIMEOUT).toBe("#/cwl");
 
   await page.goto("/#/access");
-  await expect.poll(() => currentUrl(page), REDIRECT_TIMEOUT).toContain("#/admin");
+  await expect.poll(() => currentHash(page), REDIRECT_TIMEOUT).toBe("#/admin");
 
   /* Deleted for duplicating the roster's own numbers, so the roster is where a
      bookmark should land. */
   await page.goto("/#/overview");
-  await expect.poll(() => currentUrl(page), REDIRECT_TIMEOUT).toContain("#/members");
+  await expect.poll(() => currentHash(page), REDIRECT_TIMEOUT).toBe("#/members");
 });
 
 test("routes to the admin workflow and keeps its touch targets", async ({ page }) => {
@@ -175,14 +194,20 @@ test("reaches a previous season's review from the season menu", async ({ page })
   await expect(page.getByText(/2 of 7 war days logged/)).toBeVisible();
 
   await page.getByRole("button", { name: "Season options" }).click();
+  /* The entries READ AS MONTHS while the route carries the id, so the label no
+     longer spells the season the click will request. The entry for the season
+     already on screen carries a "Current" suffix; a bare month is an earlier
+     season, and the id it resolves to is asserted on the url rather than
+     derived from the text. */
   const seasons = await page.getByRole("menuitem").allInnerTexts();
-  const previous = seasons.find((entry) => /^\d{4}-\d{2}$/.test(entry.trim()));
+  const previous = seasons.find((entry) => /^[A-Z][a-z]+ \d{4}$/.test(entry.trim()));
   expect(previous).toBeTruthy();
   await page.getByRole("menuitem", { name: previous!.trim() }).click();
 
-  await expect.poll(() => currentUrl(page)).toContain(`season=${previous!.trim()}`);
-  /* The eyebrow says which season this is, because the id is a month and a
-     leader has no other way to tell a finished record from the live one. */
+  await expect.poll(() => currentUrl(page)).toMatch(/season=\d{4}-\d{2}-\d{2}/);
+  await expect.poll(() => currentUrl(page)).toContain("phase=review");
+  /* The eyebrow says which season this is, because a month name alone gives a
+     leader no way to tell a finished record from the live one. */
   await expect(page.getByText(/Previous season/)).toBeVisible();
   /* Complete coverage, so the caveat is silent — the current season's is not. */
   await expect(page.getByText(/war days logged/)).toBeHidden();

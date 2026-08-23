@@ -179,7 +179,7 @@
 <div class="shell">
   <header class="topbar">
     <div>
-      <p class="eyebrow" id="eyebrow">CWL · 2026-08</p>
+      <p class="eyebrow" id="eyebrow">CWL · August 2026</p>
       <h1 id="title">Review</h1>
     </div>
     <div class="topbar-side">
@@ -337,8 +337,8 @@ function renderPhase() {
    * — and "make uncertainty visible" is the project's own rule. It is muted
    * rather than coloured because an absence carries no hue (#16). */
   el("eyebrow").textContent = state.loggedDays < WAR_DAYS
-    ? `CWL · 2026-08 · ${state.loggedDays} of ${WAR_DAYS} war days logged`
-    : "CWL · 2026-08";
+    ? `CWL · August 2026 · ${state.loggedDays} of ${WAR_DAYS} war days logged`
+    : "CWL · August 2026";
 }
 
 /* Four metrics, and the fourth is the coverage line rather than a fifth
@@ -460,7 +460,7 @@ function memberPanelHtml(m, wide) {
       ${wide ? "" : '<button class="iconbutton" type="button" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>'}
     </div>
     <div class="panel-body">
-      <p class="panel-label">Season record · CWL 2026-08</p>
+      <p class="panel-label">Season record · CWL August 2026</p>
       <dl class="facts">
         <div><dt>Stars</dt><dd>${r.stars}</dd></div>
         <div><dt>Stars per war</dt><dd>${r.starsPerWar === null ? "—" : r.starsPerWar.toFixed(1)}</dd></div>
@@ -533,16 +533,23 @@ function renderReviewChip() {
  * rather than adding a parameterised view family beside it: season_id was
  * already an output column on every one of those views, so the filter each
  * loader already wrote became the parameter. The entries are live now, and each
- * opens that season's review at `?phase=review&season=<id>`. */
+ * opens that season's review at `?phase=review&season=<id>`.
+ *
+ * THE LABEL IS THE MONTH, NOT THE ID. The id is the Clash API's own `season`,
+ * which is a date -- `2026-08-01` (#91). Beyond putting a key on screen, an ISO
+ * date is one unbreakable token: it cannot wrap, so in a narrow menu or eyebrow
+ * it forces the overflow instead of giving way. `August 2026` is a character
+ * longer and breaks at the space, which is what makes it the smaller of the two
+ * exactly where width is tight. */
 function renderSeasonMenu() {
   el("seasonbutton").setAttribute("aria-expanded", String(state.seasonMenuOpen));
   el("seasonmenuslot").innerHTML = state.seasonMenuOpen
     ? `<div class="seasonmenu" role="menu">
         <button type="button" role="menuitem" data-administered>${state.administered ? "Reopen review" : "Mark bonuses administered"}</button>
         <div class="divider"></div>
-        <button type="button" role="menuitem" aria-current="true">2026-08 <small>Current</small></button>
-        <button type="button" role="menuitem">2026-07</button>
-        <button type="button" role="menuitem">2026-06</button>
+        <button type="button" role="menuitem" aria-current="true">August 2026 <small>Current</small></button>
+        <button type="button" role="menuitem">July 2026</button>
+        <button type="button" role="menuitem">June 2026</button>
       </div>`
     : "";
 }

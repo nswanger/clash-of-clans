@@ -28,6 +28,7 @@
  * had already finished.
  */
 import type { CwlWarState } from "../data/operations.js";
+import { seasonMonth, seasonMonthKey } from "./cwl-season-id.js";
 
 export type CwlPhase = "lineup" | "review" | "resting";
 
@@ -44,14 +45,23 @@ export const CWL_PHASE_LABELS: ReadonlyArray<readonly [CwlPhase, string]> = [
 
 const PHASES: readonly CwlPhase[] = CWL_PHASE_LABELS.map(([phase]) => phase);
 
-/* The season id is the Clash API's own `"YYYY-MM"`, so an earlier month is a
- * string comparison rather than a date parse — and an id that is not in that
- * shape simply fails the guard instead of throwing, which is the right failure:
- * the war states below are the primary marker and the guard is a backstop. */
+/* The season id is the Clash API's own `season` field, which is `"2026-08-01"`
+ * in production and not the `"YYYY-MM"` this once assumed (#91). It is read
+ * through `seasonMonth` and compared on a canonical month key, because two ids
+ * in different shapes do not sort against each other the way this comparison
+ * needs.
+ *
+ * An unreadable id still fails the guard rather than throwing, and that is
+ * still the right failure — the war states below are the primary marker and
+ * this is a backstop. What was NOT acceptable is that every real id was
+ * unreadable, which is what silently retired the backstop: the rung exists for
+ * the season whose end was never collected, and that is exactly the season with
+ * no `end_time` for the marker above to measure. */
 function namesAnEarlierMonth(seasonId: string, now: Date): boolean {
-  if (!/^\d{4}-\d{2}$/.test(seasonId)) return false;
-  const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  return seasonId < currentMonth;
+  const month = seasonMonth(seasonId);
+  if (!month) return false;
+  const currentMonth = seasonMonthKey({ year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 });
+  return seasonMonthKey(month) < currentMonth;
 }
 
 /* The elapsed-time backstop for a season nobody ever marks administered. ADR

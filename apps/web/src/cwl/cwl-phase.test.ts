@@ -69,6 +69,20 @@ describe("defaultCwlPhase", () => {
     expect(defaultCwlPhase(markers("2026-07", days(["warEnded", "inWar"])), august)).toBe("resting");
   });
 
+  /* #91, AND THE REGRESSION THIS FILE COULD NOT SEE. Every real season id is
+     `YYYY-MM-DD`, which the guard's old pattern did not match, so it returned
+     false for every season the app has ever held and marker 3 never fired. The
+     rung was retired silently on the day it shipped. */
+  it("fires the month guard on the API's own date-shaped season id", () => {
+    expect(defaultCwlPhase(markers("2026-07-01", days(["warEnded", "inWar"])), august)).toBe("resting");
+  });
+
+  /* The other half of the same regression: a date-shaped id must not read as
+     earlier than the month it names. */
+  it("does not call the current season an earlier month when the id is date-shaped", () => {
+    expect(defaultCwlPhase(markers("2026-08-01", days(["warEnded", "inWar"])), august)).toBe("lineup");
+  });
+
   /* THE FLOOR. `namesAnEarlierMonth` flips at midnight on the 1st, which is
      roughly when the next CWL starts — so without a day-of-month floor a failed
      collection drops the leader into stand down at exactly the moment the new
