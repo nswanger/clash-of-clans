@@ -120,7 +120,7 @@ describe("Supabase operations", () => {
       cwl_members: [{ clan_tag: "#CLAN", season_id: "2026-08", player_tag: "#MASON", name: "Mason", town_hall_level: 15 }],
       member_availability: [],
       member_roster_overview: [],
-      cwl_current_reliability: [],
+      cwl_member_reliability: [],
       cwl_member_stars: [],
       cwl_war_members: [{ war_tag: "#WAR1", player_tag: "#MASON", map_position: 1, assigned_attacks: 1 }],
       cwl_attacks: [{ war_tag: "#WAR1", attacker_tag: "#MASON", stars: 3 }],

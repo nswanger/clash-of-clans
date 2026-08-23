@@ -102,10 +102,6 @@
 .seasonmenu button[disabled] { color: var(--cm-fg-unknown); }
 .seasonmenu button small { font-size: var(--cm-text-label); letter-spacing: var(--cm-tracking-label); text-transform: uppercase; }
 .seasonmenu .divider { height: 1px; margin: var(--cm-space-1) var(--cm-space-2); background: var(--cm-hairline); }
-.seasonmenu p {
-  margin: var(--cm-space-1) var(--cm-space-3) var(--cm-space-2);
-  font-size: var(--cm-text-xs); line-height: 1.4; color: var(--cm-fg-muted);
-}
 
 /* ---------- ranked list ----------
  * Progressive disclosure through the row's own stats slot, gated on a CONTAINER
@@ -531,12 +527,13 @@ function renderReviewChip() {
 }
 
 /* ADR 0002 requires a previous season to stay reachable, and this is where that
- * lives. It is also where a real data gap shows: every CWL view routes through
- * cwl_current_seasons, which is `distinct on (clan_tag) ... order by season_id
- * desc` — the latest season and nothing else. Reaching an earlier one is a
- * season-parameterised view or function, the same shape of change #34 made for
- * the roster's activity window. Until that exists the entries are honestly
- * disabled rather than silently missing. */
+ * lives. The entries were honestly disabled until #56, because every CWL view
+ * routed through cwl_current_seasons — `distinct on (clan_tag) ... order by
+ * season_id desc`, the latest season and nothing else. #56 removed that join
+ * rather than adding a parameterised view family beside it: season_id was
+ * already an output column on every one of those views, so the filter each
+ * loader already wrote became the parameter. The entries are live now, and each
+ * opens that season's review at `?phase=review&season=<id>`. */
 function renderSeasonMenu() {
   el("seasonbutton").setAttribute("aria-expanded", String(state.seasonMenuOpen));
   el("seasonmenuslot").innerHTML = state.seasonMenuOpen
@@ -544,9 +541,8 @@ function renderSeasonMenu() {
         <button type="button" role="menuitem" data-administered>${state.administered ? "Reopen review" : "Mark bonuses administered"}</button>
         <div class="divider"></div>
         <button type="button" role="menuitem" aria-current="true">2026-08 <small>Current</small></button>
-        <button type="button" role="menuitem" disabled>2026-07</button>
-        <button type="button" role="menuitem" disabled>2026-06</button>
-        <p>Earlier seasons are collected but not queryable: every CWL view is scoped to the latest season.</p>
+        <button type="button" role="menuitem">2026-07</button>
+        <button type="button" role="menuitem">2026-06</button>
       </div>`
     : "";
 }

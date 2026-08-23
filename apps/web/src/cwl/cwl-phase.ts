@@ -158,6 +158,24 @@ export function phaseFromHash(hash: string): CwlPhase | undefined {
  * says which phase you are in, so it can be linked and reasoned about. A bare
  * `#/cwl` still means "whichever phase the season is in", which is what a
  * bookmark or the nav menu should give you. */
-export function hashForPhase(phase: CwlPhase): string {
-  return `#/cwl?phase=${phase}`;
+export function hashForPhase(phase: CwlPhase, seasonId?: string): string {
+  const season = seasonId ? `&season=${encodeURIComponent(seasonId)}` : "";
+  return `#/cwl?phase=${phase}${season}`;
+}
+
+/* Which season the review phase is looking at (#56), read the same way and with
+ * the same tolerance as the phase: a parameter naming a season the clan has
+ * never collected is ignored by the loader rather than rejected.
+ *
+ * ONLY REVIEW CARRIES IT, and the omission is the point rather than an
+ * oversight. The lineup is the season being played and stand down is the season
+ * just finished; neither has a previous-season reading to offer, so a `season`
+ * beside them would name a scope the surface does not honour. Leaving review
+ * for another phase therefore drops the parameter, which is also what a leader
+ * means by pressing `Lineup`: show me the war I am fighting, not the month I
+ * was reading about. */
+export function seasonFromHash(hash: string): string | undefined {
+  const query = hash.split("?")[1];
+  if (!query) return undefined;
+  return new URLSearchParams(query).get("season") ?? undefined;
 }

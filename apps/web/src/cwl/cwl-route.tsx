@@ -19,7 +19,7 @@ import { loadCwlSeasonPhase, type CwlSeasonPhaseSnapshot, type CwlWarState } fro
 import { CwlLineupWorkspacePage } from "./cwl-lineup-workspace.js";
 import { CwlReviewPage } from "./cwl-review.js";
 import { CwlStandDownPage } from "./cwl-rest.js";
-import { defaultCwlPhase, hashForPhase, phaseFromHash, type CwlPhase } from "./cwl-phase.js";
+import { defaultCwlPhase, hashForPhase, phaseFromHash, seasonFromHash, type CwlPhase } from "./cwl-phase.js";
 
 /* The day the lineup phase would open on, mirroring what
  * `loadCurrentCwlLineupWorkspace` does with no day given: the latest day still
@@ -37,6 +37,10 @@ export function CwlRoutePage({ client, clanTag, hash }: { client: any; clanTag: 
   const [snapshot, setSnapshot] = useState<CwlSeasonPhaseSnapshot>();
   const [failed, setFailed] = useState(false);
   const requested = phaseFromHash(hash);
+  /* Review's season (#56). The route only carries it; which seasons exist and
+     what an unknown one falls back to are the loader's, because the route does
+     not fetch the season list. */
+  const requestedSeason = seasonFromHash(hash);
 
   useEffect(() => {
     let live = true;
@@ -72,6 +76,10 @@ export function CwlRoutePage({ client, clanTag, hash }: { client: any; clanTag: 
   /* The phase travels as a query parameter (ADR 0002), so a phase is linkable
      and the back button walks the phases the leader actually visited. */
   const onPhase = (next: CwlPhase) => { window.location.hash = hashForPhase(next); };
+  /* Picking a season is picking review, from any phase: the season menu is on
+     the review and stand-down surfaces, and what a leader wants from an earlier
+     month is its record. */
+  const onSeason = (seasonId: string) => { window.location.hash = hashForPhase("review", seasonId); };
 
   if (phase === "resting" && snapshot) {
     return <CwlStandDownPage
@@ -81,10 +89,19 @@ export function CwlRoutePage({ client, clanTag, hash }: { client: any; clanTag: 
       phase={phase}
       onPhase={onPhase}
       lineupDayLabel={`Day ${lineupDay}`}
+      onSeason={onSeason}
     />;
   }
   if (phase === "review") {
-    return <CwlReviewPage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} lineupDayLabel={`Day ${lineupDay}`} />;
+    return <CwlReviewPage
+      client={client}
+      clanTag={clanTag}
+      seasonId={requestedSeason}
+      phase={phase}
+      onPhase={onPhase}
+      onSeason={onSeason}
+      lineupDayLabel={`Day ${lineupDay}`}
+    />;
   }
   return <CwlLineupWorkspacePage client={client} clanTag={clanTag} phase={phase} onPhase={onPhase} initialDay={lineupDay} />;
 }

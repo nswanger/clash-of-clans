@@ -174,7 +174,7 @@ const IDLE_CWL_RUN = {
 
 describe("CwlReviewPage", () => {
   it("ranks the season into the two eight-star groups", async () => {
-    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByRole("heading", { name: /Eight or more stars/ })).toBeVisible();
     expect(screen.getByRole("heading", { name: /Below eight stars/ })).toBeVisible();
@@ -185,7 +185,7 @@ describe("CwlReviewPage", () => {
      evidence, so it is one of the only two things the meta line ever carries
      beyond the role. */
   it("marks a missed attack on the row and counts it in the strip", async () => {
-    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByText("1 attack missed")).toBeVisible();
     expect(screen.getByText("Missed attacks").previousSibling).toHaveTextContent("1");
@@ -201,7 +201,7 @@ describe("CwlReviewPage", () => {
       data: { clanTag: "#CLAN", seasonId: "2026-08", bonusesAdministeredAt: "2026-08-20T10:00:00Z" },
       error: null,
     });
-    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     await user.click(await screen.findByRole("button", { name: "Season options" }));
     await user.click(screen.getByRole("menuitem", { name: "Mark bonuses administered" }));
@@ -217,7 +217,7 @@ describe("CwlReviewPage", () => {
      the row fires on most of the roster and distinguishes nobody. */
   it("states incomplete coverage in the eyebrow", async () => {
     const client = reviewClient({ cwl_wars: [...WAR_ROWS, { war_tag: "#W3", war_day: 3, state: "inWar" }] });
-    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByText(/2 of 7 war days logged/)).toBeVisible();
   });
@@ -227,7 +227,7 @@ describe("CwlReviewPage", () => {
      would make logged equal total and the caveat would go quiet on exactly the
      season it exists to warn about. */
   it("counts uncollected war days against the season's own length", async () => {
-    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByText(/2 of 7 war days logged/)).toBeVisible();
   });
@@ -236,16 +236,61 @@ describe("CwlReviewPage", () => {
     const client = reviewClient({
       cwl_wars: [1, 2, 3, 4, 5, 6, 7].map((warDay) => ({ war_tag: `#W${warDay}`, war_day: warDay, state: "warEnded" })),
     });
-    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={client} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByRole("heading", { name: /Below eight stars/ })).toBeVisible();
     expect(screen.queryByText(/war days logged/)).not.toBeInTheDocument();
   });
 
+  /* #56. The three tests below are the whole of what the season parameter has to
+     be true for: the menu reaches a previous season, the surface says which
+     season it is showing, and a season the clan never collected is a bad link
+     rather than an error screen. */
+  const TWO_SEASONS = [
+    { clan_tag: "#CLAN", season_id: "2026-08", war_size: 15, bonuses_administered_at: null },
+    { clan_tag: "#CLAN", season_id: "2026-07", war_size: 15, bonuses_administered_at: "2026-07-20T10:00:00Z" },
+  ];
+
+  it("opens an earlier season's review from the menu", async () => {
+    const user = userEvent.setup();
+    const onSeason = vi.fn();
+    render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={onSeason} lineupDayLabel="Day 7" />);
+
+    await user.click(await screen.findByRole("button", { name: "Season options" }));
+    await user.click(screen.getByRole("menuitem", { name: "2026-07" }));
+
+    expect(onSeason).toHaveBeenCalledWith("2026-07");
+  });
+
+  /* The season id is a month, so `2026-07` on screen in July is indistinguishable
+     from the live season unless the surface says otherwise. */
+  it("states in the eyebrow that a previous season is not the current one", async () => {
+    render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" seasonId="2026-07" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByText(/2026-07 · Previous season/)).toBeVisible();
+  });
+
+  it("says nothing about a previous season when showing the current one", async () => {
+    render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByText(/2026-08/)).toBeVisible();
+    expect(screen.queryByText(/Previous season/)).not.toBeInTheDocument();
+  });
+
+  /* The default is always a correct answer, which is why an unknown season falls
+     back to the current one instead of failing — the same reasoning that makes
+     `phaseFromHash` ignore a parameter that does not name a phase. */
+  it("falls back to the current season when the link names one the clan never had", async () => {
+    render(<CwlReviewPage client={reviewClient({ cwl_seasons: TWO_SEASONS })} clanTag="#CLAN" seasonId="1999-01" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
+
+    expect(await screen.findByText(/2026-08/)).toBeVisible();
+    expect(screen.queryByText(/Previous season/)).not.toBeInTheDocument();
+  });
+
   it("leaves the phase through the strip", async () => {
     const user = userEvent.setup();
     const onPhase = vi.fn();
-    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={onPhase} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient()} clanTag="#CLAN" phase="review" onPhase={onPhase} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     await user.click(await screen.findByRole("button", { name: /Lineup/ }));
 
@@ -253,7 +298,7 @@ describe("CwlReviewPage", () => {
   });
 
   it("does not call the season record stale when only the league group was absent", async () => {
-    render(<CwlReviewPage client={reviewClient({ collection_runs: [IDLE_CWL_RUN] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient({ collection_runs: [IDLE_CWL_RUN] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByRole("heading", { name: /Eight or more stars/ })).toBeVisible();
     expect(screen.queryByText("Collection data is stale")).not.toBeInTheDocument();
@@ -262,7 +307,7 @@ describe("CwlReviewPage", () => {
   /* #74: a null status interpolated into the sentence rendered "reported ." —
      the one word carrying the evidence was the one that was missing. */
   it("states the absence rather than an empty status when no run was read", async () => {
-    render(<CwlReviewPage client={reviewClient({ collection_runs: [] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient({ collection_runs: [] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByText("Collection data is stale")).toBeVisible();
     expect(screen.getByText(/No collection run has been recorded/)).toBeVisible();
@@ -277,7 +322,7 @@ describe("CwlReviewPage", () => {
         { endpoint: "player", status: "failed", http_status: 200, error_category: "normalization_error", started_at: "2026-08-20T06:00:21Z", finished_at: "2026-08-20T06:00:22Z" },
       ],
     };
-    render(<CwlReviewPage client={reviewClient({ collection_runs: [brokenRun] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} lineupDayLabel="Day 7" />);
+    render(<CwlReviewPage client={reviewClient({ collection_runs: [brokenRun] })} clanTag="#CLAN" phase="review" onPhase={vi.fn()} onSeason={vi.fn()} lineupDayLabel="Day 7" />);
 
     expect(await screen.findByText("Collection data is stale")).toBeVisible();
   });

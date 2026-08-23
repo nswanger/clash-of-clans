@@ -276,11 +276,17 @@ function MemberPanel({ entry, activity, loggedWarDays, seasonId, wide, onClose }
  * The page
  * ------------------------------------------------------------------------- */
 
-export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel }: {
+export function CwlReviewPage({ client, clanTag, seasonId, phase, onPhase, onSeason, lineupDayLabel }: {
   client: any;
   clanTag: string;
+  /* The season the leader picked from the menu, or undefined for the current
+     one (#56). Undefined rather than the resolved id, because which season is
+     current is the loader's answer and this surface should not hold a second
+     opinion about it. */
+  seasonId?: string | undefined;
   phase: CwlPhase;
   onPhase: (next: CwlPhase) => void;
+  onSeason: (seasonId: string) => void;
   lineupDayLabel: string;
 }) {
   const wide = useWide();
@@ -299,7 +305,7 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
          regular-war gauge is a separate question that only the panel asks. A
          failure of the second must not blank the first. */
       const [season, gauge] = await Promise.all([
-        loadCwlReviewSeason(client, clanTag),
+        loadCwlReviewSeason(client, clanTag, seasonId),
         loadWarActivityWindow(client, clanTag, REGULAR_WINDOW_DAYS).catch(() => new Map<string, MemberWarActivity>()),
       ]);
       setSnapshot(season);
@@ -307,7 +313,7 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to load the CWL season record.");
     }
-  }, [clanTag, client]);
+  }, [clanTag, client, seasonId]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSkeleton(true), SKELETON_DELAY_MS);
@@ -347,7 +353,14 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
   const coverage = snapshot && snapshot.loggedWarDays < snapshot.totalWarDays
     ? ` · ${snapshot.loggedWarDays} of ${snapshot.totalWarDays} war days logged`
     : "";
-  const eyebrow = `CWL${snapshot ? ` · ${snapshot.season.seasonId}` : ""}${coverage}`;
+  /* A previous season says so in the eyebrow (#56). The season id is a month
+     and a leader reading `2026-07` in July has no way to tell a finished record
+     from a live one, so the surface states which it is rather than leaving the
+     season menu as the only place that knows. */
+  const previous = snapshot !== undefined
+    && snapshot.seasonIds[0] !== undefined
+    && snapshot.seasonIds[0] !== snapshot.season.seasonId;
+  const eyebrow = `CWL${snapshot ? ` · ${snapshot.season.seasonId}` : ""}${previous ? " · Previous season" : ""}${coverage}`;
 
   /* Where the panel is docked it opens on the top-ranked member — an empty
      column is dead space that also hides the fact that rows do anything. The
@@ -400,11 +413,17 @@ export function CwlReviewPage({ client, clanTag, phase, onPhase, lineupDayLabel 
                     {administered ? "Reopen review" : "Mark bonuses administered"}
                   </button>
                   <div className="cwl-seasonmenu-divider" />
-                  <button type="button" role="menuitem" aria-current="true">
-                    {snapshot.season.seasonId} <small>Current</small>
-                  </button>
-                  {snapshot.earlierSeasonIds.map((seasonId) => <button key={seasonId} type="button" role="menuitem" disabled>{seasonId}</button>)}
-                  <p>Earlier seasons are collected but not queryable: every CWL view is scoped to the latest season.</p>
+                  {/* Every collected season, newest first, and the whole list
+                      is live since #56. The entry for the season on screen is
+                      `aria-current` and closes the menu rather than routing to
+                      where you already are. */}
+                  {snapshot.seasonIds.map((entry, index) => entry === snapshot.season.seasonId
+                    ? <button key={entry} type="button" role="menuitem" aria-current="true" onClick={() => setSeasonMenuOpen(false)}>
+                        {entry} {index === 0 ? <small>Current</small> : null}
+                      </button>
+                    : <button key={entry} type="button" role="menuitem" onClick={() => { setSeasonMenuOpen(false); onSeason(entry); }}>
+                        {entry} {index === 0 ? <small>Current</small> : null}
+                      </button>)}
                 </div>
               : null}
           </span>

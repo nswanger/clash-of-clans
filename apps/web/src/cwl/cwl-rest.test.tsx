@@ -8,7 +8,7 @@ function snapshot(overrides: Partial<CwlSeasonPhaseSnapshot> = {}): CwlSeasonPha
     clanTag: "#CLAN",
     seasonId: "2026-08",
     bonusesAdministeredAt: "2026-08-14T18:22:00Z",
-    earlierSeasonIds: ["2026-07", "2026-06"],
+    seasonIds: ["2026-08", "2026-07", "2026-06"],
     warDays: [{ warDay: 1, state: "warEnded", endTime: "2026-08-11T23:59:59Z" }],
     ...overrides,
   };
@@ -18,13 +18,19 @@ function client() {
   return { rpc: vi.fn().mockResolvedValue({ data: { clanTag: "#CLAN", seasonId: "2026-08", bonusesAdministeredAt: null }, error: null }) };
 }
 
-function standDown(props: { client?: any; snapshot?: CwlSeasonPhaseSnapshot; onPhase?: (next: any) => void } = {}) {
+function standDown(props: {
+  client?: any;
+  snapshot?: CwlSeasonPhaseSnapshot;
+  onPhase?: (next: any) => void;
+  onSeason?: (seasonId: string) => void;
+} = {}) {
   return <CwlStandDownPage
     client={props.client ?? client()}
     clanTag="#CLAN"
     snapshot={props.snapshot ?? snapshot()}
     phase="resting"
     onPhase={props.onPhase ?? vi.fn()}
+    onSeason={props.onSeason ?? vi.fn()}
     lineupDayLabel="Day 1"
   />;
 }
@@ -119,15 +125,28 @@ describe("CwlStandDownPage", () => {
     expect(onPhase).toHaveBeenCalledWith("review");
   });
 
-  /* Off-season is when a leader is most likely to look back, and the entries are
-     disabled rather than missing because every CWL view is scoped to the latest
-     season (#56). */
-  it("offers the earlier seasons honestly disabled", () => {
+  /* Off-season is when a leader is most likely to look back, which made this
+     surface #56's second consumer. The entries were disabled until the CWL views
+     stopped being scoped to the latest season; now each one opens its review. */
+  it("opens an earlier season's review from the menu", () => {
+    const onSeason = vi.fn();
+    render(standDown({ onSeason }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Season options" }));
+    const earlier = screen.getByRole("menuitem", { name: "2026-07" });
+    expect(earlier).toBeEnabled();
+
+    fireEvent.click(earlier);
+    expect(onSeason).toHaveBeenCalledWith("2026-07");
+  });
+
+  /* The season on screen is where you already are, so it is marked rather than
+     offered as a destination. */
+  it("marks the season it is standing down from", () => {
     render(standDown());
 
     fireEvent.click(screen.getByRole("button", { name: "Season options" }));
 
-    expect(screen.getByRole("menuitem", { name: "2026-07" })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: /2026-08/ })).toHaveAttribute("aria-current", "true");
   });
 });

@@ -161,6 +161,42 @@ test("states incomplete season coverage rather than averaging it away", async ({
   await expect(page.getByText(/2 of 7 war days logged/)).toBeVisible();
 });
 
+/* #56. The season menu's earlier entries were disabled from #54 until now,
+   because a previous season was collected and not queryable. This is the whole
+   claim they were disabled for: the menu reaches the season, the URL carries it,
+   and the figures on screen are that season's rather than the current one's.
+
+   The fixture's two seasons differ deliberately — the current one has two of
+   seven war days logged and Kira on no lineup, the previous one is complete and
+   is Kira's. Asserting on the coverage line is therefore an assertion about
+   which season rendered, not about a heading that both would show. */
+test("reaches a previous season's review from the season menu", async ({ page }) => {
+  await page.goto("/#/cwl?phase=review");
+  await expect(page.getByText(/2 of 7 war days logged/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Season options" }).click();
+  const seasons = await page.getByRole("menuitem").allInnerTexts();
+  const previous = seasons.find((entry) => /^\d{4}-\d{2}$/.test(entry.trim()));
+  expect(previous).toBeTruthy();
+  await page.getByRole("menuitem", { name: previous!.trim() }).click();
+
+  await expect.poll(() => currentUrl(page)).toContain(`season=${previous!.trim()}`);
+  /* The eyebrow says which season this is, because the id is a month and a
+     leader has no other way to tell a finished record from the live one. */
+  await expect(page.getByText(/Previous season/)).toBeVisible();
+  /* Complete coverage, so the caveat is silent — the current season's is not. */
+  await expect(page.getByText(/war days logged/)).toBeHidden();
+  /* Kira cleared eight stars over the previous season's seven days, so the
+     secured group renders — which the current season's two war days cannot
+     produce at one attack per member per war. */
+  await expect(page.getByRole("heading", { name: /Eight or more stars/ })).toBeVisible();
+
+  /* Leaving review drops the season: the lineup is the war being fought, not
+     the month you were reading about. */
+  await page.getByRole("button", { name: /^Lineup/ }).click();
+  await expect.poll(() => currentUrl(page)).not.toContain("season=");
+});
+
 test("renders the year-round member roster with the local fixture", async ({ page }) => {
   await page.goto("/#/members");
   await expect(page.getByRole("heading", { level: 1, name: "Members" })).toBeVisible();

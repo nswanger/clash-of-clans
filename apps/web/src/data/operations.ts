@@ -327,10 +327,13 @@ export interface CwlSeasonPhaseSnapshot {
   clanTag: string;
   seasonId: string;
   bonusesAdministeredAt: string | null;
-  /* The season menu's honestly-disabled entries, which the stand-down phase
-     carries as well as the review phase (#55). They cost nothing: the seasons
+  /* The season menu's entries, which the stand-down phase carries as well as
+     the review phase (#55) — every season the clan has collected, newest first,
+     INCLUDING the one this snapshot names. The menu marks the current one and
+     links the rest; before #56 they were listed disabled, because a previous
+     season was collected and not queryable. They cost nothing: the seasons
      query already runs, and this is the same query without its `limit(1)`. */
-  earlierSeasonIds: string[];
+  seasonIds: string[];
   warDays: Array<{ warDay: number; state: CwlWarState; endTime: string | null }>;
 }
 
@@ -366,11 +369,11 @@ export interface CwlReviewSeasonSnapshot {
     bonusesAdministeredAt: string | null;
   };
   members: CwlReviewMember[];
-  /* Seasons the clan has collected, newest first, EXCLUDING the one rendered.
-     They exist and they are not reachable: every CWL view routes through
-     `cwl_current_seasons`, so the menu lists them honestly disabled rather than
-     pretending the clan has no history (ADR 0002). */
-  earlierSeasonIds: string[];
+  /* Every season the clan has collected, newest first, INCLUDING the one
+     rendered. Each is reachable: #56 removed the `cwl_current_seasons` join
+     that scoped these views to the latest season, so the menu links them
+     instead of listing them honestly disabled (ADR 0002). */
+  seasonIds: string[];
   /* Both counts, because the difference between them IS the coverage caveat:
      "5 of 7 war days logged" is what the eyebrow states, and it is the only
      honest reading of every figure below it. */
@@ -535,7 +538,7 @@ export async function loadCwlLineupWorkspace(
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
     client.from("member_availability").select("player_tag,status,recorded_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("member_roster_overview").select("player_tag,role,roster_observed_at").eq("clan_tag", clanTag).eq("is_current_member", true),
-    client.from("cwl_current_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
+    client.from("cwl_member_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_stars").select("player_tag,stars").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_overall_rating").select("player_tag,regular_wars_observed,regular_wars_participated,regular_assigned_attacks,regular_attacks_made,regular_activity_score,regular_performance_score,regular_stars_per_attack,regular_last_observed_at,overall_rating,cwl_wars_participated,bonus_priority_score").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("regular_war_member_activity").select("player_tag,wars_participated,assigned_attacks,attacks_made,stars,last_observed_at,activity_score,performance_score,stars_per_attack,incomplete_wars").eq("clan_tag", clanTag),
@@ -737,7 +740,7 @@ export async function loadCwlLineupWorkspace(
 export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<CwlSeasonPhaseSnapshot> {
   /* Every season the clan has rather than only the latest, as the review
      loader already does: the head of the list is the current season and the
-     rest are the season menu's entries. */
+     whole list is the season menu's entries. */
   const seasonResult = await client.from("cwl_seasons")
     .select("clan_tag,season_id,bonuses_administered_at")
     .eq("clan_tag", clanTag)
@@ -759,7 +762,7 @@ export async function loadCwlSeasonPhase(client: any, clanTag: string): Promise<
     clanTag,
     seasonId,
     bonusesAdministeredAt: typeof season.bonuses_administered_at === "string" ? season.bonuses_administered_at : null,
-    earlierSeasonIds: seasonRows.slice(1).map((row) => String(row.season_id)),
+    seasonIds: seasonRows.map((row) => String(row.season_id)),
     warDays: rows<{ war_day: number; state: string; end_time: string | null }>(warsResult.data)
       .flatMap((row) => typeof row.war_day === "number"
         ? [{
@@ -783,21 +786,29 @@ function warState(value: unknown): CwlWarState {
  * from `cwl_attacks` rather than `cwl_member_stars`, because the panel's war-day
  * record needs them per day and the view only totals them per season.
  *
- * `cwl_completed_missed_attacks` routes through `cwl_current_seasons`, which is
- * the latest season and nothing else. That is the data gap the season menu
- * reports honestly rather than hides: an earlier season is not queryable today,
- * and would want a season-parameterised source — the same shape of change #34
- * made for the roster's activity window. */
-export async function loadCwlReviewSeason(client: any, clanTag: string): Promise<CwlReviewSeasonSnapshot> {
-  /* Every season the clan has, not just the latest: the current one is the head
-     of the list and the rest are the season menu's honestly-disabled entries. */
+ * ANY season, not only the latest (#56). `requestedSeasonId` is the season the
+ * leader picked from the menu; without one this renders the current season,
+ * which is what bare `#/cwl?phase=review` means. The season needs no
+ * parameterised view family behind it — #56 removed the `cwl_current_seasons`
+ * join from the views, and the `season_id` filter every query below already
+ * wrote is the parameter.
+ *
+ * A season the clan has never collected is a bad link rather than an error
+ * worth a screen: it falls back to the current season, on the same reasoning
+ * `phaseFromHash` ignores a parameter that does not name a phase. */
+export async function loadCwlReviewSeason(client: any, clanTag: string, requestedSeasonId?: string): Promise<CwlReviewSeasonSnapshot> {
+  /* Every season the clan has, not just the rendered one: the whole list is the
+     season menu's entries. */
   const seasonResult = await client.from("cwl_seasons")
     .select("clan_tag,season_id,war_size,bonuses_administered_at")
     .eq("clan_tag", clanTag)
     .order("season_id", { ascending: false });
   ensureSuccess(seasonResult, "Unable to load the CWL seasons");
   const seasonRows = rows<{ season_id: string; war_size: number; bonuses_administered_at: string | null }>(seasonResult.data);
-  const currentSeason = seasonRows[0];
+  const requested = requestedSeasonId
+    ? seasonRows.find((row) => String(row.season_id) === requestedSeasonId)
+    : undefined;
+  const currentSeason = requested ?? seasonRows[0];
   if (!currentSeason) throw new Error("No CWL season is available.");
   const season = record(currentSeason);
   const seasonId = String(season.season_id);
@@ -894,7 +905,7 @@ export async function loadCwlReviewSeason(client: any, clanTag: string): Promise
       bonusesAdministeredAt: typeof season.bonuses_administered_at === "string" ? season.bonuses_administered_at : null,
     },
     members,
-    earlierSeasonIds: seasonRows.slice(1).map((row) => row.season_id),
+    seasonIds: seasonRows.map((row) => String(row.season_id)),
     loggedWarDays: loggedDays.length,
     /* The season's own length, NOT a count of the `cwl_wars` rows. A war day we
        never collected leaves no row, so counting rows would make logged equal
