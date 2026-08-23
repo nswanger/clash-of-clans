@@ -152,5 +152,93 @@
     "type": "design",
     "supersedes": null,
     "path": "docs/decisions/0014-design-semantic-states-and-notice-budget.md"
+  },
+  "0015-design-lineup-surface-swap-not-drag": {
+    "title": "The mobile lineup surface works by tap-to-swap with a separate reorder mode, not drag-and-drop",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0015-design-lineup-surface-swap-not-drag.md"
+  },
+  "0016-design-pending-changes-two-baselines": {
+    "title": "Pending changes track two baselines — unsaved against the plan, and the plan against the game",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0016-design-pending-changes-two-baselines.md"
+  },
+  "0017-design-members-roster-row-and-panel": {
+    "title": "The members roster is a 62px row plus a shared detail panel, with a 1- and 7-day activity window",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0017-design-members-roster-row-and-panel.md"
+  },
+  "0018-design-component-layers-and-api": {
+    "title": "Components sit in three concept-defined layers with cm- prefixed classes, is-* states, and data-attribute behaviour",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0018-design-component-layers-and-api.md"
+  },
+  "0019-design-identity-mark-once-per-screen": {
+    "title": "One original dragon mark, badge variant by transform, once per screen, never carrying a state colour",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0019-design-identity-mark-once-per-screen.md"
+  },
+  "0020-design-icons-inline-svg-sprite": {
+    "title": "Icons are eight inline SVG symbols, em-sized and currentColor; affordances become icons, text stays characters",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0020-design-icons-inline-svg-sprite.md"
+  },
+  "0021-design-loading-no-copy-250ms": {
+    "title": "Loading has no copy, renders nothing for 250ms, and uses one skeleton primitive",
+    "status": "accepted",
+    "date": "2026-08-16",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0021-design-loading-no-copy-250ms.md"
+  },
+  "0022-design-post-cwl-review-surface": {
+    "title": "Post-CWL review is one ranked list in two groups, records one fact, and has no action bar",
+    "status": "accepted",
+    "date": "2026-08-20",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0022-design-post-cwl-review-surface.md"
   }
 }
