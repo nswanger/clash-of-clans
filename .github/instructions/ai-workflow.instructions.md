@@ -24,18 +24,19 @@ Resolve the next blocking decision directly; write a spec under `docs/specs/` on
 | Operating, Supabase, and UnRaid procedures | `docs/runbooks/` |
 | Specs, plans, research (ephemera) | `docs/specs/`, `docs/plans/`, `docs/research/` |
 | Archived material (never authoritative) | `docs/_archive/` |
-| Pending work, open questions, handoffs | the tracker below |
+| Human entry point (what it is, how to run it) | `README.md` |
+| Pending work, open questions, handoffs | [GitHub Issues](https://github.com/nswanger/clash-of-clans/issues) — see the boundary below |
 
 ## External-System Boundary
 
-Tracker: GitHub Issues in `nswanger/clash-of-clans`, via `gh`. Agents may create, comment, label, assign, and close issues; handoffs are comments on the active issue. Wayfinder maps are an issue labelled `wayfinder:map` with sub-issues (`wayfinder:<type>`), attached via `gh api repos/nswanger/clash-of-clans/issues/<map>/sub_issues -F sub_issue_id=<database id>`; blocking uses `.../dependencies/blocked_by`. Claim a ticket with `--add-assignee @me` before working it. Pull requests are not a request surface. Triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`, plus `bug` / `enhancement`.
+Tracker: [GitHub Issues in `nswanger/clash-of-clans`](https://github.com/nswanger/clash-of-clans/issues), via `gh`. Agents may create, comment, label, assign, and close issues; handoffs are comments on the active issue. Wayfinder maps are an issue labelled `wayfinder:map` with sub-issues (`wayfinder:<type>`); blocking uses native issue dependencies. Claim a ticket with `--add-assignee @me` before working it. Pull requests are not a request surface. Labels in use: `wayfinder:*`, plus `bug` / `enhancement` / `wontfix` — this repo runs no triage-label queue.
 
 This repository is public. Unpublished ideas go in the private GitHub Project [clash-of-clans — private backlog](https://github.com/users/nswanger/projects/1) (`gh project item-create 1 --owner nswanger --title ...`; list with `gh project item-list 1 --owner nswanger`), never in a repo file. Promote a draft to a public issue when it is ready to be worked.
 
 ## Validation Contract
 
 - `python3 scripts/doc_lint.py --strict` after any documentation change (CI runs it).
-- `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm exec playwright test` for code; `supabase test db` for schema.
+- `pnpm typecheck`, `pnpm test`, `pnpm e2e`, `pnpm build` for code (all four run in CI); `supabase test db` for schema, which is a local gate only.
 - `git diff --check` before committing.
 - Never claim completion without executable evidence.
 

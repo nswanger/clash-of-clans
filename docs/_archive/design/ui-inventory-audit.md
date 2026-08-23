@@ -1,3 +1,5 @@
+> Archived 2026-08-23 — implemented; the Clan Muster design system in `design/` and ADRs 0012–0022 carry its durable content.
+
 # UI inventory audit
 
 Resolves [#14](https://github.com/nswanger/clash-of-clans/issues/14) for the [Clan Muster map](https://github.com/nswanger/clash-of-clans/issues/13). Raw material for the token, semantic-state, and component-inventory decisions.
