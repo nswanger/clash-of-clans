@@ -25,7 +25,7 @@ This also fixes a live defect. `loadCurrentCwlLineupWorkspace` selects the curre
 
 ## Regular-war data stays in Members
 
-Regular-war evidence gets no surface of its own. It is an input to the CWL and role decisions rather than a subject: [ADR 0001](0001-cwl-evidence-and-bonus-priority.md) already establishes it as a separate gauge that informs review, selection, follow-up and promotion, and that signup owns opportunity so absence is not a penalty. A page with no decision of its own is what `#/overview` was.
+Regular-war evidence gets no surface of its own. It is an input to the CWL and role decisions rather than a subject: [ADR 0023](0023-cwl-rating-blends-a-bounded-regular-war-window.md) — superseding 0001, which established it as a separate gauge — folds it into the rating as one weighted term, still as an input to the CWL and role decisions rather than a subject of its own. A page with no decision of its own is what `#/overview` was.
 
 Two of the three regular-war views are already covered by the roster. `regular_war_clan_history` is redundant: it reports a bare count of observed wars, while `regular_war_member_activity_window` returns `wars_observed` scoped to the same period the roster is asking about, which is the version that can honestly be read as "joined 3 of the 5 wars in this window."
 

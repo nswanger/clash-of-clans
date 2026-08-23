@@ -167,10 +167,27 @@ describe("OrderedRulesStrategy", () => {
       outPlayerName: "Outgoing",
       inPlayerName: "Regular Reliable",
     });
-    expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("overall_rating");
+    expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("overall_rating_blended");
   });
 
-  it("does not use regular-war history as an automatic lineup tie-breaker", () => {
+  it("records that a rating built on regular-war history alone is what ranked the substitute", () => {
+    const result = new OrderedRulesStrategy().recommend(context({
+      members: [
+        member("#OUT", { name: "Outgoing", availability: "unavailable" }),
+        member("#DAYONE", { name: "Day One", overallRating: 80, ratingBasis: "regular_only" }),
+        member("#LOWER", { name: "Lower", overallRating: 40, ratingBasis: "regular_only" }),
+      ],
+    }));
+
+    expect(result.changes[0]?.inPlayerTag).toBe("#DAYONE");
+    expect(result.changes[0]?.reasons.map(({ code }) => code)).toContain("overall_rating_regular_only");
+  });
+
+  /* Regular-war history reaches the ranking ONLY through `overallRating`, which
+     the database computes (#89). These raw fields travel with a member for the
+     surfaces to show; they are never a term of their own here, and a rule that
+     started reading them would be scoring the same evidence twice. */
+  it("does not rank on raw regular-war fields, only on the rating built from them", () => {
     const result = new OrderedRulesStrategy().recommend(context({
       members: [
         member("#OUT", { name: "Outgoing", availability: "unavailable" }),

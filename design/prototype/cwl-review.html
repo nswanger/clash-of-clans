@@ -210,8 +210,9 @@
  * Synthetic season, real shape. Field names mirror the views this surface would
  * read: cwl_member_bonus_progress (wars_participated, stars),
  * cwl_completed_missed_attacks (assigned / completed / missed, per ended war
- * day), and regular_war_member_activity_window for the gauge ADR 0001 says may
- * inform a role change through evidence the leader can see.
+ * day), and cwl_member_overall_rating for the rating and its two terms. ADR 0023
+ * folds regular-war activity INTO that rating as one weighted term, where 0001
+ * had kept it beside as a separate gauge.
  * ------------------------------------------------------------------------- */
 const NAMES = ["Ashfall","Bramblefang","Ironvale","Quillon","Emberwake","Thane","Nettlebrook","Sableridge",
 "Cairnwick","Foxglove","Marrowgate","Pellworth","Rookhaven","Stonebarrow","Thistledown","Vantwick","Wrenfield",
@@ -261,14 +262,22 @@ const ROSTER = NAMES.map((name, i) => {
     name, role,
     townHallLevel: 16 - Math.floor(rnd() * 4),
     days,
-    // The separate gauge. Never folded into the CWL ranking — ADR 0001 keeps it
-    // as evidence for role and follow-up talk, shown rather than scored in.
+    // One term of the rating, not a gauge beside it (ADR 0023). The denominator
+    // is every attack the window's wars offered, sat-out wars included — which
+    // is what lets a member who joined none of them read as a real zero rather
+    // than as missing evidence.
     regular: (() => {
-      const observed = 5;
+      const observed = 6;
+      const available = observed * 2;
       const joined = Math.max(0, Math.min(observed, Math.round(observed * (reliability - 0.1))));
-      const assigned = joined * 2;
-      const made = Math.round(assigned * Math.min(1, reliability + 0.05));
-      return { observed, joined, assigned, made, stars: Math.round(made * skill) };
+      const made = Math.round(joined * 2 * Math.min(1, reliability + 0.05));
+      const stars = Math.round(made * skill);
+      const opportunity = made / available;
+      const quality = made ? Math.min(1, stars / (3 * made)) : 0;
+      return {
+        observed, available, joined, made, stars,
+        score: Math.round(100 * (0.7 * opportunity + 0.3 * quality)),
+      };
     })(),
   };
 });
@@ -450,6 +459,9 @@ function memberPanelHtml(m, wide) {
   const r = seasonRecord(m);
   const g = m.regular;
   const logged = m.days.filter((d) => d.day <= state.loggedDays);
+  /* Null until a war day ends, which is why the rating needs the regular-war
+     term to stand alone on day one (ADR 0023). */
+  const cwlScore = r.assigned ? Math.round((100 * r.completed) / r.assigned) : null;
   return `<div class="panel" ${wide ? "" : 'role="dialog" aria-modal="true"'} aria-label="${esc(m.name)}">
     <div class="panel-head">
       <div class="grow">
@@ -476,15 +488,18 @@ function memberPanelHtml(m, wide) {
           <span class="figure">${d.inLineup && d.completed ? `${d.stars}${star}` : "—"}</span></li>`).join("")}
       </ul>
 
-      <p class="panel-label">Regular wars · last 30 days</p>
+      <p class="panel-label">Rating basis</p>
       <dl class="facts">
-        <div><dt>Wars joined</dt><dd>${g.joined} of ${g.observed} observed</dd></div>
-        <div><dt>Attacks used</dt><dd>${g.made} of ${g.assigned}</dd></div>
-        <div><dt>Stars</dt><dd>${g.stars}</dd></div>
-        <div><dt>Stars per attack</dt><dd>${g.made ? (g.stars / g.made).toFixed(1) : "—"}</dd></div>
+        <div><dt>CWL attacks</dt><dd>${cwlScore === null ? "—" : cwlScore}</dd></div>
+        <div><dt>Regular wars</dt><dd>${g.score}</dd></div>
       </dl>
-      <p class="freshness">Regular-war evidence is a separate gauge and does not rank this list. It is here because a
-        role change is a judgement about the whole year, not about one week (ADR 0001).</p>
+      <dl class="facts">
+        <div><dt>Wars joined</dt><dd>${g.joined} of ${g.observed} since the last CWL</dd></div>
+        <div><dt>Attacks used</dt><dd>${g.made} of ${g.available} available</dd></div>
+      </dl>
+      <p class="freshness">Weighted 60% CWL attacks, 40% regular wars. The rating does not rank this list; the season
+        record above does. It is here because a role change is a judgement about the whole year, not about one
+        season (ADR 0023).</p>
     </div>
   </div>`;
 }

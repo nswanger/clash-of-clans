@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
+import { CwlRatingBreakdown } from "./cwl-rating.js";
 import { Sheet } from "../design/sheet.js";
 import {
   clearCwlAppliedLineupChanges,
@@ -325,10 +326,10 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
         <p className="cm-panel-evidence">
           {roleLabel(member.role)} <span className="cm-sep">·</span> TH{member.townHallLevel} <span className="cm-sep">·</span>{" "}
           <b>{member.stars}<Icon name="star" /></b> across {member.cwlWarsParticipated} CWL war{member.cwlWarsParticipated === 1 ? "" : "s"}<br />
-          {member.overallRating === null ? "No CWL rating yet" : <><b>{Math.round(member.overallRating)}</b> CWL rating</>} <span className="cm-sep">·</span>{" "}
-          {member.regularActivityScore === null
-            ? "No regular-war evidence"
-            : <><b>{member.regularActivityScore}%</b> regular activity over {member.regularWarsParticipated} wars</>}
+          {/* The regular-war half no longer repeats here: it is a term of the
+              rating now rather than a separate gauge beside it, and the
+              breakdown in the body is where its two scores belong (#89). */}
+          {member.overallRating === null ? "No CWL rating yet" : <><b>{Math.round(member.overallRating)}</b> CWL rating</>}
           {member.observed && member.currentWarAssignedAttacks > 0
             ? <><br /><b>{member.currentWarAttacksMade} / {member.currentWarAssignedAttacks}</b> attacks observed this war</>
             : null}
@@ -337,6 +338,7 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
       <button className="cm-iconbutton" type="button" data-close aria-label="Close" onClick={onClose}><Icon name="close" /></button>
     </div>
     <div className="cm-panel-body">
+      <CwlRatingBreakdown rating={member} />
       <p className="cm-panel-label">Availability</p>
       <div className="cm-availset">
         {(["available", "unknown", "unavailable"] as const).map((value) => <button

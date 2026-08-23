@@ -217,7 +217,10 @@ export interface CwlDailyLineupPlan {
   playerTags: string[];
 }
 
-export interface CwlLineupMember {
+/* The regular-war half arrives through `CwlMemberRating` rather than as loose
+ * fields, because it used to be assembled here from two sources that covered
+ * different periods (#89). One object, one window, one definition. */
+export interface CwlLineupMember extends CwlMemberRating {
   playerTag: string;
   name: string;
   townHallLevel: number;
@@ -230,18 +233,117 @@ export interface CwlLineupMember {
   currentWarAssignedAttacks: number;
   currentWarAttacksMade: number;
   attackEvidenceWarDay: number | null;
+  cwlWarsParticipated: number;
+  bonusPriorityScore: number | null;
+}
+
+/* The rating's evidence, shared by both surfaces that show it (#89). One list,
+ * because the lineup workspace and the post-CWL review used to read overlapping
+ * subsets of it from DIFFERENT sources -- the workspace took its counts from an
+ * all-time view and its scores from a windowed one, so "joined 3 of 5" and the
+ * scores beside it could describe different periods. */
+export const CWL_RATING_COLUMNS =
+  "player_tag,regular_window_from,regular_window_to,regular_window_from_basis,regular_wars_observed"
+  + ",regular_wars_participated,regular_available_attacks,regular_assigned_attacks,regular_attacks_made"
+  + ",regular_stars,regular_wars_incomplete,regular_activity_score,regular_performance_score"
+  + ",regular_stars_per_attack,regular_opportunity_score,regular_quality_score,regular_score"
+  + ",regular_last_observed_at,cwl_score,rating_basis,overall_rating,cwl_wars_participated,bonus_priority_score";
+
+/* Which evidence a rating is made of. It travels with the number rather than
+ * being inferred from which fields are null, because two members can both read
+ * 80 and mean different things while the list ranks them against each other. */
+export type CwlRatingBasis = "blended" | "reliability_only" | "regular_only";
+
+/* Which bound the window actually used. "Since the last CWL" and "the 30 days
+ * before" are not the same claim, and a panel that prints one when it means the
+ * other is the silent-wrong-answer failure #91 found in the season id readers. */
+export type CwlRatingWindowBasis = "previous_cwl_end" | "fixed_30_days";
+
+export interface CwlMemberRating {
+  overallRating: number | null;
+  ratingBasis: CwlRatingBasis | null;
+  cwlScore: number | null;
+  regularScore: number | null;
+  regularWindowFrom: string | null;
+  regularWindowTo: string | null;
+  regularWindowFromBasis: CwlRatingWindowBasis | null;
   regularWarsObserved: number;
   regularWarsParticipated: number;
   regularWarsIncomplete: number;
+  regularAvailableAttacks: number;
   regularAssignedAttacks: number;
   regularAttacksMade: number;
+  regularStars: number;
   regularActivityScore: number | null;
   regularPerformanceScore: number | null;
   regularStarsPerAttack: number | null;
+  regularOpportunityScore: number | null;
+  regularQualityScore: number | null;
   regularLastObservedAt: string | null;
-  overallRating: number | null;
-  cwlWarsParticipated: number;
-  bonusPriorityScore: number | null;
+}
+
+interface CwlRatingRow {
+  player_tag: string;
+  regular_window_from: string | null;
+  regular_window_to: string | null;
+  regular_window_from_basis: string | null;
+  regular_wars_observed: number;
+  regular_wars_participated: number;
+  regular_available_attacks: number;
+  regular_assigned_attacks: number;
+  regular_attacks_made: number;
+  regular_stars: number;
+  regular_wars_incomplete: number;
+  regular_activity_score: number | null;
+  regular_performance_score: number | null;
+  regular_stars_per_attack: number | null;
+  regular_opportunity_score: number | null;
+  regular_quality_score: number | null;
+  regular_score: number | null;
+  regular_last_observed_at: string | null;
+  cwl_score: number | null;
+  rating_basis: string | null;
+  overall_rating: number | null;
+  cwl_wars_participated: number;
+  bonus_priority_score: number | null;
+}
+
+function ratingBasis(value: string | null): CwlRatingBasis | null {
+  return value === "blended" || value === "reliability_only" || value === "regular_only" ? value : null;
+}
+
+function windowBasis(value: string | null): CwlRatingWindowBasis | null {
+  return value === "previous_cwl_end" || value === "fixed_30_days" ? value : null;
+}
+
+/* Absent row means the member is not in `cwl_members` for the season, which the
+ * loaders drive from -- so it cannot happen for a rendered member and the zeros
+ * here are a shape, not a reading. A member who fought in none of the window's
+ * wars has a ROW, with a real zero in it; that distinction is the point of #89
+ * and must not be reintroduced by a defaulting caller. */
+export function memberRating(row: CwlRatingRow | undefined): CwlMemberRating {
+  return {
+    overallRating: row?.overall_rating ?? null,
+    ratingBasis: ratingBasis(row?.rating_basis ?? null),
+    cwlScore: row?.cwl_score ?? null,
+    regularScore: row?.regular_score ?? null,
+    regularWindowFrom: row?.regular_window_from ?? null,
+    regularWindowTo: row?.regular_window_to ?? null,
+    regularWindowFromBasis: windowBasis(row?.regular_window_from_basis ?? null),
+    regularWarsObserved: row?.regular_wars_observed ?? 0,
+    regularWarsParticipated: row?.regular_wars_participated ?? 0,
+    regularWarsIncomplete: row?.regular_wars_incomplete ?? 0,
+    regularAvailableAttacks: row?.regular_available_attacks ?? 0,
+    regularAssignedAttacks: row?.regular_assigned_attacks ?? 0,
+    regularAttacksMade: row?.regular_attacks_made ?? 0,
+    regularStars: row?.regular_stars ?? 0,
+    regularActivityScore: row?.regular_activity_score ?? null,
+    regularPerformanceScore: row?.regular_performance_score ?? null,
+    regularStarsPerAttack: row?.regular_stars_per_attack ?? null,
+    regularOpportunityScore: row?.regular_opportunity_score ?? null,
+    regularQualityScore: row?.regular_quality_score ?? null,
+    regularLastObservedAt: row?.regular_last_observed_at ?? null,
+  };
 }
 
 export interface CwlLineupWarDay {
@@ -359,6 +461,11 @@ export interface CwlReviewMember {
      panel's coverage caveat, and the reason a thin record is readable as thin
      rather than as a bad season. */
   unloggedWarDays: number;
+  /* The same rating the lineup workspace shows, from the same view (#89). The
+     panel used to carry its own regular-war gauge from a `now()`-anchored
+     thirty-day call, which on a previous season's review reported the last
+     thirty days beside a months-old season. */
+  rating: CwlMemberRating;
 }
 
 export interface CwlReviewSeasonSnapshot {
@@ -533,15 +640,18 @@ export async function loadCwlLineupWorkspace(
   ensureSuccess(baselineResult, "Unable to load what the game is known to hold");
   const appliedBaseline = appliedBaselineFromRpc(baselineResult.data);
 
-  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, ratingResult, activityResult, warResult, warDaysResult, auditResult, collectionResult] = await Promise.all([
+  const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, ratingResult, warResult, warDaysResult, auditResult, collectionResult] = await Promise.all([
     client.from("cwl_seasons").select("clan_tag,season_id,war_size").eq("clan_tag", clanTag).eq("season_id", seasonId).single(),
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
     client.from("member_availability").select("player_tag,status,recorded_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("member_roster_overview").select("player_tag,role,roster_observed_at").eq("clan_tag", clanTag).eq("is_current_member", true),
     client.from("cwl_member_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_stars").select("player_tag,stars").eq("clan_tag", clanTag).eq("season_id", seasonId),
-    client.from("cwl_member_overall_rating").select("player_tag,regular_wars_observed,regular_wars_participated,regular_assigned_attacks,regular_attacks_made,regular_activity_score,regular_performance_score,regular_stars_per_attack,regular_last_observed_at,overall_rating,cwl_wars_participated,bonus_priority_score").eq("clan_tag", clanTag).eq("season_id", seasonId),
-    client.from("regular_war_member_activity").select("player_tag,wars_participated,assigned_attacks,attacks_made,stars,last_observed_at,activity_score,performance_score,stars_per_attack,incomplete_wars").eq("clan_tag", clanTag),
+    /* One query where there were two. The second read `regular_war_member_activity`,
+       which is all-time, and its figures were merged with this one's per field --
+       so a member could show a windowed score beside an all-time count (#89).
+       The rating view now carries the whole window. */
+    client.from("cwl_member_overall_rating").select(CWL_RATING_COLUMNS).eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).eq("war_day", warDay).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     client.from("cwl_wars").select("war_tag,war_day,state,preparation_start_time,start_time,end_time,updated_at").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
     client.from("audit_events").select("id,event_type,event_data,actor_id,occurred_at").eq("entity_type", "cwl_daily_lineup_plan").eq("entity_id", `${clanTag}:${seasonId}:${warDay}`).order("occurred_at", { ascending: false }).limit(25),
@@ -558,7 +668,6 @@ export async function loadCwlLineupWorkspace(
     [reliabilityResult, "Unable to load attack completion"],
     [starsResult, "Unable to load CWL stars"],
     [ratingResult, "Unable to load player ratings"],
-    [activityResult, "Unable to load regular-war activity"],
     [warResult, "Unable to load observed war data"],
     [warDaysResult, "Unable to load CWL war states"],
     [auditResult, "Unable to load lineup history"],
@@ -598,32 +707,7 @@ export async function loadCwlLineupWorkspace(
   }]));
   const reliability = new Map(rows<{ player_tag: string; assigned_opportunities: number; completed_assigned_attacks: number }>(reliabilityResult.data).map((row) => [row.player_tag, row]));
   const stars = new Map(rows<{ player_tag: string; stars: number }>(starsResult.data).map((row) => [row.player_tag, row.stars]));
-  const ratings = new Map(rows<{
-    player_tag: string;
-    regular_wars_observed: number;
-    regular_wars_participated: number;
-    regular_assigned_attacks: number;
-    regular_attacks_made: number;
-    regular_activity_score: number | null;
-    regular_performance_score: number | null;
-    regular_stars_per_attack: number | null;
-    regular_last_observed_at: string | null;
-    overall_rating: number | null;
-    cwl_wars_participated: number;
-    bonus_priority_score: number | null;
-  }>(ratingResult.data).map((row) => [row.player_tag, row]));
-  const activity = new Map(rows<{
-    player_tag: string;
-    wars_participated: number;
-    assigned_attacks: number;
-    attacks_made: number;
-    stars: number;
-    last_observed_at: string | null;
-    activity_score: number | null;
-    performance_score: number | null;
-    stars_per_attack: number | null;
-    incomplete_wars: number;
-  }>(activityResult.data).map((row) => [row.player_tag, row]));
+  const ratings = new Map(rows<CwlRatingRow>(ratingResult.data).map((row) => [row.player_tag, row]));
   const observed = rows<{ player_tag: string; assigned_attacks: number }>(observedResult[0].data).map((row) => ({
     playerTag: row.player_tag,
     assignedAttacks: row.assigned_attacks,
@@ -649,16 +733,7 @@ export async function loadCwlLineupWorkspace(
       currentWarAssignedAttacks: currentWarAssignedAttacks.get(member.player_tag) ?? 0,
       currentWarAttacksMade: currentWarAttacksMade.get(member.player_tag) ?? 0,
       attackEvidenceWarDay: attackEvidenceWar?.war_day ?? null,
-      regularWarsObserved: ratings.get(member.player_tag)?.regular_wars_observed ?? 0,
-      regularWarsParticipated: ratings.get(member.player_tag)?.regular_wars_participated ?? 0,
-      regularWarsIncomplete: activity.get(member.player_tag)?.incomplete_wars ?? 0,
-      regularAssignedAttacks: ratings.get(member.player_tag)?.regular_assigned_attacks ?? 0,
-      regularAttacksMade: ratings.get(member.player_tag)?.regular_attacks_made ?? 0,
-      regularActivityScore: activity.get(member.player_tag)?.activity_score ?? ratings.get(member.player_tag)?.regular_activity_score ?? null,
-      regularPerformanceScore: activity.get(member.player_tag)?.performance_score ?? ratings.get(member.player_tag)?.regular_performance_score ?? null,
-      regularStarsPerAttack: activity.get(member.player_tag)?.stars_per_attack ?? ratings.get(member.player_tag)?.regular_stars_per_attack ?? null,
-      regularLastObservedAt: activity.get(member.player_tag)?.last_observed_at ?? ratings.get(member.player_tag)?.regular_last_observed_at ?? null,
-      overallRating: ratings.get(member.player_tag)?.overall_rating ?? null,
+      ...memberRating(ratings.get(member.player_tag)),
       cwlWarsParticipated: ratings.get(member.player_tag)?.cwl_wars_participated ?? 0,
       bonusPriorityScore: ratings.get(member.player_tag)?.bonus_priority_score ?? null,
     } satisfies CwlLineupMember;
@@ -813,12 +888,14 @@ export async function loadCwlReviewSeason(client: any, clanTag: string, requeste
   const season = record(currentSeason);
   const seasonId = String(season.season_id);
 
-  const [membersResult, rosterResult, warsResult, assignmentResult, collectionResult] = await Promise.all([
+  const [membersResult, rosterResult, warsResult, assignmentResult, ratingResult, collectionResult] = await Promise.all([
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
     client.from("member_roster_overview").select("player_tag,role").eq("clan_tag", clanTag).eq("is_current_member", true),
     client.from("cwl_wars").select("war_tag,war_day,state").eq("clan_tag", clanTag).eq("season_id", seasonId).order("war_day"),
     client.from("cwl_completed_missed_attacks")
       .select("war_day,player_tag,assigned_attacks,completed_assigned_attacks")
+      .eq("clan_tag", clanTag).eq("season_id", seasonId),
+    client.from("cwl_member_overall_rating").select(CWL_RATING_COLUMNS)
       .eq("clan_tag", clanTag).eq("season_id", seasonId),
     /* The attempts come back embedded rather than as a second round trip:
        the caveat needs them to tell an absent league group from a real
@@ -830,6 +907,7 @@ export async function loadCwlReviewSeason(client: any, clanTag: string, requeste
     [rosterResult, "Unable to load current clan roles"],
     [warsResult, "Unable to load CWL war states"],
     [assignmentResult, "Unable to load the season attack record"],
+    [ratingResult, "Unable to load player ratings"],
   ] as Array<[Result, string]>) ensureSuccess(result, context);
 
   const warRows = rows<{ war_tag: string; war_day: number; state: string }>(warsResult.data);
@@ -878,6 +956,8 @@ export async function loadCwlReviewSeason(client: any, clanTag: string, requeste
   const roles = new Map(rows<{ player_tag: string; role: string }>(rosterResult.data)
     .map((row) => [row.player_tag, normalizeClanRole(row.role)]));
 
+  const ratings = new Map(rows<CwlRatingRow>(ratingResult.data).map((row) => [row.player_tag, row]));
+
   const members = rows<{ player_tag: string; name: string; town_hall_level: number }>(membersResult.data).map((member) => ({
     playerTag: member.player_tag,
     name: member.name,
@@ -894,6 +974,7 @@ export async function loadCwlReviewSeason(client: any, clanTag: string, requeste
       } satisfies CwlReviewWarDay;
     }),
     unloggedWarDays: unloggedByTag.get(member.player_tag) ?? 0,
+    rating: memberRating(ratings.get(member.player_tag)),
   } satisfies CwlReviewMember));
 
   const collection = record(collectionResult.data);
