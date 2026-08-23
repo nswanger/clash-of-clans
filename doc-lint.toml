@@ -1,0 +1,7 @@
+guide = "AGENTS.md"
+adapter = ".github/instructions/ai-workflow.instructions.md"
+glossary = "CONTEXT.md"
+decisions = "docs/decisions"
+living = ["README.md", "docs/runbooks", "design/README.md", "design/components.md"]
+ephemera = ["docs/specs", "docs/plans", "docs/research", "docs/maps", "docs/superpowers", ".scratch", ".superpowers", ".preview-tmp", "docs/design"]
+skip_dirs = [".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", "dist", "build", ".claude", "test-results", ".pnpm-store", "supabase/.temp"]
