@@ -30,7 +30,7 @@ Resolve the next blocking decision directly; write a spec under `docs/specs/` on
 
 Tracker: GitHub Issues in `nswanger/clash-of-clans`, via `gh`. Agents may create, comment, label, assign, and close issues; handoffs are comments on the active issue. Wayfinder maps are an issue labelled `wayfinder:map` with sub-issues (`wayfinder:<type>`), attached via `gh api repos/nswanger/clash-of-clans/issues/<map>/sub_issues -F sub_issue_id=<database id>`; blocking uses `.../dependencies/blocked_by`. Claim a ticket with `--add-assignee @me` before working it. Pull requests are not a request surface. Triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`, plus `bug` / `enhancement`.
 
-This repository is public. Unpublished ideas go in Nick's private GitHub Project as draft items (to be linked here once created), never in a repo file.
+This repository is public. Unpublished ideas go in the private GitHub Project [clash-of-clans — private backlog](https://github.com/users/nswanger/projects/1) (`gh project item-create 1 --owner nswanger --title ...`; list with `gh project item-list 1 --owner nswanger`), never in a repo file. Promote a draft to a public issue when it is ready to be worked.
 
 ## Validation Contract
 
