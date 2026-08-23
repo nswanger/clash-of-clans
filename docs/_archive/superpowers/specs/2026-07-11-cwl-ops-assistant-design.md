@@ -1,3 +1,5 @@
+> Archived 2026-08-23 — implemented (MVP, July 2026); durable choices are decision records 0001, 0005–0008 and the code. History only.
+
 # CWL Operations Assistant Design
 
 ## Purpose

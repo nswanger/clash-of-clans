@@ -1,3 +1,5 @@
+> Archived 2026-08-23 — implemented in the collector's Supabase header helper and its tests; history only.
+
 # Supabase Secret Header Compatibility Design
 
 ## Context
