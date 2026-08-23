@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Clan Muster">
+  <!-- The Clan Muster mark, shield variant (ADR 0019: the badge is the favicon
+       and app icon form). Geometry is copied verbatim from the `cm-mark-shield`
+       symbol in apps/web/src/design/mark.tsx so the tab icon and the topbar mark
+       cannot drift. Only the two colours differ from the in-app render: a
+       favicon has no `--cm-bg` behind it, so the head is knocked out to ink
+       rather than to the page background — dark on gold holds at 16px where
+       near-white on gold does not. -->
+  <style>
+    .shield { fill: #D9A21B; }
+    .head { fill: #141312; }
+    @media (prefers-color-scheme: dark) { .shield { fill: #E8B93F; } }
+  </style>
+  <path class="shield" d="M24 2 L44 8 L44 24 C44 37 35 43.5 24 47 C13 43.5 4 37 4 24 L4 8 Z" />
+  <g class="head" transform="translate(10.5 9.5) scale(0.56)">
+    <path d="M24 13 L18 6 L16 13 L4 2 L10 17 L5 23 L12 29 L15 38 L24 46 L33 38 L36 29 L43 23 L38 17 L44 2 L32 13 L30 6 Z" />
+  </g>
+</svg>
