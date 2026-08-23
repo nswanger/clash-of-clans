@@ -44,43 +44,41 @@ Each preview card carries a first-line `<!-- @dsCard group="…" -->` marker; th
 
 ## Status of the values in `tokens.css`
 
-**Color is locked** ([#16](https://github.com/nswanger/clash-of-clans/issues/16)). Every pairing was verified numerically against WCAG AA; nothing was judged by eye.
+The four foundations are locked; the rules below are what binds, and the *why* is in the decision records.
 
-The shape of the color system, in three rules:
+**Color is locked** ([#16](https://github.com/nswanger/clash-of-clans/issues/16) · [0012](../docs/decisions/0012-design-color-gold-fills-never-writes.md)). Every pairing was verified numerically against WCAG AA.
 
-1. **Gold fills, it does not write — in light mode.** Real gold reaches only 2.18:1 as text on white. Darkening it far enough for AA turns it to bronze, which reads muted rather than clickable. So gold is a surface (6.80:1 with dark ink on it); interactive ink uses bronze `gold-700`. In dark mode gold does both. One hue family, luminance shifting by theme, no second accent.
-2. **Warm throughout.** The neutral ramp sits at ~40°, gold at 43°, danger at 16°, success warmed to moss at 101°. The app's inherited green sat at 152° and read as foreign.
-3. **Unknown carries no hue.** Absent evidence renders as muted text and an em-dash. An absence is not a warning.
+1. **Gold fills, it does not write — in light mode.** Gold is a surface; interactive ink is bronze `gold-700`. In dark mode gold does both. One hue family, no second accent.
+2. **Warm throughout.** Neutrals ~40°, gold 43°, danger 16°, success moss 101°.
+3. **Unknown carries no hue.** Absent evidence renders as muted text and an em-dash.
 
-Two contrast roles, not one: `--cm-hairline` is decorative and deliberately below 3:1, while `--cm-border-control` clears 3:1 for control boundaries. WCAG 1.4.11 governs the latter, not card edges — forcing every table rule to 3:1 makes a dense roster unreadable. `neutral-500` clears it in both themes, so it is one token rather than a pair.
+Two contrast roles: `--cm-hairline` is decorative and below 3:1; `--cm-border-control` clears 3:1 for control boundaries (WCAG 1.4.11). `neutral-500` clears it in both themes, so it is one token.
 
-**Type and density are locked** ([#17](https://github.com/nswanger/clash-of-clans/issues/17)).
+**Type and density are locked** ([#17](https://github.com/nswanger/clash-of-clans/issues/17) · [0013](../docs/decisions/0013-design-type-density-and-structure.md)).
 
-- **Archivo, one family**, for UI and display alike — chosen on a phone at true 1:1 size. The app never actually loaded a webfont before this: `styles.css` named Inter with no `@font-face` anywhere, so every user fell through to a system face and Android leaders saw Roboto.
-- **7 sizes, floor 12px** (up from 15 sizes and a 9px floor). 11px survives for uppercase labels only.
-- **4 weights**; 650, 750 and 800 dropped as indistinguishable at these sizes.
+- **Archivo, one family**, for UI and display.
+- **7 sizes, floor 12px**; 11px for uppercase labels only.
+- **4 weights.**
 - **Tracking bound to size**, never chosen per use.
-- **Density follows the input device**: comfortable is the base, `(pointer: fine)` opts into compact. A failed query lands on the accessible option. `--cm-tap-min: 44px` is never overridden.
+- **Density follows the input device**: comfortable is the base, `(pointer: fine)` opts into compact; a failed query lands on the accessible option. `--cm-tap-min: 44px` is never overridden.
 
-**Structure is locked** ([#18](https://github.com/nswanger/clash-of-clans/issues/18)).
+**Structure is locked** ([#18](https://github.com/nswanger/clash-of-clans/issues/18) · [0013](../docs/decisions/0013-design-type-density-and-structure.md)).
 
-- **One 4px rhythm, 7 steps**, absorbing 43 padding and 23 gap values. No sub-4px step: the 1–3px "gaps" in the current CSS are hairline separators, and become borders.
-- **Radius is soft (6/10/16) and assigned by class of surface** — `lg` containers, `md` controls, `sm` inline — with a nesting rule that drops exactly one step inward. That rule, not the values, is what stops the 5px-inside-7px-inside-10px soup.
-- **Depth is binary, not a scale.** Flat surfaces separate by hairline and background shift; shadow is reserved for something that overlaps other content, and there is one such token. The current CSS already believed this — its two non-overlay shadows sit at 3% and 4% black and are invisible, while both real shadows are on popovers. It is also the only model that survives dark, where shadow cannot separate black from black.
-- **The edge marker has two forms.** A full-bleed underline for a segment inside a strip; an inset, pill-capped rail for a standalone row. An `inset` box-shadow follows the border-radius, so at soft radii a rail drawn that way renders as a crescent — caught by rendering it, not by reading the CSS.
-- **Focus is solid, not a halo.** A translucent ring composites over whatever sits behind it, so its contrast changes silently on a coloured surface.
-- **Two breakpoints, mobile-first** (720px, 1120px), replacing seven ad-hoc `max-width` values. Today's 900/840/800 all meant "multi-column stopped working" and 680/560/480 all meant "phone".
+- **One 4px rhythm, 7 steps.** No sub-4px step; 1–3px gaps are hairline borders.
+- **Radius is soft (6/10/16), assigned by class of surface** — `lg` containers, `md` controls, `sm` inline — nesting drops exactly one step inward.
+- **Depth is binary.** Flat surfaces separate by hairline and background shift; one shadow token, reserved for overlap.
+- **The edge marker has two forms.** A full-bleed underline for a segment inside a strip; an inset, pill-capped rail for a standalone row (not an `inset` box-shadow — it renders as a crescent at soft radii).
+- **Focus is solid, not a halo.**
+- **Two breakpoints, mobile-first**: 720px and 1120px.
 
-**Semantic states and the notice budget are locked** ([#19](https://github.com/nswanger/clash-of-clans/issues/19)).
+**Semantic states and the notice budget are locked** ([#19](https://github.com/nswanger/clash-of-clans/issues/19) · [0014](../docs/decisions/0014-design-semantic-states-and-notice-budget.md)).
 
 - **Five marks**: success, caution, danger, info, unknown. Colour states an evaluation or a category and never raises a notice.
-- **Info marks a category, never a notice** — an access role, an invitation status, lineup provenance. An info-coloured bar is precisely the chrome the budget exists to remove, so the rule is explicit rather than a loaded gun. Info is deliberately the lowest-chroma state (32%, against caution 38%, success 44%, danger 91%).
-- **One notice region per screen.** Highest severity wins; additional qualifying notices are counted and expandable, never stacked. Only two things can ever occupy it — collection health, and a save conflict or failed request — and both are danger. Success, caution and info can never appear there.
-- **Provenance is marked by presence, not by a pair.** Observed carries the info edge rail; planned carries no marker. "Observed" is not success — it only means the value came from the Clash API — and colouring it as success would imply the plan is deficient.
-- **No activity value may be negative.** The domain's three values are `observed`, `no_change` and `unknown` — `no_change`, not "inactive". The data layer already refuses to read absent evidence as poor performance.
-- **Two treatments deleted**: the happy-path banner reading "Latest saved lineup", and a permanently mounted documentation paragraph. Both carry a live control, so the action is rehomed rather than lost; where Save lives is #20.
-
-The largest finding was not in the audit, which was CSS-only: `dashboard-model.ts` pushes one `role="alert"` per coverage gap and one per confidence note, unbounded. Those are per-recommendation explanations hoisted out of the panel they explain, and they return to it.
+- **Info marks a category, never a notice**; it is the lowest-chroma state.
+- **One notice region per screen.** Highest severity wins; extras are counted and expandable, never stacked. Only collection health and a save conflict / failed request may occupy it — both danger.
+- **Provenance is marked by presence, not by a pair.** Observed carries the info edge rail; planned carries no marker. Observed is not success.
+- **No activity value may be negative.** The values are `observed`, `no_change`, `unknown`.
+- **No happy-path banner and no permanently mounted documentation paragraph.** Per-recommendation explanations live in the panel they explain.
 
 **The mobile lineup adjustment surface is locked** ([#20](https://github.com/nswanger/clash-of-clans/issues/20)), in [`prototype/lineup-adjust.html`](prototype/lineup-adjust.html).
 
@@ -183,9 +181,7 @@ The vector itself is a working draft, good enough to build against; refining it 
 - **The control that triggered a fetch owns its pending state.** On a re-fetch the list does not become a skeleton — replacing populated rows destroys the reader's position to say what the button already said. Save goes pending; the roster stays put.
 - **Loading is not a brand moment.** A themed animation on every fetch is the Clash-skinned UI the map ruled out. If one is ever built it is scoped to cold app start, and is a separate decision rather than a swap into this component.
 
-**The migration onto this system is finished** ([#25](https://github.com/nswanger/clash-of-clans/issues/25), waves 0–4). `apps/web` is built entirely from these tokens and components; the wave plan, its deadline and its dead-code checklist are spent, and the record of what each wave did is in the closed issues and the git history rather than in a living document.
-
-Four rules outlived it, each learned by getting it wrong. They are here rather than in a migration plan because they bind on every future change to `apps/web`, not just on a port.
+**`apps/web` is built entirely from these tokens and components** ([#25](https://github.com/nswanger/clash-of-clans/issues/25)). Four rules bind on every future change to it:
 
 - **A page stylesheet prefixes with its own surface's name, and must out-specify the component layer.** The prototypes name page classes bare — `.metric`, `.row-stats` — and those collide, so a page takes `members-`, `cwl-review-`, `cwl-rest-` and so on. More subtly: a bundler orders stylesheets by import graph, so a page stylesheet imported from its own module lands **before** `clan-muster.css` and loses every tie. **Every page-layer rule that overrides a `cm-` component needs an ancestor in the selector.** The members roster found this when `cm-row-stats`'s `display: flex` beat a page-layer `display: none`; the Admin route hit it again a wave later. CSS fails silently here — nothing in CI catches it.
 - **No query in the test suites may name a class.** Every query is `getByRole` or `getByText`, which is what makes a restyle invisible to the suite and what lets a surface be rebuilt without touching the tests that guard the others. It was luck rather than design originally, so it is worth stating plainly: *do not add class-based queries to these tests.* A rebuilt surface's own tests move with it; every other surface's must keep passing untouched.

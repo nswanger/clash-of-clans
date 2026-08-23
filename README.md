@@ -43,6 +43,6 @@ Supabase and Docker acceptance checks require an appropriate local or isolated t
 - [CWL operations runbook](docs/runbooks/operations.md)
 - [Supabase runbook](docs/runbooks/supabase.md)
 - [UnRaid runbook](docs/runbooks/unraid.md)
-- [Product direction](docs/year-round-clan-management-roadmap.md)
+- [Product direction](docs/product-direction.md)
 
 Pending work is tracked in [GitHub Issues](https://github.com/nswanger/clash-of-clans/issues).

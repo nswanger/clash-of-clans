@@ -1,6 +1,6 @@
 # Clash of Clans API Endpoint Inventory
 
-Last checked: 2026-07-10
+Verified endpoints the product builds on. Re-verify against the authenticated Swagger UI before relying on a new endpoint.
 
 ## Sources Checked
 - Official developer portal: https://developer.clashofclans.com/
@@ -94,14 +94,3 @@ Do not assume official API access to:
 - Reactions, polls, or informal member availability notes
 
 The authenticated Swagger UI did not show chat or signup endpoints. Until confirmed otherwise, plan to collect signup intent through another source such as a small web form, Discord workflow, Google Sheet, or manual CSV.
-
-## First Data Model Implications
-
-The first useful build should store snapshots of:
-- Clan roster by pull time.
-- Player profiles by pull time.
-- Current CWL league group and war tags.
-- Individual CWL war details by war tag.
-- Derived attack results, missed attacks, stars, destruction, opponent strength, and lineup participation.
-
-Keep raw API responses separate from derived metrics so scoring rules can be audited and rerun.

@@ -87,9 +87,7 @@ Supabase documents the provider callback in [Login with Discord](https://supabas
 
 ## Apply migrations before the frontend that needs them
 
-**Pages deploys itself; the database does not.** `deploy-pages.yml` builds and publishes `apps/web` on every push to `main`, and nothing in it touches Supabase — migrations are applied by hand with `supabase db push`. A commit that merges a migration *and* a surface reading it therefore ships the surface immediately and the schema never, and the frontend fails at runtime against a column the database does not have.
-
-This is the same rule the [UnRaid runbook](unraid.md) already states for the collector, and it binds for the same reason: the artifact and the schema deploy through different paths, so the schema has to go first.
+Pages deploys on every push to `main`; migrations are applied by hand. The schema must therefore be applied before any artifact that reads it — the same rule the [UnRaid runbook](unraid.md) states for the collector ([0003](../decisions/0003-ci-reads-the-migration-ledger.md)).
 
 Before merging a PR that reads new schema — a new column, view, or function — confirm the migration is already applied:
 
@@ -99,13 +97,11 @@ supabase migration list
 
 Every local entry must have a matching remote entry. A row with an empty `remote` is unapplied, and any frontend code that reads it will break the moment it deploys. Push it first, following the validate-and-dry-run procedure above.
 
-**Observed 2026-08-20.** `202608200001_cwl_bonus_administration.sql` merged with [#61](https://github.com/nswanger/clash-of-clans/issues/61) and was never pushed. The Clan Muster migration's wave 3 then shipped the review phase, whose loader selects `cwl_seasons.bonuses_administered_at`, and the CWL route's review phase failed to load in production. The migration file being present in the repository was mistaken for the column being present in the database; `supabase migration list` is what distinguishes them.
-
 ### CI enforces this rule
 
-The check is no longer only a habit ([#65](https://github.com/nswanger/clash-of-clans/issues/65), [ADR 0003](../decisions/0003-ci-reads-the-migration-ledger.md)). A `migrations` job in `checks.yml` reads the remote ledger and fails when a local migration has no matching entry. It runs on every pull request and on the push to `main`, and because the Pages `deploy` job needs the checks, an unapplied migration blocks the publish.
+A `migrations` job in `checks.yml` reads the remote ledger and fails when a local migration has no matching entry. It runs on every pull request and on the push to `main`, and because the Pages `deploy` job needs the checks, an unapplied migration blocks the publish.
 
-A red check is not noise. The remedy is `supabase db push` — the same order this section already requires — and the pull request is where obeying it is cheapest.
+The remedy is `supabase db push`.
 
 Run the same check locally against the same credential:
 
@@ -117,7 +113,7 @@ Exit `1` means a migration is unapplied. Exit `2` means the check could not reac
 
 ### Provision the migration auditor credential
 
-The check connects as `migration_auditor`, created by `202608220001_migration_audit_role.sql` with column-level `SELECT (version, name)` on `supabase_migrations.schema_migrations` and no grant on any application table. It cannot read `statements`, cannot write, and cannot see application data. This is why CI holds a database credential at all: `supabase migration list --linked` would need `SUPABASE_ACCESS_TOKEN`, which Supabase issues account-wide — a more privileged value than the collector secret this workflow is built to exclude.
+The check connects as `migration_auditor`, a `NOLOGIN` role created by `202608220001_migration_audit_role.sql` with column-level `SELECT (version, name)` on `supabase_migrations.schema_migrations` and nothing else; why the credential is shaped this way is [0003](../decisions/0003-ci-reads-the-migration-ledger.md).
 
 1. Apply the migrations so the role exists, then generate a password and store it in the password manager.
 2. In the production SQL Editor, run `supabase/production/enable_migration_auditor_login.sql` with that password substituted. It grants `LOGIN`, which no local database ever gets. It ends with one verification row: expect `can_log_in` and `can_read_version` true and every other column false. The check uses `has_*_privilege` rather than attempting a denied read on purpose — the SQL Editor submits the script as one batch, so a deliberate permission error would abort it and roll back the `ALTER ROLE`, leaving the password unset behind a message that looks like the test working.
