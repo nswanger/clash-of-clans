@@ -9,6 +9,14 @@ describe("seasonName", () => {
     expect(seasonName("2026-12")).toBe("December 2026");
   });
 
+  /* #91: the shape the API ACTUALLY returns. Every id in production is a date,
+     so this was the only case that mattered and the only one not covered — the
+     surface printed "2026-08-01 is finished." for the whole of that season. */
+  it("reads the API's own date-shaped season id as a month", () => {
+    expect(seasonName("2026-08-01")).toBe("August 2026");
+    expect(seasonName("2026-01-01")).toBe("January 2026");
+  });
+
   /* An id in an unexpected shape is printed rather than mangled into a month
      that does not exist — the same failure the phase guard takes. */
   it("prints an id that is not a month unchanged", () => {

@@ -39,9 +39,14 @@ function fixtureWarActivity(playerTag: string, warsParticipated: number, attacks
  * Everything else in this file stays written out, because nothing else is read
  * against the clock. */
 const fixtureNow = new Date();
+/* `YYYY-MM-DD`, WHICH IS WHAT THE API ACTUALLY RETURNS (#91). This fixture
+   emitted `YYYY-MM` until then, and that single wrong character is why two
+   readers that could not parse a real season id shipped: every test in the
+   suite ran against a shape production never produces. Checked against stored
+   `raw_snapshots` for `league_group`, where `season` reads `"2026-08-01"`. */
 function fixtureMonthId(monthsAgo: number): string {
   const month = new Date(Date.UTC(fixtureNow.getUTCFullYear(), fixtureNow.getUTCMonth() - monthsAgo, 1));
-  return `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, "0")}`;
+  return month.toISOString().slice(0, 10);
 }
 const fixtureSeasonId = fixtureMonthId(0);
 /* The season menu's second entry, and the clan's history (#56). Dated from the

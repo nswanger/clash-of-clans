@@ -6,16 +6,16 @@ import { CwlStandDownPage } from "./cwl-rest.js";
 function snapshot(overrides: Partial<CwlSeasonPhaseSnapshot> = {}): CwlSeasonPhaseSnapshot {
   return {
     clanTag: "#CLAN",
-    seasonId: "2026-08",
+    seasonId: "2026-08-01",
     bonusesAdministeredAt: "2026-08-14T18:22:00Z",
-    seasonIds: ["2026-08", "2026-07", "2026-06"],
+    seasonIds: ["2026-08-01", "2026-07-01", "2026-06-01"],
     warDays: [{ warDay: 1, state: "warEnded", endTime: "2026-08-11T23:59:59Z" }],
     ...overrides,
   };
 }
 
 function client() {
-  return { rpc: vi.fn().mockResolvedValue({ data: { clanTag: "#CLAN", seasonId: "2026-08", bonusesAdministeredAt: null }, error: null }) };
+  return { rpc: vi.fn().mockResolvedValue({ data: { clanTag: "#CLAN", seasonId: "2026-08-01", bonusesAdministeredAt: null }, error: null }) };
 }
 
 function standDown(props: {
@@ -120,7 +120,7 @@ describe("CwlStandDownPage", () => {
     await act(async () => { fireEvent.click(screen.getByRole("menuitem", { name: "Reopen review" })); });
 
     expect(rpcClient.rpc).toHaveBeenCalledWith("set_cwl_bonuses_administered", {
-      requested_clan_tag: "#CLAN", requested_season_id: "2026-08", administered: false,
+      requested_clan_tag: "#CLAN", requested_season_id: "2026-08-01", administered: false,
     });
     expect(onPhase).toHaveBeenCalledWith("review");
   });
@@ -133,11 +133,11 @@ describe("CwlStandDownPage", () => {
     render(standDown({ onSeason }));
 
     fireEvent.click(screen.getByRole("button", { name: "Season options" }));
-    const earlier = screen.getByRole("menuitem", { name: "2026-07" });
+    const earlier = screen.getByRole("menuitem", { name: "2026-07-01" });
     expect(earlier).toBeEnabled();
 
     fireEvent.click(earlier);
-    expect(onSeason).toHaveBeenCalledWith("2026-07");
+    expect(onSeason).toHaveBeenCalledWith("2026-07-01");
   });
 
   /* The season on screen is where you already are, so it is marked rather than
@@ -147,6 +147,6 @@ describe("CwlStandDownPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Season options" }));
 
-    expect(screen.getByRole("menuitem", { name: /2026-08/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("menuitem", { name: /2026-08-01/ })).toHaveAttribute("aria-current", "true");
   });
 });

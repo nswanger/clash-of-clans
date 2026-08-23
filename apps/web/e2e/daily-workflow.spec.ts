@@ -176,7 +176,10 @@ test("reaches a previous season's review from the season menu", async ({ page })
 
   await page.getByRole("button", { name: "Season options" }).click();
   const seasons = await page.getByRole("menuitem").allInnerTexts();
-  const previous = seasons.find((entry) => /^\d{4}-\d{2}$/.test(entry.trim()));
+  /* The season id is the API's own `YYYY-MM-DD` (#91). The entry for the season
+     already on screen carries a "Current" suffix, so a bare id is an earlier
+     season. */
+  const previous = seasons.find((entry) => /^\d{4}-\d{2}-\d{2}$/.test(entry.trim()));
   expect(previous).toBeTruthy();
   await page.getByRole("menuitem", { name: previous!.trim() }).click();
 
