@@ -169,6 +169,13 @@
   --cm-row-meta: var(--cm-text-sm);
   --cm-tap-min: 44px;        /* never overridden by density */
 
+  /* The most rows any list renders at once (ADR 0024). A count, not a length:
+     the CSS half of a rule whose other half is `LIST_MAX_ROWS` in the React
+     system layer, and the two must not disagree. A box sized from it holds its
+     height whatever the filter matches, which is what stops a list moving under
+     the query being typed into it. */
+  --cm-list-max-rows: 10;
+
   /* ---- spacing ---- (locked in #18)
    * One 4px rhythm, seven steps, absorbing today's 43 padding and 23 gap
    * values. No sub-4px step: the 1px, 2px and 3px "gaps" in the current CSS

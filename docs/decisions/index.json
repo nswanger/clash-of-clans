@@ -251,5 +251,16 @@
     "type": "design",
     "supersedes": "0001-cwl-evidence-and-bonus-priority",
     "path": "docs/decisions/0023-cwl-rating-blends-a-bounded-regular-war-window.md"
+  },
+  "0024-design-list-length-and-reveal": {
+    "title": "A list shows at most ten rows; everything past that is reached by narrowing",
+    "status": "accepted",
+    "date": "2026-08-29",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0024-design-list-length-and-reveal.md"
   }
 }

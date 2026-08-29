@@ -20,6 +20,20 @@ const WIDE_QUERY = "(min-width: 720px)";
  * all (#43, rule 1). The skeleton is scheduled, not shown. */
 export const SKELETON_DELAY_MS = 250;
 
+/* THE MOST ROWS ANY LIST SHOWS AT ONCE (ADR 0024). Everything past it is reached
+ * by narrowing -- a search today, a pager on some later surface that needs one --
+ * never by rendering the rest and letting the page grow.
+ *
+ * Ten is a round number and the ADR says so plainly; the principle is the part
+ * that is fixed. Two things follow from it that a per-surface guess does not
+ * give: a list sized from this holds its height whatever the filter matches, so
+ * it cannot move under the query being typed into it, and a screen's worth of
+ * rows stays a screen's worth however large the clan gets.
+ *
+ * `--cm-list-max-rows` in `tokens.css` is the CSS half of the same number. A
+ * surface that sizes a box from one and slices with the other must use both. */
+export const LIST_MAX_ROWS = 10;
+
 /* One tile in `cm-summary`. `is-danger` colours the figure only, and only where
  * the same fact is marked danger on the rows below it — one fact, one colour
  * (#54). There is deliberately no success variant: a zero is the rule, and rules
