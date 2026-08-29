@@ -75,3 +75,22 @@ export function coarseText(ms: number): string {
   if (days === 1) return "About a day";
   return `About ${days} days`;
 }
+
+/* The month the roll call is being gathered for (#96).
+ *
+ * DERIVED FROM `nextCwlStart`, NOT FROM `now` PLUS A MONTH, and the difference
+ * is not pedantry. The two agree on almost every day of the year and disagree on
+ * the 1st, which is the one day it matters: `nextCwlStart` returns that day's own
+ * 05:00 roll, so the roll call stays keyed to the season about to start rather
+ * than skipping a month at the moment it begins. Reusing it also means the
+ * control under the countdown and the countdown itself can never name different
+ * months.
+ *
+ * `YYYY-MM`, matching `seasonMonthKey` and the `cwl_roll_call.target_month`
+ * check constraint. The season id it will eventually be joined against is
+ * `YYYY-MM-DD`; that join goes through `cwl_season_month` in SQL and
+ * `seasonMonth` here, never a string comparison (#91). */
+export function rollCallTargetMonth(now: Date): string {
+  const start = nextCwlStart(now);
+  return `${start.getUTCFullYear()}-${pad(start.getUTCMonth() + 1)}`;
+}

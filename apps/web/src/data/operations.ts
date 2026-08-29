@@ -508,6 +508,11 @@ export interface CwlLineupWorkspaceSnapshot {
   history: CwlLineupHistoryEvent[];
   observedUpdatedAt: string | null;
   warDays: CwlLineupWarDay[];
+  /* What the pre-season roll call contributed to this season's availability
+     (#96), or null when there was none. Carried on the snapshot rather than
+     fetched by the surface because the seed has to run before availability is
+     read, and this is its report. */
+  rollCallSeed: RollCallSeedResult | null;
   freshness: {
     lastRefreshedAt: string | null;
     collectionStatus: string | null;
@@ -620,6 +625,22 @@ export async function loadCwlLineupWorkspace(
   seasonId: string,
   warDay: number,
 ): Promise<CwlLineupWorkspaceSnapshot> {
+  /* FIRST, BEFORE ANYTHING READS AVAILABILITY (#96). The pre-season roll call
+   * was recorded weeks ago against a month, and this is where it becomes this
+   * season's availability -- so it has to land before the read below, or the
+   * first lineup of the season is planned against answers the leader already
+   * gave.
+   *
+   * It is idempotent and returns zero when there is nothing to do, which is what
+   * lets it sit on the load path unconditionally. A failure is swallowed: the
+   * workspace is usable without the seed, and a season that fails to seed is
+   * better than a season that fails to open. */
+  let rollCallSeed: RollCallSeedResult | null = null;
+  try {
+    const seeded = await seedCwlRollCall(client, clanTag, seasonId);
+    if (seeded.rollCallAt !== null) rollCallSeed = seeded;
+  } catch { rollCallSeed = null; }
+
   const planResult = await client.rpc("ensure_cwl_daily_lineup_plan", {
     requested_clan_tag: clanTag,
     requested_season_id: seasonId,
@@ -801,6 +822,7 @@ export async function loadCwlLineupWorkspace(
     history: history.slice(0, 25),
     observedUpdatedAt: typeof war.updated_at === "string" ? war.updated_at : null,
     warDays,
+    rollCallSeed,
     freshness: {
       lastRefreshedAt,
       collectionStatus: typeof collection.status === "string" ? collection.status : null,
@@ -1145,6 +1167,120 @@ export async function saveAvailability(client: any, value: {
     recorded_at: new Date().toISOString(),
   }, { onConflict: "clan_tag,season_id,player_tag" });
   ensureSuccess(result, "Unable to save availability");
+}
+
+/* THE PRE-SEASON ROLL CALL (#96).
+ *
+ * The clan's availability process runs before CWL starts: a message goes to clan
+ * chat in the last days of the month and everyone who likes it is available for
+ * the upcoming season. None of the CWL tables can hold that answer, because
+ * `member_availability` keys to `cwl_members` which keys to `cwl_seasons`, and
+ * the season does not exist yet. `cwl_roll_call` is keyed by month with no
+ * foreign key into any of them, which is the only shape writable that early.
+ *
+ * The roster comes from `member_roster_overview` — the clan, from the most
+ * recent daily pull — and NOT from `cwl_members`, which is the CWL signup roster
+ * and is exactly what does not exist when this surface is used. */
+export interface RollCallMember {
+  playerTag: string;
+  name: string;
+  townHallLevel: number;
+  role: string | null;
+  /* Presence of a row in `cwl_roll_call`. There is no third state: the leader
+     ticks whoever liked the message, so absence means unknown rather than
+     unavailable, and the seed writes nothing for it. */
+  saidYes: boolean;
+}
+
+export interface RollCallSnapshot {
+  targetMonth: string;
+  members: RollCallMember[];
+  saidYesCount: number;
+}
+
+/* What the seed reports back. `unmatched` is the one fact worth surfacing: who
+ * said yes and is not in the CWL group. It is not actionable — once the league
+ * group forms the roster is fixed — so it is a note and never a penalty. */
+export interface RollCallSeedResult {
+  seeded: number;
+  unmatched: string[];
+  rollCallAt: string | null;
+}
+
+export async function loadRollCall(client: any, clanTag: string, targetMonth: string): Promise<RollCallSnapshot> {
+  const [rosterResult, entryResult] = await Promise.all([
+    client.from("member_roster_overview")
+      .select("player_tag,name,role,town_hall_level")
+      .eq("clan_tag", clanTag)
+      .eq("is_current_member", true)
+      .order("name"),
+    client.from("cwl_roll_call")
+      .select("player_tag")
+      .eq("clan_tag", clanTag)
+      .eq("target_month", targetMonth),
+  ]);
+  ensureSuccess(rosterResult, "Unable to load the clan roster");
+  ensureSuccess(entryResult, "Unable to load the roll call");
+
+  const saidYes = new Set(rows<{ player_tag: string }>(entryResult.data).map((row) => String(row.player_tag)));
+  const members = rows<{ player_tag: string; name: string; role: string | null; town_hall_level: number }>(rosterResult.data)
+    .map((row) => ({
+      playerTag: String(row.player_tag),
+      name: String(row.name),
+      townHallLevel: typeof row.town_hall_level === "number" ? row.town_hall_level : 0,
+      role: typeof row.role === "string" ? row.role : null,
+      saidYes: saidYes.has(String(row.player_tag)),
+    }));
+
+  return { targetMonth, members, saidYesCount: members.filter((member) => member.saidYes).length };
+}
+
+/* A tick is an insert and an untick is a delete, because presence IS the answer.
+ * Storing an explicit "no" would be inventing an answer nobody gave -- the
+ * message only collects likes -- and it would need a second state the seed would
+ * then have to decide what to do with. */
+export async function setRollCallEntry(client: any, value: {
+  clanTag: string; targetMonth: string; playerTag: string; saidYes: boolean;
+}): Promise<void> {
+  if (!value.saidYes) {
+    const removed = await client.from("cwl_roll_call").delete()
+      .eq("clan_tag", value.clanTag)
+      .eq("target_month", value.targetMonth)
+      .eq("player_tag", value.playerTag);
+    ensureSuccess(removed, "Unable to save the roll call");
+    return;
+  }
+  const userId = await currentUserId(client);
+  const result = await client.from("cwl_roll_call").upsert({
+    clan_tag: value.clanTag,
+    target_month: value.targetMonth,
+    player_tag: value.playerTag,
+    recorded_by: userId,
+    recorded_at: new Date().toISOString(),
+  }, { onConflict: "clan_tag,target_month,player_tag" });
+  ensureSuccess(result, "Unable to save the roll call");
+}
+
+/* Called on every season load, and that is the design rather than a cost.
+ *
+ * The seed is idempotent and returns zero when there is nothing to do, so the
+ * caller does not have to know whether this season has been seeded already --
+ * which is what lets the pre-season answers arrive without the leader taking any
+ * action on the 1st. It runs under the leader's session so `recorded_by` is an
+ * honest actor; it deliberately does not run in the collector, which stays
+ * outbound-only and must not write leader-owned decision state. */
+export async function seedCwlRollCall(client: any, clanTag: string, seasonId: string): Promise<RollCallSeedResult> {
+  const result = await client.rpc("seed_cwl_roll_call", {
+    requested_clan_tag: clanTag,
+    requested_season_id: seasonId,
+  });
+  ensureSuccess(result, "Unable to apply the roll call");
+  const payload = record(result.data);
+  return {
+    seeded: typeof payload.seeded === "number" ? payload.seeded : 0,
+    unmatched: Array.isArray(payload.unmatched) ? payload.unmatched.map((tag) => String(tag)) : [],
+    rollCallAt: typeof payload.rollCallAt === "string" ? payload.rollCallAt : null,
+  };
 }
 
 export async function createInvitation(client: InvitationClient, expiresAt: string): Promise<string> {

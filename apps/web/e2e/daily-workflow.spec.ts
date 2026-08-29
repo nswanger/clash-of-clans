@@ -159,6 +159,58 @@ test("stands down on the third phase, with the clock and the strip agreeing", as
   await expect(page.getByRole("heading", { level: 1, name: "Review" })).toBeVisible();
 });
 
+/* THE PRE-SEASON ROLL CALL (#96).
+ *
+ * The availability message goes out in the last days of the month, days before
+ * the season it is about exists. Stand down is where the leader is on those
+ * days, and until this it was the one surface in the app with nothing to do on
+ * it. */
+test("records who said yes before the season the answers are about exists", async ({ page }) => {
+  await page.goto("/#/cwl?phase=resting");
+
+  /* ONE COMPONENT, TWO MOUNTINGS, and this test walks whichever one the project
+     is running: docked into the page above 720px, a sheet behind a button below
+     it. The month comes from the same arithmetic as the clock, so the control
+     and the countdown can never name different seasons. */
+  const docked = (page.viewportSize()?.width ?? 0) >= 720;
+  if (!docked) {
+    /* The count line stays off a quiet page until there is something to
+       report -- "0 of 3 said yes" is true and reads as a failing grade. */
+    await expect(page.getByText(/said yes/)).toBeHidden();
+    /* `click` waits for the control, where counting it would race the load. */
+    await page.getByRole("button", { name: /^Roll call for / }).click();
+  }
+
+  const panel = page.getByLabel("Roll call");
+  await expect(panel).toBeVisible();
+  /* Silence is not an answer (AGENTS.md: absence of evidence is never a
+     penalty), so the surface has to say what an untouched roster means. */
+  await expect(page.getByText(/stays unknown, not unavailable/)).toBeVisible();
+
+  /* The list is the ANSWERS, not the roster: nobody has replied yet, so there is
+     nothing to show and the search is the way in. */
+  await expect(page.getByText("No answers yet. Search to add whoever liked the message.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Mason/ })).toBeHidden();
+
+  await page.getByRole("searchbox", { name: "Find a member" }).fill("mas");
+  const mason = page.getByRole("button", { name: /Mason/ });
+  await expect(mason).toHaveAttribute("aria-pressed", "false");
+  await mason.click();
+  await expect.poll(() => lastMutation(page)).toContain("roll-call");
+  await expect(mason).toHaveAttribute("aria-pressed", "true");
+
+  /* Cleared, the answer stands on its own without a query behind it. */
+  await page.getByRole("searchbox", { name: "Find a member" }).fill("");
+  await expect(page.getByRole("button", { name: /Mason/, exact: false })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText(/1 of 3 said yes/).first()).toBeVisible();
+
+  /* An untick removes the entry rather than storing a no: the message only
+     collects likes, so a recorded no would be an answer nobody gave -- and the
+     member leaves the list, because the list is the answers. */
+  await page.getByRole("button", { name: /Mason/ }).click();
+  await expect(page.getByText("No answers yet. Search to add whoever liked the message.")).toBeVisible();
+});
+
 test("records the one fact the review phase keeps", async ({ page }) => {
   await page.goto("/#/cwl?phase=review");
 

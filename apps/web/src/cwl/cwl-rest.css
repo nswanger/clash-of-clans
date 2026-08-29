@@ -33,8 +33,13 @@
  *
  * A container rather than a bare block so the phase strip has something of the
  * same weight beneath it as the other two phases do, and the page does not read
- * as failed to load. Centred because there is exactly one thing on it: this is
- * the only surface in the app with no list, no row and no control in its body.
+ * as failed to load. Centred because what it holds is one column of one thing.
+ *
+ * #96 GAVE IT A CONTROL, and the centring survives it. Until the roll call this
+ * was the only surface in the app with no list, no row and no control in its
+ * body; it now carries exactly one button and its count, still on one axis,
+ * still below the clock. The list itself is in a sheet rather than on the page,
+ * which is what keeps the countdown the largest object here (ADR 0002).
  */
 .cwl-rest {
   display: grid; justify-items: center; gap: var(--cm-space-2);
@@ -113,3 +118,112 @@
 @media (min-width: 720px) {
   .cwl-rest { padding: var(--cm-space-7) var(--cm-space-4); }
 }
+
+/* ---------- the roll call (#96) ----------
+ * The one action on the page. It sits below the note because the note names
+ * what the countdown counts to, and this is for that season rather than the one
+ * that ended in the line above the clock.
+ *
+ * `cm-button` is the system's filled control and it is the right weight: this is
+ * the only thing to do here, and #16's rule that gold fills and does not write
+ * is what a single primary on a quiet page is for. No page-layer button was
+ * written -- the inventory already had this one.
+ */
+.cwl-rest-rollcall {
+  display: grid; justify-items: center; gap: var(--cm-space-2);
+  margin-top: var(--cm-space-5);
+}
+
+/* Shown only when it is not zero, so this never renders "0 of 43". Muted and
+ * small for the same reason the finished season is: it is a fact about work
+ * already done, not the thing the page is about. */
+.cwl-rest-rollcall-count {
+  margin: 0; font-size: var(--cm-text-xs); color: var(--cm-fg-muted);
+}
+
+/* ---------- inside the sheet ----------
+ * Left-aligned, unlike everything else in this file. The page body is centred
+ * because it holds one object; a roster is a list and a centred list is unreadable.
+ */
+.cwl-rest-rollcall-lede {
+  margin: 0 0 var(--cm-space-3);
+  font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); text-align: left;
+}
+
+.cwl-rest-rollcall-list { text-align: left; }
+
+/* The middle column of `cm-check`, which the checklist fills with a swap. Here
+ * it is one name, so it only has to truncate rather than lay anything out. */
+.cwl-rest-rollcall-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium);
+}
+
+/* ---------- the roll call beneath the countdown (#96) ----------
+ * NOT A COLUMN LAYOUT, and that was decided by building both and reading them.
+ * Whichever surface took `cm-columns`' main column claimed to be what the page
+ * is about: countdown-main spent 900px on a clock and put a fifty-name list in a
+ * 340px sidecar, and rollcall-main made the roster the subject of a page whose
+ * whole premise is the season arriving. Stacked, the page says what it has
+ * always said -- the countdown is the headline -- and the roll call is the one
+ * thing you can do about what it is counting toward, which is ADR 0002's
+ * amendment rendered rather than argued.
+ *
+ * It is also the order the phone already had, so there is one arrangement at
+ * every width instead of two.
+ *
+ * Nothing here keys on how near the 1st is. A page that promotes the roll call
+ * at some number of days out reorganises itself on a date nobody chose, which is
+ * the hidden conditional ADR 0002 built a visible phase control to avoid.
+ */
+.cwl-rest-rollcall-column {
+  max-width: var(--cm-shell-md); margin: var(--cm-space-5) auto 0;
+}
+
+/* The countdown block takes the same cap, so the two stack as one column rather
+ * than a narrow thing centred inside a wide box above a wide thing. The shell is
+ * 1440px and neither of these wants it. */
+@media (min-width: 720px) {
+  .cwl-rest-page > .cwl-rest { max-width: var(--cm-shell-md); margin-inline: auto; }
+}
+
+/* THE RESULT AREA IS A FIXED NUMBER OF ROWS AND NEVER SCROLLS ITSELF.
+ *
+ * Two things had to be true at once. Filtering is the whole interaction here,
+ * and a list that resizes under the query drags the search field up the page
+ * while you are typing into it. But a scroller inside a page that also scrolls
+ * is two scrollbars for one list, and the inner one always catches the wrong
+ * gesture.
+ *
+ * `--cm-list-max-rows` settles both (ADR 0024): the list never renders more rows
+ * than that, so a box exactly that tall never scrolls and never resizes -- not
+ * while typing, not when someone is ticked, not as the clan grows. Everything
+ * past it is reached by narrowing.
+ *
+ * TWO COLUMNS WERE TRIED AND REMOVED. They halved a fifty-row roster, but the
+ * list is the answers now rather than the roster, so the saving mostly
+ * evaporated -- and multi-column overflows SIDEWAYS in a height-constrained
+ * block, which is exactly the box this is. One column is also one alphabetical
+ * run with no column-major reasoning asked of anyone.
+ */
+.cwl-rest-rollcall-list { min-height: calc(var(--cm-tap-min) * var(--cm-list-max-rows)); }
+
+/* The empty state fills the box rather than sitting at the top of it, so an
+ * empty roll call and a search with no matches both read as "nothing here"
+ * rather than as a list that failed to load. */
+.cwl-rest-rollcall-list .cm-empty {
+  display: grid; place-items: center;
+  min-height: calc(var(--cm-tap-min) * var(--cm-list-max-rows));
+  margin: 0;
+}
+
+/* The panel head holds its height too, for the same reason the list does. The
+ * evidence line carries a season, a tally and a shown-count, which is long
+ * enough to wrap at panel width -- and a line that wraps to two at twelve
+ * results and one at a single result moves the search field by six pixels while
+ * someone is typing into it. Two lines is what it occupies in every state that
+ * matters, so it is floored there.
+ *
+ * A page rule overriding a `cm-` component, with an ancestor in the selector as
+ * the design rules require: the floor is this surface's, not the panel's. */
+.cwl-rest-page .cm-panel-evidence { min-height: calc(var(--cm-text-sm) * 3); }

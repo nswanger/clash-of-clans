@@ -137,3 +137,15 @@
   .cwl-rail { display: block; }
 }
 
+
+/* ---------- the roll-call provenance line (#96) ----------
+ * Where this season's availability came from, when it came from the pre-season
+ * roll call. NOT a `cm-notice`: that region is danger-only and one per screen
+ * (#19), and this is provenance rather than a fault. No hue, no icon, no alert
+ * role — the same treatment the app gives every other statement it makes about
+ * where a number came from.
+ */
+.cwl-rollcallnote {
+  margin: var(--cm-space-3) 0 0;
+  font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted);
+}

@@ -5,6 +5,7 @@ Glossary of the product's terms. Each entry defines; the *why* lives in `docs/de
 ## CWL operations glossary
 
 - **CWL season**: The monthly Clan War League campaign that establishes the participating roster and war-day decisions.
+- **Roll call**: Who said yes to the pre-season availability message, recorded against a *month* before that month's CWL season exists. Distinct from season availability, which it seeds once the season is collected: it is keyed by month rather than season, holds only the yeses, and is discarded when the next season seeds ([#96](https://github.com/nswanger/clash-of-clans/issues/96)).
 - **Season availability**: A member's leader-recorded participation state for the entire CWL season: `unknown`, `available`, or `unavailable`. A missing row is `unknown`; availability is never copied between seasons ([0009](docs/decisions/0009-planned-and-observed-lineups-stay-distinct.md)).
 - **Planned lineup**: The leader-owned lineup for one CWL war day. Each day is an independent snapshot after its initial inheritance from the prior day ([0009](docs/decisions/0009-planned-and-observed-lineups-stay-distinct.md)).
 - **Observed lineup**: The lineup and results the Clash API reports for a war day. It is evidence and never replaces the planned lineup.

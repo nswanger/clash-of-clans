@@ -109,6 +109,12 @@ const defaultTableData: Record<string, unknown> = {
     fixtureMember("#SAM", "Sam", "member", 2, 16),
     fixtureMember("#KIRA", "Kira", "coLeader", 3, 14),
   ],
+  /* Empty, and dated from the clock rather than hard-coded (#96). The stand-down
+     surface asks for the month `rollCallTargetMonth` names, so a fixed
+     `"2026-09"` here would match on one month of the year and silently return
+     nothing on the other eleven. Starting empty is also the state the surface is
+     actually reached in: a leader opens stand down to RECORD the roll call. */
+  cwl_roll_call: [] as Array<Record<string, unknown>>,
   cwl_members: [
     { season_id: fixtureSeasonId, player_tag: "#MASON", name: "Mason", town_hall_level: 15 },
     { season_id: fixtureSeasonId, player_tag: "#SAM", name: "Sam", town_hall_level: 16 },
@@ -327,6 +333,16 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
     order: () => query, limit: () => query,
     single: async () => firstRow(), maybeSingle: async () => firstRow(),
     upsert: async (value: unknown) => {
+      if (table === "cwl_roll_call" && Array.isArray(tableData[table]) && value !== null && typeof value === "object") {
+        const rows = tableData[table] as Array<Record<string, unknown>>;
+        const entry = value as Record<string, unknown>;
+        tableData[table] = rows.some((row) => row.player_tag === entry.player_tag)
+          ? rows
+          : [...rows, entry];
+        persistFixture?.();
+        recordMutation("roll-call", value);
+        return { error: null };
+      }
       if (table === "member_availability" && Array.isArray(tableData[table]) && value !== null && typeof value === "object") {
         const rows = tableData[table] as Array<Record<string, unknown>>;
         const upsertValue = value as Record<string, unknown>;
@@ -340,7 +356,32 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
       return { error: null };
     },
     insert: async (value: unknown) => { recordMutation(`insert:${table}`, value); return { error: null }; },
-    delete: () => ({ eq: async (_column: string, value: string) => { recordMutation("revoke", value); return { error: null }; } }),
+    /* CHAINABLE, because an untick filters on clan, month and player where the
+       one existing caller filtered on a single column. It resolves on `await`
+       rather than on the first `eq`, which is what Supabase does and what the
+       old one-shot shape could not model. */
+    delete: () => {
+      const removedValues: unknown[] = [];
+      const removal: any = {
+        eq: (column: string, value: unknown) => { removedValues.push(value); filters.push({ column, match: (candidate) => candidate === value }); return removal; },
+        then: (resolve: (outcome: unknown) => void) => {
+          if (table === "cwl_roll_call" && Array.isArray(tableData[table])) {
+            const kept = (tableData[table] as Array<Record<string, unknown>>)
+              .filter((row) => !filters.every((filter) => filter.match(row[filter.column])));
+            tableData[table] = kept;
+            persistFixture?.();
+            recordMutation("roll-call", { removed: true });
+          } else {
+            /* The value, as before, not the columns: the one existing caller
+               filters on the token it is revoking and a stub that recorded the
+               column name instead would quietly weaken any test that reads it. */
+            recordMutation("revoke", removedValues[removedValues.length - 1]);
+          }
+          resolve({ error: null });
+        },
+      };
+      return removal;
+    },
     then: (resolve: (value: unknown) => void) => resolve(result()),
   };
   return query;
@@ -485,6 +526,25 @@ export function createE2EClient(): any {
         persistFixture?.();
         recordMutation(`rpc:${name}`, args);
         return { data: { ...baseline, playerTags: replayBaseline(baseline) }, error: null };
+      }
+      /* The seed reports what it did and writes nothing here (#96): the fixture's
+         availability is already what a seeded season looks like, and the stub
+         models the REPORT because that is what the workspace renders. Null
+         `rollCallAt` is the ordinary case — no roll call was taken — and it is
+         what keeps the provenance line off the surface unless a test puts a roll
+         call in the fixture. */
+      if (name === "seed_cwl_roll_call") {
+        const entries = (tableData.cwl_roll_call ?? []) as Array<Record<string, unknown>>;
+        const known = new Set((tableData.cwl_members as Array<Record<string, unknown>> ?? []).map((row) => String(row.player_tag)));
+        recordMutation(`rpc:${name}`, args);
+        return {
+          data: {
+            seeded: entries.filter((entry) => known.has(String(entry.player_tag))).length,
+            unmatched: entries.filter((entry) => !known.has(String(entry.player_tag))).map((entry) => String(entry.player_tag)),
+            rollCallAt: entries.length ? String(entries[0]?.recorded_at ?? fixtureNow.toISOString()) : null,
+          },
+          error: null,
+        };
       }
       recordMutation(`rpc:${name}`, args);
       return { data: null, error: null };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, seasonName } from "./cwl-countdown.js";
+import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, rollCallTargetMonth, seasonName } from "./cwl-countdown.js";
 
 describe("seasonName", () => {
   /* The season id is a key everywhere else in the app and a date exactly here. */
@@ -79,5 +79,24 @@ describe("coarseText", () => {
 
   it("says later today inside the last day", () => {
     expect(coarseText(3600000)).toBe("Later today");
+  });
+});
+
+describe("rollCallTargetMonth", () => {
+  /* The roll call is gathered for the season the countdown is pointing at, so
+     the two read the same clock through the same function. */
+  it("names the month CWL will start in", () => {
+    expect(rollCallTargetMonth(new Date("2026-08-22T14:32:32Z"))).toBe("2026-09");
+    expect(rollCallTargetMonth(new Date("2026-12-27T00:00:00Z"))).toBe("2027-01");
+  });
+
+  /* THE DAY THE TWO DEFINITIONS DISAGREE. `now` plus a month would say October
+     here; `nextCwlStart` returns that day's own 05:00 roll, so the roll call
+     stays keyed to the season actually about to begin -- before it starts and
+     after, since the surface showing this control is only reachable while the
+     previous season is still the collected one. */
+  it("stays on the current month when it is the 1st, either side of the roll", () => {
+    expect(rollCallTargetMonth(new Date("2026-09-01T04:59:00Z"))).toBe("2026-09");
+    expect(rollCallTargetMonth(new Date("2026-09-01T09:00:00Z"))).toBe("2026-09");
   });
 });

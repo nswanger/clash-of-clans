@@ -141,7 +141,7 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | `cm-metric` | `is-danger` | One tile in the strip. `is-danger` colours the figure only, and only where the same fact is marked danger on the rows below it — one fact, one colour (#54). There is deliberately no success variant: a zero is the rule, and rules go unmarked. |
 | `cm-section` | — | |
 | `cm-section-head` | — | Heading, count, and an actions slot. |
-| `cm-rows` | — | Vertical stack with a gap. |
+| `cm-rows` | — | Vertical stack with a gap. **At most `--cm-list-max-rows` rows** — see below. |
 | `cm-row` | `has-pos`, `is-observed`, `is-out`, `is-selected` | |
 | `cm-row-pos` | `is-edited` | The position number. Also the surface's edit mark (#20). |
 | `cm-row-main` | — | |
@@ -151,6 +151,8 @@ Announcement is `aria-busy` on the region plus one visually hidden live region. 
 | `cm-row-figure` | — | The prominent number in a row's stat block. Renamed from `row-stars`, which named CWL stars specifically. |
 | `cm-row-th` | — | The muted small line under the figure. |
 | `cm-chev` | — | |
+
+**A list shows at most ten rows, and everything past that is reached by narrowing** ([ADR 0024](../docs/decisions/0024-design-list-length-and-reveal.md)). `--cm-list-max-rows` is the token; `LIST_MAX_ROWS` in the React system layer is its other half, and the two must not disagree. The rule exists because a box sized from a fixed row count never resizes under a filter, never needs an inner scrollbar inside a page that already scrolls, and does not grow with the clan. Narrowing means `cm-search` today and may mean a pager on a surface whose rows are walked through rather than searched; that is a component decision for that surface, not an exemption. **A list showing less than everything says so** — `N of M shown`, the form the lineup's bench already uses.
 
 `is-observed` draws the 3px provenance rail. That slot carries **provenance and nothing else** — a second state colour there measured 1.12:1 against the first (#20) — so `is-selected` uses a border accent and a background shift instead, and a row can be both at once.
 
@@ -218,13 +220,15 @@ Pointer capture during a drag belongs on the list, not the handle, so the drag s
 
 Not components. Listed so the boundary is legible.
 
-**Lineup:** bench trigger, bench column, day menu, the desktop rail and its cards, `moved-from` (reorder's own vocabulary), head actions.
+**Lineup:** bench trigger, bench column, day menu, the desktop rail and its cards, `moved-from` (reorder's own vocabulary), head actions, the roll-call provenance line. That last is deliberately **not** a `cm-notice` ([#96](https://github.com/nswanger/clash-of-clans/issues/96)): that region is danger-only and one per screen, and where a season's availability came from is provenance rather than a fault, so it carries no hue and no alert role.
 
 **Members:** metric tile, list header, facts grid, evidence list, freshness line, filter choices, window row.
 
 **Review:** war-day record, coverage caveat, list header, facts grid, freshness line. The season menu left this list in wave 4 — it is the CWL route's now, not review's.
 
-**Stand down:** the stand-down state itself, and nothing else. One container, a muted mark, a season line, a label, the clock and a note; the surface has no list, no row and no control in its body, which is why it is the only page in the app whose body is a single page-layer block.
+**Stand down:** the stand-down state itself, plus the roll-call column, its lede, list and name slot. One container, a muted mark, a season line, a label, the clock and a note — and beneath it the roll call. **#96 gave the surface its first list and took away its distinction as the only body with no list, row or control.** What it did not take away is the countdown being the largest object on the page: the roll call is stacked *below* the block rather than beside it, because two column layouts were built and whichever surface took `cm-columns`' main column read as what the page was about (ADR 0002). Stacking is also the order the phone already had, so there is one arrangement at every width.
+
+The panel itself is `cm-panel` in both its documented mountings — docked above 720px, a sheet behind a button below it — and the tick rows are `cm-check` unchanged: both it and the in-game checklist are a leader working down a roster ticking people off, and only the middle slot differs. The list obeys ADR 0024's ten-row cap, which is what lets the box hold its height under a filter without an inner scrollbar; the two page rules that override `cm-` components here (the evidence line's two-line floor, the empty state filling the box) both carry `.cwl-rest-page` as required.
 
 **Admin:** collection-health facts list, the invitation token block, the audit list, the per-row error line, the control row. Conformed against this inventory rather than against a prototype, because wave 3 has none for it — which makes it the inventory's third test and the one that produced the two component changes above.
 

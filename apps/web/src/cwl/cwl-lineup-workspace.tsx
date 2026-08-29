@@ -889,6 +889,27 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
             ? <div className="cm-notice" role="alert"><div className="cm-grow"><strong>Lineup workspace error</strong><p>{error}</p></div></div>
             : null}
 
+      {/* WHERE THE SEASON'S AVAILABILITY CAME FROM (#96), and deliberately not a
+          `cm-notice`: that region is danger-only, one per screen, and reserved
+          for collection health or a save conflict (#19). This is provenance, and
+          info's one live form in this system carries no hue.
+
+          The unmatched entries are player TAGS rather than names, because a
+          member who never made the CWL group has no `cwl_members` row for
+          `nameOf` to resolve — and the tag is what a leader would search in game
+          anyway. They are reported and never charged to the member: once the
+          league group forms the roster is fixed, so this is usually a full
+          roster or a leader oversight rather than anyone failing to show up. */}
+      {snapshot.rollCallSeed
+        ? <p className="cwl-rollcallnote">
+            Availability seeded from the roll call of{" "}
+            {new Date(snapshot.rollCallSeed.rollCallAt ?? "").toLocaleDateString(undefined, { day: "numeric", month: "long" })}.
+            {snapshot.rollCallSeed.unmatched.length
+              ? ` ${snapshot.rollCallSeed.unmatched.join(", ")} said yes but ${snapshot.rollCallSeed.unmatched.length === 1 ? "is" : "are"} not in the CWL group.`
+              : null}
+          </p>
+        : null}
+
       <div className="cm-columns cwl-columns">
         <div>
           <section className="cm-section">
