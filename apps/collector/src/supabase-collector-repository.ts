@@ -99,7 +99,8 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
       method: "PATCH",
       body: {
         status: input.status, finished_at: input.finishedAt,
-        last_fresh_at: input.lastFreshAt, error_message: input.errorMessage,
+        last_fresh_at: input.lastFreshAt, active_cwl: input.activeCwl,
+        error_message: input.errorMessage,
       },
     });
   }
@@ -217,14 +218,16 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
     const runs = await this.rest<Array<{
       status: "running" | "healthy" | "partial" | "invalid_ip" | "error";
       last_fresh_at: string | null;
-    }>>("collection_runs?select=status,last_fresh_at&status=neq.running&order=started_at.desc&limit=1");
-    const groups = await this.rest<Array<{ response_body: { state?: string } }>>(
-      "raw_snapshots?select=response_body&endpoint=eq.league_group&http_status=eq.200&order=collected_at.desc&limit=1",
+      active_cwl: boolean | null;
+    }>>(
+      "collection_runs?select=status,last_fresh_at,active_cwl&status=neq.running&order=started_at.desc&limit=1",
     );
     const latest = runs[0];
+    // The run records what it observed; a null means it could not tell, which takes the
+    // slower idle cadence rather than holding the collector to the active-CWL interval.
     return {
       now,
-      activeCwl: groups[0]?.response_body.state !== undefined && groups[0].response_body.state !== "notInWar",
+      activeCwl: latest?.active_cwl === true,
       lastSuccessfulAt: latest?.last_fresh_at ? new Date(latest.last_fresh_at) : null,
       latestStatus: latest?.status ?? null,
     };

@@ -38,6 +38,7 @@ export interface FinishRunInput {
   status: CollectionStatus;
   finishedAt: string;
   lastFreshAt: string | null;
+  activeCwl: boolean | null;
   errorMessage?: string;
 }
 

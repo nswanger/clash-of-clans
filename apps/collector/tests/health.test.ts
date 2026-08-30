@@ -19,6 +19,19 @@ describe("collector health", () => {
     })).toEqual({ status: "stale", exitCode: 1 });
   });
 
+  it("holds an out-of-season collector to the idle window, not the active-CWL one", () => {
+    // Regression: the health input used to infer an active season from the newest
+    // successful league_group snapshot, which between seasons is the previous CWL's
+    // final response. That pinned the collector to the one-hour window forever, so a
+    // healthy idle collector reported stale on every check.
+    expect(evaluateHealth({
+      now,
+      activeCwl: false,
+      lastSuccessfulAt: new Date("2026-07-11T00:00:00.000Z"),
+      latestStatus: "partial",
+    })).toEqual({ status: "healthy", exitCode: 0 });
+  });
+
   it("preserves invalid_ip as a distinct actionable state", () => {
     expect(evaluateHealth({
       now,
