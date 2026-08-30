@@ -233,6 +233,10 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
     };
   }
 
+  appliedMigrationVersions(): Promise<string[]> {
+    return this.rpc<string[]>("applied_migration_versions", {});
+  }
+
   recommendationRpc(name: string, body: Record<string, unknown>): Promise<unknown> {
     return this.rpc(name, body);
   }

@@ -32,6 +32,29 @@ describe("collector health", () => {
     })).toEqual({ status: "healthy", exitCode: 0 });
   });
 
+  it("reports a behind schema ahead of every other state", () => {
+    // Generic unhealthy is not enough: the container reported unhealthy continuously
+    // from 2026-08-09 to 2026-08-30 and nothing acted on it, because the signal was
+    // always red and carried no content (#81).
+    expect(evaluateHealth({
+      now,
+      activeCwl: false,
+      lastSuccessfulAt: new Date("2026-07-11T11:00:00.000Z"),
+      latestStatus: "invalid_ip",
+      missingMigrations: ["202608300001"],
+    })).toEqual({ status: "schema_behind", exitCode: 1 });
+  });
+
+  it("stays healthy when no migration is missing", () => {
+    expect(evaluateHealth({
+      now,
+      activeCwl: true,
+      lastSuccessfulAt: new Date("2026-07-11T11:00:00.000Z"),
+      latestStatus: "healthy",
+      missingMigrations: [],
+    })).toEqual({ status: "healthy", exitCode: 0 });
+  });
+
   it("preserves invalid_ip as a distinct actionable state", () => {
     expect(evaluateHealth({
       now,
