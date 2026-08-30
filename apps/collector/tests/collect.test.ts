@@ -121,6 +121,30 @@ describe("collectOnce", () => {
     expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: "partial" }));
   });
 
+  it("still captures raw snapshots when normalization is withheld", async () => {
+    // The degraded mode the schema guard selects (#81): raw snapshots are the part
+    // that cannot be backfilled, so they keep being captured while nothing canonical
+    // is written against a schema that is missing a migration this image needs.
+    const store = makeStore();
+    const normalize = vi.fn();
+    const client = {
+      getClan: vi.fn().mockResolvedValue({ tag: "#FAKECLAN", name: "Fixture", memberList: [] }),
+      getMembers: vi.fn().mockResolvedValue({ items: [] }),
+      getPlayer: vi.fn(),
+      getLeagueGroup: vi.fn().mockRejectedValue(new ClashApiError("not_found", "Not found", 404)),
+      getLeagueWar: vi.fn(),
+      getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
+    };
+
+    const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
+
+    expect(normalize).not.toHaveBeenCalled();
+    expect(store.saveSnapshot).toHaveBeenCalled();
+    expect(summary.successfulEndpoints).toContain("members");
+    expect(summary.internalErrors).toEqual([]);
+    expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ activeCwl: false }));
+  });
+
   it("reports unknown CWL activity when the league-group endpoint fails", async () => {
     const store = makeStore();
     const client = {

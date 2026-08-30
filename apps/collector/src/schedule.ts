@@ -80,11 +80,19 @@ export interface HealthInput {
   regularWarIntervalMs?: number;
   regularWarFinalizationLeadMs?: number;
   regularWarFinalizationDelayMs?: number;
+  /** Migrations this image needs that the database has not applied (#81). */
+  missingMigrations?: readonly string[];
 }
 
-export type HealthStatus = "healthy" | "stale" | "invalid_ip" | "error";
+export type HealthStatus = "healthy" | "schema_behind" | "stale" | "invalid_ip" | "error";
 
 export function evaluateHealth(input: HealthInput): { status: HealthStatus; exitCode: 0 | 1 } {
+  // Reported ahead of everything else: a collector whose database is missing a
+  // migration it needs is not recording canonical data, and every other state would
+  // describe that as an ordinary collection fault (#81).
+  if (input.missingMigrations && input.missingMigrations.length > 0) {
+    return { status: "schema_behind", exitCode: 1 };
+  }
   if (input.latestStatus === "invalid_ip") return { status: "invalid_ip", exitCode: 1 };
   const interval = input.activeCwl
     ? (input.activeCwlIntervalMs ?? ACTIVE_CWL_INTERVAL_MS)

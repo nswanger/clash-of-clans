@@ -17,6 +17,13 @@ RUN pnpm --filter @cwl/collector exec esbuild src/main.ts src/supabase-auth.ts \
     --target=node22 \
     --outdir=dist
 
+# The migration versions present in the reviewed commit, recorded next to the bundle
+# so the collector can tell at runtime whether the database is behind the schema this
+# image needs (#81). The version is the leading digits of the filename, the same key
+# the CLI stores in the ledger and scripts/check-migrations.sh compares against.
+COPY supabase/migrations ./supabase/migrations
+RUN node -e "const fs=require('node:fs');const versions=fs.readdirSync('supabase/migrations').filter(name=>name.endsWith('.sql')).map(name=>name.match(/^([0-9]+)_/)?.[1]).filter(Boolean).sort();if(versions.length===0)throw new Error('no migrations found for the manifest');fs.writeFileSync('apps/collector/dist/migration-manifest.json',JSON.stringify(versions));console.log('migration manifest: '+versions.length+' versions through '+versions[versions.length-1]);"
+
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \
     TZ=America/New_York
