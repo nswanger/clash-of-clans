@@ -136,6 +136,7 @@ describe("collectOnce", () => {
 
     expect(summary.failedEndpoints).toContain("league_group");
     expect(summary.activeCwl).toBeNull();
+    expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ activeCwl: null }));
   });
 
   it("confirms CWL is inactive when the league-group endpoint returns not found", async () => {
@@ -154,6 +155,7 @@ describe("collectOnce", () => {
     expect(summary.activeCwl).toBe(false);
     expect(summary.failedEndpoints).toContain("league_group");
     expect(summary.regularWar).toMatchObject({ state: "preparation" });
+    expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ activeCwl: false }));
   });
 
   it("continues siblings and reports storage failure when saving a snapshot fails", async () => {

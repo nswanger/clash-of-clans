@@ -33,6 +33,7 @@ These are the first endpoints to validate and build around because they map dire
   - Current CWL group metadata and war tags for the active league group.
   - **`season` is `YYYY-MM-DD`, not `YYYY-MM`.** Observed as `"2026-08-01"` across three 200 responses stored in `raw_snapshots` during the 2026-08 CWL. It is stored verbatim as `cwl_seasons.season_id`, so the season key the whole app carries is a date. Two readers assumed a month and silently produced wrong answers ([#91](https://github.com/nswanger/clash-of-clans/issues/91)); read it through `seasonMonth` rather than matching it.
   - Top-level keys on a 200: `season`, `state`, `clans`, `rounds`. A 404 body carries `reason` only, which is the ordinary between-seasons response rather than a fault.
+  - **`state` is never `notInWar` here** — that value belongs to `currentwar`. The only states observed across the 2026-08 season were `preparation`, `inWar`, and `ended`. Between seasons the endpoint 404s instead, so *whether a season is running cannot be read from the newest stored 200*: that snapshot is the previous season's, and it never expires. The collector records its own answer on `collection_runs.active_cwl`; read that, and never re-derive it from `raw_snapshots`.
 - `GET /v1/clanwarleagues/wars/{warTag}`
   - Individual CWL war details, including attacks and results.
 

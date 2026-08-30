@@ -131,6 +131,32 @@ describe("SupabaseCollectorRepository", () => {
     );
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ requested_clan_tag: "#CLAN" });
   });
+
+  it("reads CWL activity from the run's own observation, not from an old snapshot", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([
+      { status: "partial", last_fresh_at: "2026-08-30T04:58:34.912Z", active_cwl: false },
+    ]));
+    vi.stubGlobal("fetch", fetchMock);
+    const repository = new SupabaseCollectorRepository("https://example.supabase.co", "sb_secret_test");
+
+    const input = await repository.healthInput(new Date("2026-08-30T17:46:31.000Z"));
+
+    expect(input.activeCwl).toBe(false);
+    expect(input.latestStatus).toBe("partial");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("active_cwl");
+    expect(fetchMock.mock.calls[0]?.[0]).not.toContain("raw_snapshots");
+  });
+
+  it("falls back to the idle cadence when the run could not tell", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([
+      { status: "partial", last_fresh_at: "2026-08-30T04:58:34.912Z", active_cwl: null },
+    ]));
+    vi.stubGlobal("fetch", fetchMock);
+    const repository = new SupabaseCollectorRepository("https://example.supabase.co", "sb_secret_test");
+
+    expect((await repository.healthInput(new Date("2026-08-30T17:46:31.000Z"))).activeCwl).toBe(false);
+  });
 });
 
 function jsonResponse(body: unknown, status = 200): Response {

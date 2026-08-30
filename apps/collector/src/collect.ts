@@ -271,6 +271,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
       status,
       finishedAt: now().toISOString(),
       lastFreshAt,
+      activeCwl,
       ...(failedEndpoints.length === 0 ? {} : { errorMessage: "One or more collection endpoints failed" }),
     });
   } catch (error) {
