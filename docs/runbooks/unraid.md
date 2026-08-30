@@ -130,7 +130,15 @@ These commands change UnRaid and require explicit authorization. Load `UNRAID_SS
 
 Use this section when `/mnt/user/appdata/cwl-collector` already exists. The first-deployment commands above stop on their create-only guard and must not be run over an existing directory. An upgrade replaces the image and the non-secret assets only; the protected `collector.env` is never overwritten by this procedure.
 
-Apply any database migrations the new commit requires **before** starting the new image. A collector that calls a database function the remote schema does not have will fail its normalized writes while still reporting healthy Clash attempts. Confirm with `supabase migration list` that every local migration has a matching remote entry.
+Apply any database migrations the new commit requires **before** starting the new image. Confirm with `supabase migration list` that every local migration has a matching remote entry.
+
+Since [ADR 0025](../decisions/0025-collector-degrades-on-a-behind-schema.md) the collector no longer fails silently when that step is skipped. It compares the migration versions baked into its image against the applied ledger on every collection, and when the database is behind it keeps capturing raw snapshots, skips normalized writes and recommendations, and reports `schema_behind` naming the versions to apply:
+
+```sh
+docker exec cwl-collector node dist/main.js --healthcheck
+```
+
+`{"status":"schema_behind","missingMigrations":["..."]}` means the database is missing a migration this image needs. Apply it with `supabase db push`; the next collection restores normalization on its own, with no container recreate. The guard reduces the cost of forgetting the ordering — it does not remove the rule, because a degraded run still records no canonical data.
 
 1. Record the current image and back up the non-secret selector and the protected environment. Copy the environment file rather than displaying it; its values are secrets.
 
@@ -210,6 +218,8 @@ If verification fails, diagnose it with the section below before rolling back. I
 A verification failure after an upgrade does not by itself mean the upgrade caused it. Establish which before rolling back, because rolling back a pre-existing defect restores the same failure under an older tag.
 
 A failed normalized write presents as a *healthy* Clash attempt. The endpoint records HTTP 200 with `normalization_error`, and every attempt that depends on it is skipped, so one broken endpoint empties most of a run while connectivity looks fine. Container logs will not explain it: the collector collects internal normalization errors but does not surface them (issue [#9](https://github.com/nswanger/clash-of-clans/issues/9)).
+
+Rule out the schema first, because it is the one cause of an empty run that now announces itself. `--healthcheck` reporting `schema_behind` means the migration ordering was missed and no canonical data is being written by design; the steps below are for the case where the schema is current and normalization still fails.
 
 1. Read the failing run's attempts to find which endpoint broke and how. Query `collection_attempts` filtered to the failing `run_id`, selecting `endpoint`, `status`, `http_status`, and `error_category` — the same fields `verify-collector.sh` reads. An endpoint with `http_status` 200 and a normalization error is the origin; the skipped attempts downstream of it are consequences, not separate faults.
 

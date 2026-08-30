@@ -262,5 +262,16 @@
     "type": "design",
     "supersedes": null,
     "path": "docs/decisions/0024-design-list-length-and-reveal.md"
+  },
+  "0025-collector-degrades-on-a-behind-schema": {
+    "title": "The collector degrades when the database is behind, and says which migration is missing",
+    "status": "accepted",
+    "date": "2026-08-30",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "structural",
+    "supersedes": null,
+    "path": "docs/decisions/0025-collector-degrades-on-a-behind-schema.md"
   }
 }
