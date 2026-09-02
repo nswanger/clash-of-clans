@@ -381,11 +381,19 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
           onClick={() => onAvailability(value)}
         >{availabilityLabel(value)}</button>)}
       </div>
+      {/* REMOVAL LIVES HERE, NOT IN THE FOOT (#102). The prototype put "Bench X
+          without a replacement" in `cm-panel-foot`, which on a phone is pinned
+          under the sheet — and on a desktop, where the panel is docked with no
+          height limit, is the last thing after the rating, the availability set
+          and every candidate: on day 1 of a live season nobody found it. It sits
+          under availability and above the candidates now, so it is on screen
+          the moment the panel opens, and it stays inside the panel on purpose:
+          a control on the row itself is an accidental tap that removes someone. */}
+      <div className="cwl-panel-remove">
+        <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Remove {member.name} from the lineup</button>
+      </div>
       <p className="cm-panel-label">Replace with</p>
       <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} />
-    </div>
-    <div className="cm-panel-foot">
-      <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Bench {member.name} without a replacement</button>
     </div>
   </div>;
 }
