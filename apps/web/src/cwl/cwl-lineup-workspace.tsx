@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppTopbar } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
+import { LIST_MAX_ROWS } from "../design/layout.js";
 import { CwlRatingBreakdown } from "./cwl-rating.js";
 import { Sheet } from "../design/sheet.js";
 import {
@@ -98,6 +99,30 @@ export function rankCandidates(members: CwlLineupMember[], draft: string[], sear
     .filter((member) => !query || member.name.toLocaleLowerCase().includes(query))
     .sort(sortCandidates);
 }
+
+/* THE BENCH SHOWS AT MOST TEN (ADR 0024, #103). `rankCandidates` still ranks
+ * every candidate, because the ten shown must be the ten most worth adding; this
+ * is only the cut. Everything past it is reached by narrowing with `cm-search`,
+ * which is the same rule the roll call applies, and the reason is the desktop:
+ * docked beside a 15-row lineup, a bench of 34 was the page's tallest object and
+ * the lineup scrolled for it. */
+export function visibleCandidates<T>(candidates: readonly T[]): T[] {
+  return candidates.slice(0, LIST_MAX_ROWS);
+}
+
+/* What the bench's evidence line says about the list beneath it. Always the
+ * `N of M shown` shape once there is a list at all, so the line does not rewrap
+ * under a filter (ADR 0024). A full lineup is the one case where the bench
+ * cannot add anyone, and the line says so rather than letting a tap on a
+ * candidate silently do nothing (#102). */
+export function benchEvidence(shownCount: number, matchedCount: number, lineupFull: boolean): string {
+  const shown = `${shownCount} of ${matchedCount} shown`;
+  return lineupFull
+    ? `${shown} · lineup full · open someone in the lineup to swap them out`
+    : `${shown} · ranked by rotation need, then availability`;
+}
+
+export const LINEUP_FULL_STATUS = "The lineup is full. Open someone in the lineup to swap them out.";
 
 export interface MembershipDiff {
   swaps: Array<{ out: string; in: string }>;
@@ -291,6 +316,7 @@ function CandidateList({ candidates, search, onSearch, onChoose }: {
   onSearch: (value: string) => void;
   onChoose: (playerTag: string) => void;
 }) {
+  const shown = visibleCandidates(candidates);
   return <>
     <input
       className="cm-search"
@@ -300,10 +326,17 @@ function CandidateList({ candidates, search, onSearch, onChoose }: {
       value={search}
       onChange={(event) => onSearch(event.target.value)}
     />
-    <div className="cm-rows">
-      {candidates.length
-        ? candidates.map((candidate) => <MemberRow key={candidate.playerTag} member={candidate} onOpen={() => onChoose(candidate.playerTag)} />)
-        : <p className="cm-empty">No one matches “{search}”.</p>}
+    {/* `cwl-candidates` is the box sized from `--cm-list-max-rows`: ten rows
+        tall whether the query matches one name or thirty, so nothing beneath
+        the search moves while it is being typed into (ADR 0024). */}
+    <div className="cm-rows cwl-candidates">
+      {shown.length
+        ? shown.map((candidate) => <MemberRow key={candidate.playerTag} member={candidate} onOpen={() => onChoose(candidate.playerTag)} />)
+        : search
+          ? <p className="cm-empty">No one matches “{search}”.</p>
+          /* An empty bench and an empty search look identical, and they mean
+             different things. */
+          : <p className="cm-empty">Everyone is in the lineup.</p>}
     </div>
   </>;
 }
@@ -357,9 +390,9 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
   </div>;
 }
 
-function BenchPanel({ candidates, benchSize, search, onSearch, onChoose, onClose }: {
+function BenchPanel({ candidates, lineupFull, search, onSearch, onChoose, onClose }: {
   candidates: CwlLineupMember[];
-  benchSize: number;
+  lineupFull: boolean;
   search: string;
   onSearch: (value: string) => void;
   onChoose: (playerTag: string) => void;
@@ -369,7 +402,7 @@ function BenchPanel({ candidates, benchSize, search, onSearch, onChoose, onClose
     <div className="cm-panel-head">
       <div className="cm-grow">
         <h2>Bench</h2>
-        <p className="cm-panel-evidence">{candidates.length} of {benchSize} shown <span className="cm-sep">·</span> ranked by rotation need, then availability</p>
+        <p className="cm-panel-evidence">{benchEvidence(visibleCandidates(candidates).length, candidates.length, lineupFull)}</p>
       </div>
       <button className="cm-iconbutton" type="button" data-close aria-label="Close" onClick={onClose}><Icon name="close" /></button>
     </div>
@@ -670,6 +703,10 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
       setPanel(null);
     } else if (draft.length < (snapshot?.season.warSize ?? 0)) {
       editLineup([...draft, playerTag]);
+    } else {
+      /* At war size the game refuses an add before a remove, and so does the
+         plan — but a tap that does nothing reads as a broken tap (#102). */
+      setStatus(LINEUP_FULL_STATUS);
     }
     setSearch("");
   };
@@ -794,7 +831,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
 
   const warSize = snapshot.season.warSize;
   const warStates = new Map(snapshot.warDays.map((war) => [war.warDay, war.state]));
-  const benchSize = snapshot.members.length - draft.length;
+  const lineupFull = draft.length >= warSize;
   const selected = panel?.mode === "swap" ? memberByTag.get(panel.tag) : undefined;
 
   const panelBody = panel?.mode === "changes"
@@ -816,7 +853,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
         />
       : panel?.mode === "bench"
         ? <BenchPanel
-            candidates={candidates} benchSize={benchSize} search={search}
+            candidates={candidates} lineupFull={lineupFull} search={search}
             onSearch={setSearch} onChoose={chooseCandidate}
             onClose={() => { setPanel(null); setSearch(""); }}
           />
@@ -825,7 +862,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
   /* Where the column has a default occupant, as the bench does, the panel keeps
    * its close control and closing returns to that default (#23). */
   const dockedBody = panelBody ?? <BenchPanel
-    candidates={candidates} benchSize={benchSize} search={search}
+    candidates={candidates} lineupFull={lineupFull} search={search}
     onSearch={setSearch} onChoose={chooseCandidate}
     onClose={() => { setPanel(null); setSearch(""); }}
   />;
@@ -932,7 +969,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
                       {/* In the section head, not below fifteen rows: adding to a
                           short lineup must not require scrolling past it first. */}
                       <button className="cwl-benchbutton" type="button" onClick={() => { setPanel({ mode: "bench" }); setSearch(""); }}>
-                        Bench {benchSize} <span aria-hidden="true"><Icon name="chevron" /></span>
+                        Bench {snapshot.members.length - draft.length} <span aria-hidden="true"><Icon name="chevron" /></span>
                       </button>
                     </>}
               </div>

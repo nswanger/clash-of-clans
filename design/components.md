@@ -220,7 +220,7 @@ Pointer capture during a drag belongs on the list, not the handle, so the drag s
 
 Not components. Listed so the boundary is legible.
 
-**Lineup:** bench trigger, bench column, day menu, the desktop rail and its cards, `moved-from` (reorder's own vocabulary), head actions, the roll-call provenance line. That last is deliberately **not** a `cm-notice` ([#96](https://github.com/nswanger/clash-of-clans/issues/96)): that region is danger-only and one per screen, and where a season's availability came from is provenance rather than a fault, so it carries no hue and no alert role.
+**Lineup:** bench trigger, bench column, the candidate list box (`cwl-candidates`, the bench's and the swap panel's ten-row box sized from `--cm-list-max-rows` — [#103](https://github.com/nswanger/clash-of-clans/issues/103) brought the bench under ADR 0024, which had named it as the form's origin without ever applying the cap to it), day menu, the desktop rail and its cards, `moved-from` (reorder's own vocabulary), head actions, the roll-call provenance line. That last is deliberately **not** a `cm-notice` ([#96](https://github.com/nswanger/clash-of-clans/issues/96)): that region is danger-only and one per screen, and where a season's availability came from is provenance rather than a fault, so it carries no hue and no alert role.
 
 **Members:** metric tile, list header, facts grid, evidence list, freshness line, filter choices, window row.
 
