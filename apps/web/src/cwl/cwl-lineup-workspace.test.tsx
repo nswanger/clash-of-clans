@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  benchEvidence,
   hasRevisionConflict,
   isBonusSecured,
   membershipDiff,
@@ -8,6 +9,7 @@ import {
   rankCandidates,
   sortBonusPriority,
   unsavedChangeCount,
+  visibleCandidates,
 } from "./cwl-lineup-workspace.js";
 import type { CwlLineupMember } from "../data/operations.js";
 
@@ -179,5 +181,22 @@ describe("the revision conflict", () => {
 
   it("stays quiet while the plan has not moved", () => {
     expect(hasRevisionConflict(12, 12, 2)).toBe(false);
+  });
+});
+
+describe("the bench cap", () => {
+  it("shows at most ten candidates, keeping the ranking's head (ADR 0024)", () => {
+    const candidates = Array.from({ length: 34 }, (_, index) => `#P${index}`);
+    expect(visibleCandidates(candidates)).toEqual(candidates.slice(0, 10));
+    expect(visibleCandidates(candidates.slice(0, 3))).toHaveLength(3);
+  });
+
+  it("always says how many of the matched candidates are on screen", () => {
+    expect(benchEvidence(10, 34, false)).toBe("10 of 34 shown · ranked by rotation need, then availability");
+    expect(benchEvidence(2, 2, false)).toBe("2 of 2 shown · ranked by rotation need, then availability");
+  });
+
+  it("says the lineup is full instead of offering to add someone", () => {
+    expect(benchEvidence(10, 34, true)).toBe("10 of 34 shown · lineup full · open someone in the lineup to swap them out");
   });
 });
