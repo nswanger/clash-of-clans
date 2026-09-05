@@ -276,7 +276,10 @@ button { font: inherit; font-variant-numeric: inherit; color: inherit; cursor: p
 }
 .panel {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
-  max-height: 88vh; display: flex; flex-direction: column;
+  /* Dynamic viewport units, so the head stays below the browser bar on a
+     phone: 88vh measures the largest viewport and puts the drag handle behind
+     the address bar whenever that bar is showing. */
+  max-height: 88vh; max-height: 88dvh; display: flex; flex-direction: column;
   border-radius: var(--cm-radius-lg) var(--cm-radius-lg) 0 0;
   background: var(--cm-surface); box-shadow: var(--cm-shadow-overlay);
   padding-bottom: env(safe-area-inset-bottom);
