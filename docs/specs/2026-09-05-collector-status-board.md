@@ -152,8 +152,8 @@ that stops being true. Nick's framing — "everything is ok unless there is an
 error", which is how most applications behave — is the same rule from the
 reader's side.
 
-When unhealthy, the section is what it is today: heading, status chip, the
-danger notice (still the screen's one notice), and the failing-attempt list.
+When unhealthy, the section is what it is today: heading, the run state as a
+danger `cm-pill`, the danger notice (still the screen's one notice), and the failing-attempt list.
 The notice's second line carries the last fresh instant, because that is the
 number a leader needs to read everything else by and it no longer has a
 resting place above.
@@ -168,8 +168,11 @@ only on an unhealthy status.
 Rendered only when `session.isOperator`; a non-operator admin sees nothing in
 its place, not a placeholder.
 
-- **Head:** `Collector`, the status chip beside the title (this is now the
-  chip's only resting place on a healthy day), and trailing, `Next run
+- **Head:** `Collector`, the run state beside the title as the same
+  `cm-pill` the rows use — `HEALTHY` in success, anything else in danger —
+  so one word in one shape means one thing everywhere on the page (the
+  `cm-statuschip` was tried here and read as a second vocabulary for the same
+  state); and trailing, `Next run
   <relative day>, <clock>` — `tomorrow, 14:02`, `today, 15:00`, or the
   date when further out; `Next run not scheduled` when `next_run_at` is null
   on a finished run, which is the crash case.
@@ -224,11 +227,13 @@ at, it is a thing to have done. So:
 - **Access activity is a section closed by default**, its head carrying the
   count so a closed log still says how much is behind it, opened by the head.
   It is renamed from "Recent access activity": it is the whole log, newest
-  first. **Every row is one shape:** a fixed first column holding the time
-  (day, month, clock; no year for the current year) and the event text in
-  the rest, so the time column reads straight down on a phone and a long
-  event wraps inside its own column instead of pushing the time to a second
-  line. **It pages at ten**, `1–10 of 31` with Newer / Older ghosts: this is
+  first. **Every row is one shape:** a content-sized first column holding
+  the time — `4 Sep 21:10`, day, month and 24-hour clock, never wrapping, no
+  year for the current year — and the event text in the rest, so the time
+  column reads straight down on a phone and a long event wraps inside its own
+  column instead of pushing the time to a second line. The format is fixed
+  rather than locale-driven: `Intl` with a locale's 12-hour clock and comma
+  is what made the column wrap. **It pages at ten**, `1–10 of 31` with Newer / Older ghosts: this is
   the pager case ADR 0024 names, "a surface whose rows are walked through
   rather than searched", and it is built now rather than when the log is
   long, because a log is always eventually long and Nick would rather not
