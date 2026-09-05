@@ -393,7 +393,8 @@ test("offers ranked bench candidates and reorders the lineup to match the game",
 
   /* Adding from the bench appends rather than swapping, because no planned row
      was named. */
-  await bench.getByRole("button", { name: /Sam/ }).click();
+  /* The row's primary target, not its "Open Sam" chevron (#114). */
+  await bench.getByRole("button", { name: /^Sam/ }).click();
   await expect(page.getByRole("button", { name: /^2\s*Sam/ })).toBeVisible();
 
   /* THE BENCH STAYS OPEN AFTER AN ADD, deliberately — a short lineup is filled

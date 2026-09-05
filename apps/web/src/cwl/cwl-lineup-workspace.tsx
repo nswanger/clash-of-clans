@@ -303,6 +303,38 @@ function MemberRow({ member, position, edited, out, onOpen }: {
   </button>;
 }
 
+/* A bench row has two targets where a lineup row has one (#114). The primary
+ * tap still adds — that is the fast path and it did not move — and the chevron
+ * is promoted from a glyph inside the button to a 44px `cm-iconbutton` that
+ * opens the member's panel instead. Before this, availability during a live
+ * season could only be reached from a lineup row, so marking a benched member
+ * unavailable meant adding them, opening them, setting it, and removing them
+ * again. The two are separate buttons rather than one with a hit-test: a button
+ * cannot contain a button, and a 14px glyph is not a target anyone finds. */
+function BenchRow({ member, onAdd, onOpen }: {
+  member: CwlLineupMember;
+  onAdd: () => void;
+  onOpen: () => void;
+}) {
+  const classes = ["cm-row", "cwl-benchrow"];
+  if (member.observed) classes.push("is-observed");
+  return <div className={classes.join(" ")}>
+    <button className="cwl-benchrow-add" type="button" onClick={onAdd}>
+      <span className="cm-row-main">
+        <span className="cm-row-name">{member.name}</span>
+        <RowMeta member={member} observed={member.observed} />
+      </span>
+      <span className="cm-row-stats">
+        <span className="cm-row-figure">{member.stars}<Icon name="star" /></span>
+        <span className="cm-row-th">TH{member.townHallLevel}</span>
+      </span>
+    </button>
+    <button className="cm-iconbutton is-small" type="button" aria-label={`Open ${member.name}`} onClick={onOpen}>
+      <Icon name="chevron" />
+    </button>
+  </div>;
+}
+
 /* Reorder mode. Matching in-game order is a bulk task — you look at the game,
  * come back, and move several people — so it gets its own mode rather than a
  * per-row affordance. Rows collapse to number, name and handle, which roughly
@@ -326,11 +358,14 @@ function ReorderRow({ member, index, wasIndex, moved }: {
  * Panels
  * ------------------------------------------------------------------------- */
 
-function CandidateList({ candidates, search, onSearch, onChoose }: {
+function CandidateList({ candidates, search, onSearch, onChoose, onOpen }: {
   candidates: CwlLineupMember[];
   search: string;
   onSearch: (value: string) => void;
   onChoose: (playerTag: string) => void;
+  /* Given by the bench, where a row can also open its member (#114). Absent in
+     the swap panel: a member panel opening a second member panel is a stack. */
+  onOpen?: (playerTag: string) => void;
 }) {
   const shown = visibleCandidates(candidates);
   return <>
@@ -347,7 +382,9 @@ function CandidateList({ candidates, search, onSearch, onChoose }: {
         the search moves while it is being typed into (ADR 0024). */}
     <div className="cm-rows cwl-candidates">
       {shown.length
-        ? shown.map((candidate) => <MemberRow key={candidate.playerTag} member={candidate} onOpen={() => onChoose(candidate.playerTag)} />)
+        ? shown.map((candidate) => onOpen
+            ? <BenchRow key={candidate.playerTag} member={candidate} onAdd={() => onChoose(candidate.playerTag)} onOpen={() => onOpen(candidate.playerTag)} />
+            : <MemberRow key={candidate.playerTag} member={candidate} onOpen={() => onChoose(candidate.playerTag)} />)
         : search
           ? <p className="cm-empty">No one matches “{search}”.</p>
           /* An empty bench and an empty search look identical, and they mean
@@ -357,15 +394,21 @@ function CandidateList({ candidates, search, onSearch, onChoose }: {
   </>;
 }
 
-function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onAvailability, onBench, onClose }: {
+/* What the panel's action slot does, which is the one thing that differs
+ * between a lineup member's panel and a benched member's (#114). */
+export type MemberPanelAction =
+  | { kind: "remove"; onRemove: () => void }
+  | { kind: "add"; lineupFull: boolean; onAdd: () => void };
+
+export function MemberPanel({ member, candidates, search, locked, action, onSearch, onChoose, onAvailability, onClose }: {
   member: CwlLineupMember;
   candidates: CwlLineupMember[];
   search: string;
   locked: boolean;
+  action: MemberPanelAction;
   onSearch: (value: string) => void;
   onChoose: (playerTag: string) => void;
   onAvailability: (value: CwlAvailability) => void;
-  onBench: () => void;
   onClose: () => void;
 }) {
   return <div className="cm-panel" role="dialog" aria-modal="true" aria-label={member.name}>
@@ -409,22 +452,34 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
           the button sits inside that member's panel, so "Remove X from the
           lineup" only repeated what the placement already said. It is "Remove"
           rather than "Bench" because "Bench" is already the bench panel's title
-          and its trigger in the head; a third "Bench" here reads as a link. */}
-      <div className="cwl-panel-remove">
-        <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Remove</button>
-      </div>
-      <p className="cm-panel-label">Replace with</p>
-      <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} />
+          and its trigger in the head; a third "Bench" here reads as a link.
+          A benched member's panel puts "Add to lineup" in the same slot (#114)
+          and has no candidate list beneath it: there is nobody to swap. */}
+      {action.kind === "remove"
+        ? <>
+            <div className="cwl-panel-remove">
+              <button className="cm-ghost" type="button" disabled={locked} onClick={action.onRemove}>Remove</button>
+            </div>
+            <p className="cm-panel-label">Replace with</p>
+            <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} />
+          </>
+        : <div className="cwl-panel-remove">
+            <button className="cm-ghost" type="button" disabled={locked || action.lineupFull} onClick={action.onAdd}>Add to lineup</button>
+            {/* The same sentence the bench's evidence line uses: a disabled
+                button with no reason reads as broken (#102). */}
+            {action.lineupFull ? <p className="cwl-panel-note">{LINEUP_FULL_STATUS}</p> : null}
+          </div>}
     </div>
   </div>;
 }
 
-function BenchPanel({ candidates, lineupFull, search, onSearch, onChoose, onClose }: {
+export function BenchPanel({ candidates, lineupFull, search, onSearch, onChoose, onOpen, onClose }: {
   candidates: CwlLineupMember[];
   lineupFull: boolean;
   search: string;
   onSearch: (value: string) => void;
   onChoose: (playerTag: string) => void;
+  onOpen: (playerTag: string) => void;
   onClose: () => void;
 }) {
   return <div className="cm-panel" role="dialog" aria-modal="true" aria-label="Bench">
@@ -436,7 +491,7 @@ function BenchPanel({ candidates, lineupFull, search, onSearch, onChoose, onClos
       <button className="cm-iconbutton" type="button" data-close aria-label="Close" onClick={onClose}><Icon name="close" /></button>
     </div>
     <div className="cm-panel-body">
-      <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} />
+      <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} onOpen={onOpen} />
     </div>
   </div>;
 }
@@ -507,7 +562,10 @@ function ChecklistPanel({ todo, done, nameOf, onCheck, onUndo, onClear, onClose 
  * The page
  * ------------------------------------------------------------------------- */
 
-type Panel = null | { mode: "swap"; tag: string } | { mode: "bench" } | { mode: "changes" };
+/* `swap` is a lineup member's panel, `member` a benched member's (#114): the
+ * same panel with a different action slot, told apart here because closing
+ * one returns to the lineup and closing the other returns to the bench. */
+type Panel = null | { mode: "swap"; tag: string } | { mode: "member"; tag: string } | { mode: "bench" } | { mode: "changes" };
 
 const EDGE_ZONE = 96; // how deep the auto-scroll band reaches from each edge
 const EDGE_SPEED = 520; // px per SECOND, not per frame — a per-frame step runs at
@@ -732,6 +790,9 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
       setPanel(null);
     } else if (draft.length < (snapshot?.season.warSize ?? 0)) {
       editLineup([...draft, playerTag]);
+      /* Added from their own panel (#114): the panel's subject is now in the
+         lineup, so it closes the way removal closes the lineup member's. */
+      if (panel?.mode === "member") setPanel(null);
     } else {
       /* At war size the game refuses an add before a remove, and so does the
          plan — but a tap that does nothing reads as a broken tap (#102). */
@@ -861,7 +922,9 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
   const warSize = snapshot.season.warSize;
   const warStates = new Map(snapshot.warDays.map((war) => [war.warDay, war.state]));
   const lineupFull = draft.length >= warSize;
-  const selected = panel?.mode === "swap" ? memberByTag.get(panel.tag) : undefined;
+  const selected = panel?.mode === "swap" || panel?.mode === "member" ? memberByTag.get(panel.tag) : undefined;
+  const openBench = () => { setPanel({ mode: "bench" }); setSearch(""); };
+  const openMember = (playerTag: string) => { setPanel({ mode: "member", tag: playerTag }); setSearch(""); };
 
   const panelBody = panel?.mode === "changes"
     ? <ChecklistPanel
@@ -872,18 +935,23 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
         onClose={() => setPanel(null)}
       />
     : selected
-      ? <SwapPanel
+      ? <MemberPanel
           member={selected} candidates={candidates} search={search} locked={locked}
+          action={panel?.mode === "member"
+            ? { kind: "add", lineupFull, onAdd: () => chooseCandidate(selected.playerTag) }
+            : { kind: "remove", onRemove: () => benchMember(selected.playerTag) }}
           onSearch={setSearch}
           onChoose={chooseCandidate}
           onAvailability={(value) => void updateAvailability(selected, value)}
-          onBench={() => benchMember(selected.playerTag)}
-          onClose={() => { setPanel(null); setSearch(""); }}
+          /* A benched member was reached from the bench, so close goes back to
+             it rather than to the lineup — on a phone that is the sheet the
+             leader was just looking at (#114). */
+          onClose={() => { if (panel?.mode === "member") openBench(); else { setPanel(null); setSearch(""); } }}
         />
       : panel?.mode === "bench"
         ? <BenchPanel
             candidates={candidates} lineupFull={lineupFull} search={search}
-            onSearch={setSearch} onChoose={chooseCandidate}
+            onSearch={setSearch} onChoose={chooseCandidate} onOpen={openMember}
             onClose={() => { setPanel(null); setSearch(""); }}
           />
         : null;
@@ -892,7 +960,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
    * its close control and closing returns to that default (#23). */
   const dockedBody = panelBody ?? <BenchPanel
     candidates={candidates} lineupFull={lineupFull} search={search}
-    onSearch={setSearch} onChoose={chooseCandidate}
+    onSearch={setSearch} onChoose={chooseCandidate} onOpen={openMember}
     onClose={() => { setPanel(null); setSearch(""); }}
   />;
   const sheetLabel = panel?.mode === "changes" ? "In game" : selected ? selected.name : "Bench";
@@ -997,7 +1065,7 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
                       ><Icon name="reorder" /></button>
                       {/* In the section head, not below fifteen rows: adding to a
                           short lineup must not require scrolling past it first. */}
-                      <button className="cwl-benchbutton" type="button" onClick={() => { setPanel({ mode: "bench" }); setSearch(""); }}>
+                      <button className="cwl-benchbutton" type="button" onClick={openBench}>
                         Bench {snapshot.members.length - draft.length} <span aria-hidden="true"><Icon name="chevron" /></span>
                       </button>
                     </>}
