@@ -178,10 +178,10 @@ its place, not a placeholder.
   `active_cwl`). `..., still running` while unfinished. When the run was not
   healthy the line ends `· data last fresh <date>, <clock>`, so the operator
   sees the gap the leader's notice describes.
-- **Times on the board are the clock only.** The run line carries the date
-  once; six rows repeating it six times is what made the old facts list hard
-  to trace. Each row's finish time sits right-aligned in a fixed slot before
-  the pull count, tabular figures, so the six read as a column.
+- **Rows carry no time.** The run line above gives the window every attempt
+  fell in, so a healthy row ran then by definition and a failed row's minute
+  changes nothing the operator would do. Six rows repeating a timestamp is
+  what made the old facts list hard to trace.
 - **Endpoint board:** `cm-rows`, one `cm-row` per endpoint in the fixed order
   `clan · members · player · current_war · league_group · league_war`, six
   rows always. Each row: endpoint name as `cm-row-name`; meta line opening
@@ -216,7 +216,9 @@ at, it is a thing to have done. So:
   when, when it expires, and the two ghosts. Every other invitation state —
   created, reissued, revoked, redeemed — is already an `audit_events` row,
   so the history section was the access log re-sorted by invitation. The
-  "links are never stored" sentence moves with the rows to People.
+  "links are never stored" sentence leaves the page foot: it belongs beside
+  the one link it is about, inside the fresh-invitation block, and nowhere
+  else.
 - **Access activity is a section closed by default**, its head carrying the
   count so a closed log still says how much is behind it, opened by the head.
   It is renamed from "Recent access activity": it is the whole log, newest
@@ -266,6 +268,14 @@ Two findings for `design/components.md`, both recorded there when built:
 
 No new token. The endpoint board is `cm-rows` at the page layer under the
 `admin-` prefix.
+
+### No explanatory prose under a section
+
+Nothing on Admin is followed by a sentence explaining what the reader just
+saw. The UI has to be legible from its labels, marks and counts; a paragraph
+beneath a list that says what the list is for is a sign the list failed. This
+spec's mockup shed three such paragraphs in review. The rule and the sweep of
+the other surfaces that carry one are [#124](https://github.com/nswanger/clash-of-clans/issues/124).
 
 ## Out of scope, and where it goes
 
