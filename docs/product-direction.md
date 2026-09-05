@@ -41,6 +41,6 @@ The official API still does not provide clan chat, in-game signup responses, dir
 - A fabricated or inferred "last active" timestamp
 - A black-box activity score
 - Automatic promotion, demotion, benching, or lineup approval
-- Feeding unvalidated year-round activity metrics into CWL recommendations
+- Feeding unvalidated year-round activity metrics into the CWL lineup ranking
 - A visual re-theme without a corresponding workflow improvement
 - Indefinite retention of every raw API response

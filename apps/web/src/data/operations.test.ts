@@ -124,7 +124,6 @@ describe("Supabase operations", () => {
       cwl_member_stars: [],
       cwl_war_members: [{ war_tag: "#WAR1", player_tag: "#MASON", map_position: 1, assigned_attacks: 1 }],
       cwl_attacks: [{ war_tag: "#WAR1", attacker_tag: "#MASON", stars: 3 }],
-      recommendations: [],
       audit_events: [],
       collection_runs: [],
     };

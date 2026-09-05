@@ -8,9 +8,6 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@cwl/recommendations": "workspace:*"
-  },
   "devDependencies": {
     "esbuild": "^0.28.1",
     "typescript": "^5.8.3",

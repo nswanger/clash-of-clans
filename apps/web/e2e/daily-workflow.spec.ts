@@ -4,8 +4,8 @@
  * disclosure, the approve and override controls, and the regenerate button.
  * ADR 0002 deleted that route on the grounds that reviewing machine
  * recommendations in detail buys nothing, so those tests describe a surface that
- * no longer exists rather than a regression to fix. The pipeline behind them is
- * untouched and is still covered by tests/e2e/cwl-acceptance.spec.ts.
+ * no longer exists rather than a regression to fix. The engine behind them was
+ * retired in ADR 0026.
  *
  * The two workspace specs were rewritten against the wave-2 surface (#63). What
  * they cover now is the swap panel, ranked bench candidates, the single search

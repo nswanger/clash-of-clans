@@ -273,5 +273,16 @@
     "type": "structural",
     "supersedes": null,
     "path": "docs/decisions/0025-collector-degrades-on-a-behind-schema.md"
+  },
+  "0026-retire-the-recommendation-engine": {
+    "title": "The recommendation engine is retired; the lineup workspace carries its rules",
+    "status": "accepted",
+    "date": "2026-09-05",
+    "deciders": [
+      "Nick"
+    ],
+    "type": "design",
+    "supersedes": null,
+    "path": "docs/decisions/0026-retire-the-recommendation-engine.md"
   }
 }

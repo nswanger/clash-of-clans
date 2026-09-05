@@ -11,7 +11,7 @@
  * THE ID IS NOT NORMALISED AT THE COLLECTOR, and that was the decision rather
  * than the default. `season_id` is half the key of `cwl_seasons` and a column on
  * `cwl_wars`, `cwl_members`, `member_availability`, the lineup plans, the applied
- * baselines and the recommendations, and it is interpolated into `audit_events`
+ * baselines, and it is interpolated into `audit_events`
  * entity ids like `#CLAN:2026-08-01:3`. Rewriting all of that — audit history
  * included — to change how two lines of TypeScript read a string is a large,
  * irreversible data migration bought for cosmetics. Storing the upstream value

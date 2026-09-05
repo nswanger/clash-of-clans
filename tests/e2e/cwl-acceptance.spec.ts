@@ -1,7 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { recommendationContextSchema } from "@cwl/domain";
-import { OrderedRulesStrategy } from "@cwl/recommendations";
 import { collectOnce } from "../../apps/collector/src/collect.js";
 import { normalizeSnapshot } from "../../apps/collector/src/normalize.js";
 import type { RawSnapshotStore, SaveSnapshotInput } from "../../apps/collector/src/raw-snapshots.js";
@@ -15,7 +13,6 @@ const fixtureStorageKey = "e2e:cwl-acceptance-fixture";
 
 interface AcceptanceFixtureData extends Record<string, unknown> {
   member_availability: Array<{ player_tag: string; status: string; [key: string]: unknown }>;
-  recommendations?: unknown;
 }
 
 const roster = [
@@ -207,33 +204,6 @@ async function buildAcceptanceFixture() {
     stars: stars.get(member.playerTag) ?? 0,
     eightStarEligible: (stars.get(member.playerTag) ?? 0) >= 8,
   }));
-  const generateRecommendation = (fixtureData: AcceptanceFixtureData) => {
-    const savedAvailability = new Map(
-      fixtureData.member_availability.map((row: { player_tag: string; status: string }) => [row.player_tag, row.status]),
-    );
-    const context = recommendationContextSchema.parse({
-      seasonTag: season.seasonId,
-      settings: {
-        warSize: season.warSize,
-        targetCoreSize: season.targetCoreSize,
-        rotationPositions: season.rotationPositions,
-        priorityMode: season.priorityMode,
-        eightStarRotationEnabled: season.eightStarRotationEnabled,
-      },
-      members: memberFacts.map((member) => ({
-        ...member,
-        availability: savedAvailability.get(member.playerTag) ?? "unknown",
-      })),
-      currentLineup: currentLineupTags.map((playerTag, index) => ({
-        playerTag,
-        position: index + 1,
-        isCore: index < 10,
-      })),
-      collectionHealth: { status: "healthy", collectedAt: collection.lastFreshAt },
-    });
-    return { context, recommendation: new OrderedRulesStrategy().recommend(context) };
-  };
-
   const currentWarMembers = [...repository.warMembers.values()].filter(({ warTag }) => warTag === currentWarTag);
   const currentAttacks = [...repository.attacks.values()].filter(({ warTag }) => warTag === currentWarTag);
   const fixture = {
@@ -297,7 +267,7 @@ async function buildAcceptanceFixture() {
     collection_runs: { status: "healthy", last_fresh_at: collection.lastFreshAt, error_message: null },
     user_roles: [{ user_id: "e2e-user", role: "admin", profiles: { display_name: "Acceptance Leader" } }],
   };
-  return { fixture, generateRecommendation };
+  return { fixture };
 }
 
 async function expectNoAccessibilityViolations(page: Page) {
@@ -305,8 +275,8 @@ async function expectNoAccessibilityViolations(page: Page) {
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
-test("runs the fixture through collection, normalization, recommendation, explanation, and leader decisions", async ({ page }) => {
-  const { fixture, generateRecommendation } = await buildAcceptanceFixture();
+test("runs the fixture through collection, normalization, availability, and review", async ({ page }) => {
+  const { fixture } = await buildAcceptanceFixture();
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
@@ -334,32 +304,12 @@ test("runs the fixture through collection, normalization, recommendation, explan
     player_tag: "#UNAVAILABLE",
     status: "unavailable",
   }));
-  const { recommendation } = generateRecommendation(savedFixture);
-  const allReasonCodes = recommendation.changes.flatMap(({ reasons }) => reasons.map(({ code }) => code));
-  expect(allReasonCodes).toEqual(expect.arrayContaining([
-    "unavailable", "availability_unknown", "missed_attack", "eight_star_rotation", "limited_confidence",
-  ]));
-  expect(recommendation.contacts).toContainEqual(expect.objectContaining({ playerTag: "#UNKNOWN" }));
-  expect(recommendation.coverageGaps).toEqual([expect.objectContaining({ position: 15 })]);
-  expect(recommendation.changes).toContainEqual(expect.objectContaining({
-    outPlayerTag: "#EIGHT",
-    inPlayerTag: "#NEW",
-    confidenceNote: expect.stringMatching(/limited confidence/i),
-  }));
-  expect(recommendation.changes.map(({ inPlayerTag }) => inPlayerTag)).not.toEqual(
-    expect.arrayContaining(["#UNAVAILABLE", "#UNKNOWN"]),
-  );
-  /* THE RECOMMENDATION HAS NO SURFACE ANY MORE, and the assertions above are
-     the whole of what survives. ADR 0002 deleted `#/dashboard`, taking the
-     approve and override controls with it, so the second half of this run —
-     rendering the recommendation, pressing "Why …?", approving, and recording an
-     override note — described a page that no longer exists.
-   
-     THE PIPELINE ITSELF IS UNTOUCHED. Collection, normalization, the reason
-     codes, the coverage gaps and the confidence notes are all still produced and
-     are all still asserted, immediately above; what is gone is the app's ability
-     to read and approve them, which is the surface that was removed rather than
-     the behaviour. Restoring a reader is a new surface's decision. */
+  /* THE RECOMMENDATION ENGINE IS RETIRED (ADR 0026). This run used to feed the
+     saved fixture back through the ordered-rules strategy and assert its reason
+     codes; the rules a leader sees now are the bench ranking and the bonus pills
+     on the lineup workspace, which the workflow specs cover. What this run keeps
+     is the seam the engine never owned: raw collection, normalization into the
+     canonical tables, and the availability write the leader makes on the page. */
 
   /* The season record the review phase reads is derived from the same fixture,
      so the acceptance run ends where the leader's month actually ends. */

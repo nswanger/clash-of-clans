@@ -1,14 +1,14 @@
 # Clash of Clans War Ops Assistant
 
-Decision support for Clan War League (CWL) operations. The project collects Clash of Clans API snapshots, derives auditable participation and recommendation data, and presents it in a three-route web app — CWL, Members and Admin — where clan leaders make the final call.
+Decision support for Clan War League (CWL) operations. The project collects Clash of Clans API snapshots, derives auditable participation history, and presents it in a three-route web app — CWL, Members and Admin — where clan leaders make the final call.
 
 ## Architecture
 
 - **GitHub Pages:** hosts only the static web app. The browser build supports lineup planning, post-season review, the year-round roster, access management and collection health; it must never contain collector credentials.
-- **Supabase:** provides Discord authentication, Postgres storage, row-level authorization, application RPCs, the leader-triggered recommendation function, and the daily raw-snapshot retention job.
-- **UnRaid:** runs the outbound-only collector container. The collector fetches Clash API data, stores immutable raw snapshots, normalizes CWL history, and regenerates recommendations after each active-CWL collection.
+- **Supabase:** provides Discord authentication, Postgres storage, row-level authorization, application RPCs, and the daily raw-snapshot retention job.
+- **UnRaid:** runs the outbound-only collector container. The collector fetches Clash API data, stores immutable raw snapshots, and normalizes CWL history.
 
-The MVP focuses on CWL collection, trustworthy history, availability, explainable lineup recommendations, and leader review. It never silently promotes, demotes, benches, or assigns a player; every consequential decision remains subject to human approval.
+The MVP focuses on CWL collection, trustworthy history, availability, an explainable lineup workspace, and leader review. It never silently promotes, demotes, benches, or assigns a player; every consequential decision remains subject to human approval.
 
 ## Local setup
 

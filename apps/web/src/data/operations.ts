@@ -1,18 +1,9 @@
 interface Result<T = unknown> { data?: T; error: { message: string } | null }
 
-/* The recommendation readers left with `#/dashboard` (ADR 0002, #25 wave 3).
- * `approveRecommendation`, `overrideRecommendation`, `regenerateRecommendations`
- * and their client and result types had exactly one caller between them — the
- * daily dashboard — and ADR 0002 judged that content not worth a surface,
- * because it describes only the current CWL cycle. They are dead by the same
- * rule that took the six profile counters in wave 1: their only reader is gone.
- *
- * THE PIPELINE ITSELF IS UNTOUCHED. `recommendations`, the collector's
- * production of them, and the `regenerate-recommendations` edge function are all
- * still there and still running; what is deleted is the app's ability to read
- * and approve them, which is the surface ADR 0002 removed. Restoring a reader is
- * a new surface's decision, not a resurrection of this code.
- */
+/* The recommendation readers left with `#/dashboard` (ADR 0002, #25 wave 3),
+ * and the engine behind them followed (ADR 0026, #111): the lineup workspace
+ * applies the same rules live in `sortCandidates` and the bonus pills, which is
+ * where a leader is actually deciding. */
 
 export interface InvitationClient {
   rpc(name: string, args: Record<string, unknown>): Promise<Result<any>>;

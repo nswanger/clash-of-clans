@@ -27,7 +27,7 @@ Pull Clash of Clans API data and turn it into decision support for clan leaders:
 |---|---|---|
 | `apps/web/` | Browser app (Vite/React; GitHub Pages) — three routes: CWL, Members, Admin | — |
 | `apps/collector/` | Outbound-only Clash API collector (Docker on UnRaid) | `docs/runbooks/unraid.md` |
-| `packages/domain/`, `packages/recommendations/`, `packages/database/` | Domain contracts, explainable recommendation rules, database client | — |
+| `packages/domain/`, `packages/database/` | Domain contracts, database client | — |
 | `supabase/` | Migrations, functions, pgTAP tests, production-only bootstrap SQL | `docs/runbooks/supabase.md` |
 | `design/` | Clan Muster design system: tokens, component layer, prototypes | `design/README.md` |
 | `deploy/unraid/`, `docker/` | Collector compose and Dockerfile | `docs/runbooks/unraid.md` |

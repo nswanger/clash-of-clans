@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(12);
+SELECT plan(10);
 
 INSERT INTO auth.users (
   id,
@@ -196,57 +196,6 @@ SELECT is(
   'availability audit data excludes notes'
 );
 
-INSERT INTO public.recommendations (
-  id,
-  clan_tag,
-  season_id,
-  strategy_version,
-  input,
-  output,
-  source
-)
-VALUES (
-  '40000000-0000-0000-0000-000000000010',
-  '#AUDIT',
-  '2026-07',
-  'ordered-rules-v1',
-  '{"context":{"revision":1}}',
-  '{"strategyVersion":"ordered-rules-v1","changes":[]}',
-  'collection'
-);
-
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000002', true);
-SELECT set_config('request.jwt.claim.role', 'authenticated', true);
-SELECT public.record_leader_decision(
-  '40000000-0000-0000-0000-000000000010',
-  'approved',
-  '[]',
-  NULL
-);
-
-RESET ROLE;
-SELECT is(
-  (
-    SELECT count(*)
-    FROM public.audit_events
-    WHERE event_type = 'recommendation_approved'
-      AND actor_id = '40000000-0000-0000-0000-000000000002'
-      AND entity_id = '40000000-0000-0000-0000-000000000010'
-  ),
-  1::bigint,
-  'recommendation approval is audited'
-);
-SELECT is(
-  (
-    SELECT count(*)
-    FROM public.audit_events
-    WHERE event_type = 'recommendation_generated'
-      AND entity_id = '40000000-0000-0000-0000-000000000010'
-  ),
-  1::bigint,
-  'recommendation generation is audited'
-);
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000002', true);
