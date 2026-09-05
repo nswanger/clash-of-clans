@@ -213,7 +213,9 @@ at, it is a thing to have done. So:
   the only state that carries an action (Reissue, Revoke), and it is a person
   who does not exist yet, so it renders as a row at the bottom of People:
   `Invited, not yet signed in`, a caution `pending` pill, who invited and
-  when, when it expires, and the two ghosts. Every other invitation state —
+  when, when it expires, and its actions behind the row's menu control
+  ([#125](https://github.com/nswanger/clash-of-clans/issues/125): one
+  `cm-iconbutton` opening a `cm-routemenu`, never inline ghosts). Every other invitation state —
   created, reissued, revoked, redeemed — is already an `audit_events` row,
   so the history section was the access log re-sorted by invitation. The
   "links are never stored" sentence leaves the page foot: it belongs beside
@@ -222,7 +224,11 @@ at, it is a thing to have done. So:
 - **Access activity is a section closed by default**, its head carrying the
   count so a closed log still says how much is behind it, opened by the head.
   It is renamed from "Recent access activity": it is the whole log, newest
-  first. **It pages at ten**, `1–10 of 31` with Newer / Older ghosts: this is
+  first. **Every row is one shape:** a fixed first column holding the time
+  (day, month, clock; no year for the current year) and the event text in
+  the rest, so the time column reads straight down on a phone and a long
+  event wraps inside its own column instead of pushing the time to a second
+  line. **It pages at ten**, `1–10 of 31` with Newer / Older ghosts: this is
   the pager case ADR 0024 names, "a surface whose rows are walked through
   rather than searched", and it is built now rather than when the log is
   long, because a log is always eventually long and Nick would rather not
