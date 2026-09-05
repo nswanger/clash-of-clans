@@ -396,9 +396,12 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
           and every candidate: on day 1 of a live season nobody found it. It sits
           under availability and above the candidates now, so it is on screen
           the moment the panel opens, and it stays inside the panel on purpose:
-          a control on the row itself is an accidental tap that removes someone. */}
+          a control on the row itself is an accidental tap that removes someone.
+          The label is the bare verb (#112): the panel title carries the name and
+          the button sits inside that member's panel, so "Remove X from the
+          lineup" only repeated what the placement already said. */}
       <div className="cwl-panel-remove">
-        <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Remove {member.name} from the lineup</button>
+        <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Bench</button>
       </div>
       <p className="cm-panel-label">Replace with</p>
       <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} />
