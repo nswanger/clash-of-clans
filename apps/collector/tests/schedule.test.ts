@@ -53,6 +53,42 @@ describe("collector scheduling", () => {
       .toBe("2026-07-11T13:00:00.000Z");
   });
 
+  it("polls hourly during the sign-up window until the current month's season is collected", () => {
+    // CWL 2026-09 opened on the 1st but the idle tick did not land until the evening (#104).
+    const signup = new Date("2026-09-01T00:30:00.000Z");
+    const hourLater = "2026-09-01T01:30:00.000Z";
+    const dayLater = "2026-09-02T00:30:00.000Z";
+
+    // Last collected season is behind the calendar: poll at the active cadence.
+    expect(nextCollectionAt(signup, false, undefined, null, "2026-08").toISOString()).toBe(hourLater);
+    // Unknown latest season (fresh process) is treated the same way: absence of evidence is not a reason to wait.
+    expect(nextCollectionAt(signup, false, undefined, null, null).toISOString()).toBe(hourLater);
+    expect(nextCollectionAt(signup, false).toISOString()).toBe(hourLater);
+    // The current month is already collected: back to the idle cadence.
+    expect(nextCollectionAt(signup, false, undefined, null, "2026-09").toISOString()).toBe(dayLater);
+    // Only confirmed inactivity engages the window; unknown activity already polls hourly.
+    expect(nextCollectionAt(signup, null, undefined, null, "2026-08").toISOString()).toBe(hourLater);
+  });
+
+  it("stops polling hourly for a skipped season once the sign-up window closes", () => {
+    const lastWindowDay = new Date("2026-09-10T23:00:00.000Z");
+    const afterWindow = new Date("2026-09-11T00:00:00.000Z");
+
+    expect(nextCollectionAt(lastWindowDay, false, undefined, null, "2026-08").toISOString())
+      .toBe("2026-09-11T00:00:00.000Z");
+    expect(nextCollectionAt(afterWindow, false, undefined, null, "2026-08").toISOString())
+      .toBe("2026-09-12T00:00:00.000Z");
+  });
+
+  it("keeps the regular-war cadence when it is sooner than the sign-up poll", () => {
+    const now = new Date("2026-09-03T12:00:00.000Z");
+    const regularWar = { state: "inWar", endTime: "2026-09-03T12:03:00.000Z", warKey: "#REGULAR" };
+    const cadence = { activeCwlIntervalMs: 60 * 60 * 1_000, idleIntervalMs: 24 * 60 * 60 * 1_000 };
+
+    expect(nextCollectionAt(now, false, cadence, regularWar, "2026-08").toISOString())
+      .toBe("2026-09-03T12:03:00.000Z");
+  });
+
   it("renews ownership throughout a collection longer than the initial lease", async () => {
     let now = new Date("2026-07-11T12:00:00.000Z");
     let heartbeat!: () => void;
@@ -245,6 +281,41 @@ describe("collector scheduling", () => {
     await scheduler.start();
 
     expect(scheduled).toEqual([60 * 60 * 1_000]);
+  });
+
+  it("remembers the collected season across runs when choosing the sign-up cadence", async () => {
+    const scheduled: number[] = [];
+    let now = new Date("2026-08-05T12:00:00.000Z");
+    const collect = vi.fn()
+      .mockResolvedValueOnce({ activeCwl: true, seasonId: "2026-08" })
+      .mockResolvedValueOnce({ activeCwl: false, seasonId: null })
+      .mockResolvedValueOnce({ activeCwl: false, seasonId: null })
+      .mockResolvedValueOnce({ activeCwl: true, seasonId: "2026-09" })
+      .mockResolvedValueOnce({ activeCwl: false, seasonId: null });
+    const scheduler = new CollectionScheduler({
+      collect,
+      lease: {
+        acquire: vi.fn().mockResolvedValue(true),
+        renew: vi.fn().mockResolvedValue(true),
+        release: vi.fn().mockResolvedValue(undefined),
+      },
+      now: () => now,
+      setTimer: (_callback, delay) => { scheduled.push(delay); return 1; },
+      clearTimer: vi.fn(),
+    });
+    const hour = 60 * 60 * 1_000;
+    const day = 24 * hour;
+
+    await scheduler.start();               // August season active: hourly
+    now = new Date("2026-08-20T12:00:00.000Z");
+    await scheduler.runNow();              // August done, mid-month: idle
+    now = new Date("2026-09-01T12:00:00.000Z");
+    await scheduler.runNow();              // September not yet collected, in window: hourly
+    await scheduler.runNow();              // September collected and active: hourly
+    now = new Date("2026-09-02T12:00:00.000Z");
+    await scheduler.runNow();              // September collected, group gone: idle again
+
+    expect(scheduled).toEqual([hour, day, hour, hour, day]);
   });
 
   it("prevents overlap in-process and with a database lease", async () => {

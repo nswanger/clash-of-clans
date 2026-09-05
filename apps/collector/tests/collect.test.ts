@@ -67,6 +67,7 @@ describe("collectOnce", () => {
 
     expect(summary.capturedWarTags).toEqual(["#FAKEWAR1"]);
     expect(summary.failedEndpoints).toEqual([]);
+    expect(summary.seasonId).toBe("2099-01");
     expect(summary.successfulEndpoints).toEqual([
       "clan", "members", "player", "current_war", "league_group", "league_war",
     ]);
@@ -179,6 +180,7 @@ describe("collectOnce", () => {
     expect(summary.activeCwl).toBe(false);
     expect(summary.failedEndpoints).toContain("league_group");
     expect(summary.regularWar).toMatchObject({ state: "preparation" });
+    expect(summary.seasonId).toBeNull();
     expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ activeCwl: false }));
   });
 

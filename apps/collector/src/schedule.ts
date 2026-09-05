@@ -5,6 +5,13 @@ export const IDLE_INTERVAL_MS = 24 * 60 * 60 * 1_000;
 export const REGULAR_WAR_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 export const REGULAR_WAR_FINALIZATION_LEAD_MS = 5 * 60 * 1_000;
 export const REGULAR_WAR_FINALIZATION_DELAY_MS = 5 * 60 * 1_000;
+/**
+ * Days at the start of a month during which a clan that has not yet been seen in the
+ * month's CWL season is polled at the active cadence instead of the idle one (#104).
+ * Sign-up opens on the 1st and war days finish around the 10th, so a season this
+ * collector has not observed by then is one the clan skipped.
+ */
+export const SEASON_SIGNUP_WINDOW_DAYS = 10;
 export const LEASE_DURATION_MS = 60 * 60 * 1_000;
 export const LEASE_HEARTBEAT_MS = 20 * 60 * 1_000;
 export const LEASE_SAFETY_DEADLINE_MS = LEASE_DURATION_MS - LEASE_HEARTBEAT_MS;
@@ -24,6 +31,8 @@ export interface RegularWarCollectionState {
 export interface CollectionResult {
   activeCwl: boolean | null;
   regularWar?: RegularWarCollectionState | null;
+  /** The CWL season (`YYYY-MM`) the league group reported this run, when there was one. */
+  seasonId?: string | null;
 }
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -43,13 +52,31 @@ const defaultCadence: CollectionCadence = {
   regularWarFinalizationDelayMs: REGULAR_WAR_FINALIZATION_DELAY_MS,
 };
 
+function monthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * True when the calendar month has a CWL season this collector has not yet observed and
+ * the sign-up window is still open. An unknown latest season (a fresh process) counts as
+ * not observed: waiting a day on missing evidence is what left day 1 empty (#104).
+ */
+export function inSeasonSignupWindow(now: Date, latestSeasonId: string | null | undefined): boolean {
+  if (now.getUTCDate() > SEASON_SIGNUP_WINDOW_DAYS) return false;
+  return !latestSeasonId || latestSeasonId < monthKey(now);
+}
+
 export function nextCollectionAt(
   now: Date,
   activeCwl: boolean | null,
   cadence: CollectionCadence = defaultCadence,
   regularWar?: RegularWarCollectionState | null,
+  latestSeasonId?: string | null,
 ): Date {
   let delay = activeCwl === false ? cadence.idleIntervalMs : cadence.activeCwlIntervalMs;
+  if (activeCwl === false && inSeasonSignupWindow(now, latestSeasonId)) {
+    delay = Math.min(delay, cadence.activeCwlIntervalMs);
+  }
   if (activeCwl === false && regularWar && (regularWar.state === "preparation" || regularWar.state === "inWar")) {
     delay = Math.min(delay, cadence.regularWarIntervalMs ?? REGULAR_WAR_INTERVAL_MS);
     const endTime = regularWar.endTime === null ? NaN : Date.parse(regularWar.endTime);
@@ -138,6 +165,8 @@ export class CollectionScheduler {
   private watchdog: Timer | undefined;
   private running = false;
   private stopped = false;
+  /** Most recent CWL season a run reported; null until one is seen in this process. */
+  private latestSeasonId: string | null = null;
 
   constructor(private readonly dependencies: SchedulerDependencies) {
     this.ownerId = dependencies.ownerId ?? crypto.randomUUID();
@@ -188,6 +217,7 @@ export class CollectionScheduler {
       const result = await this.dependencies.collect(controller.signal);
       if (renewalInFlight) await renewalInFlight;
       controller.signal.throwIfAborted();
+      if (result.seasonId) this.latestSeasonId = result.seasonId;
       this.schedule(result.activeCwl, result.regularWar);
     } catch (error) {
       this.dependencies.onError?.(error);
@@ -233,7 +263,8 @@ export class CollectionScheduler {
   private schedule(activeCwl: boolean | null, regularWar?: RegularWarCollectionState | null): void {
     if (this.stopped) return;
     const now = this.now();
-    const delay = nextCollectionAt(now, activeCwl, this.cadence, regularWar).getTime() - now.getTime();
+    const delay = nextCollectionAt(now, activeCwl, this.cadence, regularWar, this.latestSeasonId).getTime()
+      - now.getTime();
     this.timer = this.setTimer(() => { void this.runNow(); }, delay);
   }
 }
