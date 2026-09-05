@@ -4,11 +4,9 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/collector/package.json apps/collector/tsconfig.json apps/collector/tsconfig.build.json ./apps/collector/
 COPY packages/domain/package.json packages/domain/tsconfig.json ./packages/domain/
-COPY packages/recommendations/package.json packages/recommendations/tsconfig.json ./packages/recommendations/
 RUN pnpm install --frozen-lockfile
 COPY apps/collector/src ./apps/collector/src
 COPY packages/domain/src ./packages/domain/src
-COPY packages/recommendations/src ./packages/recommendations/src
 RUN pnpm --filter @cwl/collector exec tsc --noEmit
 RUN pnpm --filter @cwl/collector exec esbuild src/main.ts src/supabase-auth.ts \
     --bundle \
