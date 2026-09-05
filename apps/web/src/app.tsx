@@ -21,7 +21,7 @@ export type AppSession =
   | { status: "loading" }
   | { status: "signed_out" }
   | { status: "access_denied"; message: string }
-  | { status: "signed_in"; displayName: string; role: AppRole };
+  | { status: "signed_in"; displayName: string; role: AppRole; isOperator: boolean };
 
 /* A placeholder that appears and vanishes inside a tenth of a second is a flash
  * and reads as breakage rather than progress, so a fast resolve shows nothing at

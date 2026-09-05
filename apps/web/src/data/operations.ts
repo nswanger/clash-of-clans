@@ -13,6 +13,8 @@ export interface AccessPerson {
   id: string;
   name: string;
   role: "leader" | "admin";
+  /* Orthogonal to `role` (#117): who sees the Collector section, never a route in. */
+  isOperator: boolean;
   isCurrentUser: boolean;
 }
 
@@ -78,6 +80,12 @@ export interface CollectionHealth {
   finishedAt: string | null;
   lastFreshAt: string | null;
   errorMessage: string | null;
+  /* What the scheduler armed after this run (#117); null while running or when
+     the run crashed before it could be recorded. */
+  nextRunAt: string | null;
+  /* Whether a CWL season was live when the run observed it; null when it could
+     not tell. Read for the cadence the run line states. */
+  activeCwl: boolean | null;
   attempts: CollectionAttemptHealth[];
 }
 
@@ -88,13 +96,13 @@ export interface CollectionHealth {
  * from a health check. */
 export async function loadCollectionHealth(client: any): Promise<CollectionHealth> {
   const runResult = await client.from("collection_runs")
-    .select("id,status,started_at,finished_at,last_fresh_at,error_message")
+    .select("id,status,started_at,finished_at,last_fresh_at,error_message,next_run_at,active_cwl")
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   ensureSuccess(runResult, "Unable to load collection health");
   if (!runResult.data) {
-    return { runId: null, status: null, startedAt: null, finishedAt: null, lastFreshAt: null, errorMessage: null, attempts: [] };
+    return { runId: null, status: null, startedAt: null, finishedAt: null, lastFreshAt: null, errorMessage: null, nextRunAt: null, activeCwl: null, attempts: [] };
   }
   const run = record(runResult.data);
   const runId = String(run.id);
@@ -112,6 +120,8 @@ export async function loadCollectionHealth(client: any): Promise<CollectionHealt
     finishedAt: typeof run.finished_at === "string" ? run.finished_at : null,
     lastFreshAt: typeof run.last_fresh_at === "string" ? run.last_fresh_at : null,
     errorMessage: typeof run.error_message === "string" ? run.error_message : null,
+    nextRunAt: typeof run.next_run_at === "string" ? run.next_run_at : null,
+    activeCwl: typeof run.active_cwl === "boolean" ? run.active_cwl : null,
     attempts: attemptsFromEmbed(attemptsResult.data),
   };
 }
@@ -1291,10 +1301,75 @@ export async function createInvitation(client: InvitationClient, expiresAt: stri
 }
 
 export async function loadAccessManagement(client: AccessManagementClient): Promise<AccessManagementSnapshot> {
-  const result = await client.rpc("get_access_management_snapshot", { access_audit_limit: 50 });
+  /* The log is paged from `audit_events` directly (#117); the snapshot's own
+     audit slice is no longer read, so it is asked for at its minimum. */
+  const result = await client.rpc("get_access_management_snapshot", { access_audit_limit: 1 });
   ensureSuccess(result, "Unable to load access management");
   if (!result.data) throw new Error("Access management returned no data.");
   return result.data;
+}
+
+/* One page of the access log (#117), newest first, with the total.
+ *
+ * Read from `audit_events` directly rather than through the snapshot RPC, which
+ * returns the newest N and cannot page. Admins read the table under the
+ * leaders-read policy; names come from `profiles` the same way the RPC joins
+ * them — the actor through its foreign key, a role event's target through the
+ * `userId` the event recorded. A name that no longer resolves falls back to the
+ * id, as the RPC does, rather than to silence. */
+export interface AccessAuditPage {
+  events: AccessAuditEvent[];
+  total: number;
+  offset: number;
+}
+
+const ACCESS_EVENT_TYPES: AccessAuditEvent["eventType"][] = [
+  "invitation_created", "invitation_redeemed", "invitation_revoked", "invitation_reissued", "role_granted", "role_revoked",
+];
+
+export async function loadAccessAuditPage(client: any, offset: number, limit: number): Promise<AccessAuditPage> {
+  const pageResult = await client.from("audit_events")
+    .select("id,event_type,actor_id,entity_type,event_data,occurred_at,actor:profiles(display_name)", { count: "exact" })
+    .in("event_type", ACCESS_EVENT_TYPES)
+    .order("occurred_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  ensureSuccess(pageResult, "Unable to load access activity");
+  const pageRows = rows<Record<string, unknown>>(pageResult.data);
+
+  const targetIds = pageRows
+    .filter((row) => row.entity_type === "user_role")
+    .map((row) => record(row.event_data).userId)
+    .filter((id): id is string => typeof id === "string");
+  const targetNames = new Map<string, string>();
+  if (targetIds.length) {
+    const targetResult = await client.from("profiles").select("id,display_name").in("id", [...new Set(targetIds)]);
+    ensureSuccess(targetResult, "Unable to load access activity");
+    for (const row of rows<{ id: string; display_name: string }>(targetResult.data)) targetNames.set(String(row.id), String(row.display_name));
+  }
+
+  return {
+    offset,
+    total: typeof pageResult.count === "number" ? pageResult.count : pageRows.length,
+    events: pageRows.map((row) => {
+      const actor = row.actor && typeof row.actor === "object" ? record(row.actor) : {};
+      const actorName = row.actor_id === null || row.actor_id === undefined
+        ? "System"
+        : typeof actor.display_name === "string" ? actor.display_name : String(row.actor_id);
+      const eventData = record(row.event_data);
+      const eventType = String(row.event_type) as AccessAuditEvent["eventType"];
+      const targetName = row.entity_type === "user_role"
+        ? (typeof eventData.userId === "string" ? targetNames.get(eventData.userId) ?? eventData.userId : null)
+        : eventType === "invitation_redeemed" ? actorName : null;
+      return {
+        id: String(row.id),
+        eventType,
+        actorName,
+        targetName,
+        eventData,
+        occurredAt: String(row.occurred_at),
+      };
+    }),
+  };
 }
 
 export async function reissueInvitation(client: AccessManagementClient, invitationId: string, expiresAt: string): Promise<string> {

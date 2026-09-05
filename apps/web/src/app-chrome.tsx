@@ -59,7 +59,7 @@ export function useAppChrome(): AppChrome | null {
 
 /* Both topbar disclosures close on Escape and on a press outside themselves,
  * which is the behaviour every menu in the app already has. */
-function useDismissable(open: boolean, close: () => void) {
+export function useDismissable(open: boolean, close: () => void) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!open) return;

@@ -9,7 +9,9 @@ interface AuthResult {
 export type ResolvedAppSession =
   | { status: "signed_out" }
   | { status: "access_denied"; message: string }
-  | { status: "signed_in"; displayName: string; role: "leader" | "admin" };
+  /* `isOperator` is orthogonal to `role` (#117): it decides who sees the
+   * Collector section of Admin and is never a route in by itself. */
+  | { status: "signed_in"; displayName: string; role: "leader" | "admin"; isOperator: boolean };
 
 interface QueryResult<T> { data: T; error: AuthError | null }
 
@@ -24,7 +26,7 @@ export interface SessionClient {
     getSession(): Promise<{ data: { session: { user: { id: string } } | null }; error: AuthError | null }>;
   };
   from(table: "profiles"): QueryBuilder<{ display_name: string }>;
-  rpc(name: "has_app_role", args: { required_role: "leader" | "admin" }): Promise<QueryResult<boolean>>;
+  rpc(name: "has_app_role", args: { required_role: "leader" | "admin" | "operator" }): Promise<QueryResult<boolean>>;
 }
 
 interface RedemptionStorage {
@@ -84,18 +86,20 @@ export async function resolveAppSession(client: SessionClient): Promise<Resolved
   if (!sessionData.session) return { status: "signed_out" };
 
   const userId = sessionData.session.user.id;
-  const [profileResult, adminResult, leaderResult] = await Promise.all([
+  const [profileResult, adminResult, leaderResult, operatorResult] = await Promise.all([
     client.from("profiles").select("display_name").eq("id", userId).single(),
     client.rpc("has_app_role", { required_role: "admin" }),
     client.rpc("has_app_role", { required_role: "leader" }),
+    client.rpc("has_app_role", { required_role: "operator" }),
   ]);
   if (profileResult.error) throw new Error(profileResult.error.message);
   if (adminResult.error) throw new Error(adminResult.error.message);
   if (leaderResult.error) throw new Error(leaderResult.error.message);
+  if (operatorResult.error) throw new Error(operatorResult.error.message);
 
   const role = adminResult.data ? "admin" : leaderResult.data ? "leader" : undefined;
   if (!role) return { status: "access_denied", message: "Your account does not have active leader access." };
-  return { status: "signed_in", displayName: profileResult.data.display_name, role };
+  return { status: "signed_in", displayName: profileResult.data.display_name, role, isOperator: operatorResult.data === true };
 }
 
 export async function redeemCallbackInvitation(

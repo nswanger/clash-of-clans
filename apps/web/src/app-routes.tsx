@@ -10,8 +10,8 @@ import { redirectForPath, routeForPath, type AppRole } from "./routes.js";
 
 export { redirectForPath, routeForPath } from "./routes.js";
 
-export function AppRoutes({ client, clanTag, role, origin, basePath }: {
-  client: any; clanTag: string; role: AppRole; origin: string; basePath: string;
+export function AppRoutes({ client, clanTag, role, isOperator, origin, basePath }: {
+  client: any; clanTag: string; role: AppRole; isOperator: boolean; origin: string; basePath: string;
 }) {
   const [hash, setHash] = useState(window.location.hash || "#/");
   useEffect(() => {
@@ -30,7 +30,7 @@ export function AppRoutes({ client, clanTag, role, origin, basePath }: {
 
   const route = routeForPath(hash, role);
   if (route === "members") return <MembersPage client={client} clanTag={clanTag} />;
-  if (route === "admin") return <AdminRoute client={client} origin={`${origin}${basePath}`} />;
+  if (route === "admin") return <AdminRoute client={client} origin={`${origin}${basePath}`} isOperator={isOperator} />;
   /* Absence, not apology — the same shape as the signed-out shell. Nothing has
      gone wrong; this account is simply not an admin. */
   if (route === "access_denied") {

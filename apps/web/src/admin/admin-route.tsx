@@ -1,26 +1,33 @@
-/* The Admin route's loader (#25, wave 3).
+/* The Admin route's loader (#25, wave 3; #117).
  *
  * Two loads rather than one, and they fail independently on purpose: access
  * management is the page, and collection health is a section inside it. A
  * collection-health query that fails must not take the invitation controls down
  * with it — the operator who most needs to create an invitation is the one
  * whose collector is broken.
+ *
+ * The access log pages (#117, ADR 0024's pager case): the route holds the offset
+ * and reloads the page from it, so a mutation that refreshes the snapshot keeps
+ * the reader on the page they were reading.
  */
 import { useCallback, useEffect, useState } from "react";
 import {
   createInvitation,
   demoteAdmin,
+  loadAccessAuditPage,
   loadAccessManagement,
   loadCollectionHealth,
   promoteLeader,
   reissueInvitation,
   revokeAccess,
   revokeInvitation,
+  type AccessAuditPage,
   type AccessManagementClient,
   type AccessManagementSnapshot,
   type CollectionHealth,
 } from "../data/operations.js";
 import { AppTopbar } from "../app-chrome.js";
+import { LIST_MAX_ROWS } from "../design/layout.js";
 import { AdminPage } from "./admin-page.js";
 import "./admin.css";
 
@@ -32,14 +39,21 @@ function invitationUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, "")}/?invitation=${encodeURIComponent(token)}`;
 }
 
-export function AdminRoute({ client, origin }: { client: AccessManagementClient; origin: string }) {
+export function AdminRoute({ client, origin, isOperator }: { client: AccessManagementClient; origin: string; isOperator: boolean }) {
   const [snapshot, setSnapshot] = useState<AccessManagementSnapshot>();
+  const [auditPage, setAuditPage] = useState<AccessAuditPage>();
+  const [auditOffset, setAuditOffset] = useState(0);
   const [collection, setCollection] = useState<CollectionHealth>();
   const [loadError, setLoadError] = useState<string>();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (offset = auditOffset) => {
     try {
-      setSnapshot(await loadAccessManagement(client));
+      const [nextSnapshot, nextAuditPage] = await Promise.all([
+        loadAccessManagement(client),
+        loadAccessAuditPage(client, offset, LIST_MAX_ROWS),
+      ]);
+      setSnapshot(nextSnapshot);
+      setAuditPage(nextAuditPage);
       setLoadError(undefined);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Unable to load access management.");
@@ -51,7 +65,7 @@ export function AdminRoute({ client, origin }: { client: AccessManagementClient;
     await loadCollectionHealth(client)
       .then(setCollection)
       .catch(() => setCollection(undefined));
-  }, [client]);
+  }, [auditOffset, client]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -75,9 +89,12 @@ export function AdminRoute({ client, origin }: { client: AccessManagementClient;
 
   return <AdminPage
     snapshot={snapshot}
+    auditPage={auditPage}
     collection={collection}
+    isOperator={isOperator}
     loadError={loadError}
-    onRetryLoad={load}
+    onRetryLoad={() => load()}
+    onAuditPage={(offset) => { setAuditOffset(offset); }}
     onCreateInvitation={async () => {
       const token = await createInvitation(client, expiresTomorrow());
       await load();

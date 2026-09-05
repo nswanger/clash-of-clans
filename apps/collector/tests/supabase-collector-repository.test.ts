@@ -141,6 +141,19 @@ describe("SupabaseCollectorRepository", () => {
 
     expect((await repository.healthInput(new Date("2026-08-30T17:46:31.000Z"))).activeCwl).toBe(false);
   });
+
+  it("patches next_run_at onto the finished run row (#117)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+    const repository = new SupabaseCollectorRepository("https://example.supabase.co", "sb_secret_test");
+
+    await repository.recordNextRun("run-1", new Date("2026-07-12T12:00:00.000Z"));
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://example.supabase.co/rest/v1/collection_runs?id=eq.run-1");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({ next_run_at: "2026-07-12T12:00:00.000Z" });
+  });
 });
 
 function jsonResponse(body: unknown, status = 200): Response {

@@ -60,6 +60,7 @@ async function main(): Promise<void> {
   const client = new ClashClient({ token: config.clashApiToken });
   const scheduler = new CollectionScheduler({
     lease: repository,
+    recordNextRun: (runId, nextRunAt) => repository.recordNextRun(runId, nextRunAt),
     // Checked per run, not once at startup, so applying the missing migration restores
     // normalization on the next collection instead of needing the container recreated.
     collect: async (signal) => {

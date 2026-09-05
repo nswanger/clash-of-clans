@@ -15,6 +15,10 @@
  * no detail panel, so `cm-columns` would be a one-column grid pretending to be
  * two. */
 .admin-section + .admin-section { margin-top: var(--cm-space-6); }
+/* Whichever section comes first takes the gap `cm-columns` gives every other
+ * route below its topbar (#117): the health section is absent on a healthy day,
+ * so "first" is not a fixed section any more. */
+.admin-page .admin-section:first-of-type { margin-top: var(--cm-space-5); }
 
 /* A row with controls rather than a row that IS a control. `cm-row` is a button
  * on every other surface; here it is a container holding two or three of them,
@@ -64,17 +68,60 @@
 }
 .admin-facts dd { margin: 0; font-size: var(--cm-text-sm); color: var(--cm-fg-strong); }
 
+/* THE ACCESS LOG IS ONE SHAPE PER ROW (#117): a content-sized time column first,
+ * the event in the rest. The time never wraps and reads straight down; a long
+ * event wraps inside its own column instead of pushing the time to a second
+ * line, which is what the old flex row did on a phone. */
 .admin-audit { margin: 0; padding: 0; list-style: none; }
 .admin-audit li {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-  gap: var(--cm-space-2) var(--cm-space-4);
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline;
+  gap: var(--cm-space-3);
   padding: var(--cm-space-3) 0;
   font-size: var(--cm-text-sm); color: var(--cm-fg);
 }
 .admin-audit li + li { border-top: 1px solid var(--cm-hairline); }
 .admin-audit time { font-size: var(--cm-text-xs); color: var(--cm-fg-muted); white-space: nowrap; }
+.admin-audit li > span { overflow-wrap: anywhere; }
+
+/* The pager (ADR 0024's named case, first built here): the range on the left,
+ * two ghosts on the right. The ghosts keep the 44px floor; only padding and type
+ * step down to sit under a list. */
+.admin-pager {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--cm-space-3);
+  margin-top: var(--cm-space-3);
+  font-size: var(--cm-text-xs); color: var(--cm-fg-muted);
+}
+.admin-pager .cm-ghost { padding: 0 var(--cm-space-3); font-size: var(--cm-text-sm); }
+
+/* A section closed until opened (#117): the access log is consulted when
+ * something is wrong, not scanned daily. `<details>` with the section head as
+ * its summary; the chevron is `cm-routebutton-chev` rotated exactly as the route
+ * menu rotates it, so there is no third disclosure glyph. The count stays on the
+ * head so a closed log still says how much is behind it. */
+.admin-page details.admin-collapsible > summary { list-style: none; cursor: pointer; }
+.admin-page details.admin-collapsible > summary::-webkit-details-marker { display: none; }
+.admin-page .admin-collapsible > .cm-section-head h2 { flex: 1; }
+.admin-page .admin-collapsible .cm-routebutton-chev { display: inline-flex; }
+.admin-page .admin-collapsible[open] .cm-routebutton-chev { transform: rotate(-90deg); }
 
 .admin-freshness { margin: var(--cm-space-3) 0 0; font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); }
+.admin-freshness strong { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+
+/* The Collector section's head (#117): the run-state pill sits beside the title,
+ * and the next run trails as a fact in the meta voice rather than a chip — a chip
+ * is a state, a time is a fact. */
+.admin-headgroup { display: flex; align-items: center; gap: var(--cm-space-3); }
+.admin-page .admin-nextrun { font-size: var(--cm-text-sm); color: var(--cm-fg-muted); white-space: nowrap; }
+.admin-page .admin-nextrun strong { color: var(--cm-fg-strong); font-weight: var(--cm-weight-medium); }
+.admin-page .admin-endpoint .cm-row-figure { font-size: var(--cm-text-sm); }
+/* An invitation is a person who does not exist yet, so the name slot is muted. */
+.admin-page .admin-invited .cm-row-name { color: var(--cm-fg-muted); }
+
+/* Row actions behind one control (#125): the menu anchors to the trailing edge
+ * of the row it belongs to, like the account menu anchors to its control. The
+ * destructive item takes danger ink only, as `cm-ghost.is-danger` does. */
+.admin-rowmenu { position: relative; flex: none; }
+.admin-rowmenu .cm-routemenu button.is-danger { color: var(--cm-danger-ink); }
 
 /* A per-row failure, not a page-level one. It sits inside the row it belongs to
  * rather than raising the notice region, because the notice region takes one

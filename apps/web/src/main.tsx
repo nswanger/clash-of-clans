@@ -28,7 +28,7 @@ createRoot(root).render(
     <IconSprite />
     <MarkSprite />
     <LiveApp client={supabase as unknown as LiveSessionClient} location={window.location} basePath={import.meta.env.BASE_URL}>
-      {(session) => <AppRoutes client={supabase} clanTag={activeClanTag} role={session.role} origin={window.location.origin} basePath={import.meta.env.BASE_URL} />}
+      {(session) => <AppRoutes client={supabase} clanTag={activeClanTag} role={session.role} isOperator={session.isOperator} origin={window.location.origin} basePath={import.meta.env.BASE_URL} />}
     </LiveApp>
   </StrictMode>,
 );
