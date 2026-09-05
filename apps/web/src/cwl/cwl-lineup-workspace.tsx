@@ -399,9 +399,11 @@ function SwapPanel({ member, candidates, search, locked, onSearch, onChoose, onA
           a control on the row itself is an accidental tap that removes someone.
           The label is the bare verb (#112): the panel title carries the name and
           the button sits inside that member's panel, so "Remove X from the
-          lineup" only repeated what the placement already said. */}
+          lineup" only repeated what the placement already said. It is "Remove"
+          rather than "Bench" because "Bench" is already the bench panel's title
+          and its trigger in the head; a third "Bench" here reads as a link. */}
       <div className="cwl-panel-remove">
-        <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Bench</button>
+        <button className="cm-ghost" type="button" disabled={locked} onClick={onBench}>Remove</button>
       </div>
       <p className="cm-panel-label">Replace with</p>
       <CandidateList candidates={candidates} search={search} onSearch={onSearch} onChoose={onChoose} />
