@@ -123,6 +123,28 @@
  * what wave 3 settled when two of them met in a row on the Admin route.
  */
 .cwl-panel-remove { display: grid; margin: var(--cm-space-3) 0 var(--cm-space-4); }
+.cwl-panel-remove .cwl-panel-note { margin: var(--cm-space-2) 0 0; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
+
+/* ---------- the bench row's two targets (#114) ----------
+ * A lineup row is one button with a chevron glyph inside it. A bench row is a
+ * `cm-row` box holding two buttons: the primary fills the row and adds, the
+ * chevron is a `cm-iconbutton is-small` that opens the member. The row's own
+ * padding is what keeps the two tap areas apart; the primary button gives up
+ * the row's chrome (border, background, padding) because the box already has
+ * it. Ancestor-prefixed because it overrides the component's grid.
+ */
+.cwl-workspace .cm-row.cwl-benchrow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-right: var(--cm-space-2);
+}
+.cwl-benchrow-add {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: var(--cm-space-3);
+  width: 100%; min-width: 0; min-height: var(--cm-tap-min);
+  margin: 0; padding: 0; border: 0; border-radius: var(--cm-radius-sm);
+  background: none; color: inherit; text-align: left;
+  font-family: inherit; font-variant-numeric: inherit; cursor: pointer;
+}
 
 /* ---------- the candidate list ----------
  * Ten rows tall and never taller (ADR 0024, #103): `cwl-candidates` is the box

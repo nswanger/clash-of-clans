@@ -297,6 +297,20 @@ test("runs the fixture through collection, normalization, availability, and revi
   await page.getByRole("button", { name: /Unavailable Member/ }).first().click();
   await page.getByRole("button", { name: "Unavailable", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("e2e:last-mutation"))).toContain("availability");
+  await page.getByRole("dialog", { name: "Unavailable Member" }).getByRole("button", { name: "Close" }).click();
+
+  /* A benched member's availability is reached from the bench, not by adding
+     them first (#114): the row's chevron opens their panel, and the write is the
+     same mutation the lineup member's panel makes. On the mobile project the
+     bench is a sheet behind the head's "Bench N" button; docked on desktop. */
+  const benchTrigger = page.getByRole("button", { name: /^Bench \d+$/ });
+  if (await benchTrigger.isVisible()) await benchTrigger.click();
+  await page.getByRole("button", { name: "Open Experienced Substitute A" }).click();
+  await expect(page.getByRole("dialog", { name: "Experienced Substitute A" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add to lineup" })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Find a member" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Unknown", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("e2e:last-mutation"))).toContain("#SUBA");
   await expectNoAccessibilityViolations(page);
 
   const savedFixture = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? "null"), fixtureStorageKey);
