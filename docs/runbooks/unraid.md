@@ -105,7 +105,10 @@ These commands change UnRaid and require explicit authorization. Load `UNRAID_SS
 
    - `LOG_LEVEL=error` or `silent`; default `error`.
    - `ACTIVE_CWL_INTERVAL_MINUTES`; positive integer, default `60`.
-   - `IDLE_INTERVAL_HOURS`; positive integer, default `24`.
+   - `IDLE_INTERVAL_HOURS`; positive integer, default `24`. During the first ten
+     days of a month the collector polls no slower than the active cadence until
+     it has seen that month's CWL season, so sign-up day is collected within an
+     hour rather than after the next idle tick.
    - `REGULAR_WAR_INTERVAL_HOURS`; positive integer, default `6`, used while
      a regular war is active when CWL is not active.
 

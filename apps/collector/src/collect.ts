@@ -31,6 +31,8 @@ export interface CollectionSummary {
   finalizationErrors: FinalizationError[];
   internalErrors: InternalCollectionError[];
   activeCwl: boolean | null;
+  /** The CWL season (`YYYY-MM`) the league group reported, or null when there was no group. */
+  seasonId: string | null;
   regularWar: {
     state: string;
     endTime: string | null;
@@ -62,6 +64,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   const notFoundEndpoints = new Set<Endpoint>();
   let lastFreshAt: string | null = null;
   let activeCwl: boolean | null = null;
+  let seasonId: string | null = null;
   let regularWar: CollectionSummary["regularWar"] = null;
 
   function failEndpoint(endpoint: Endpoint, category: string): void {
@@ -243,6 +246,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
   dependencies.signal?.throwIfAborted();
   if (leagueGroup) {
     activeCwl = leagueGroup.state !== "notInWar";
+    seasonId = leagueGroup.season;
     const warDayByTag = new Map<string, number>();
     leagueGroup.rounds.forEach((round, index) => {
       for (const warTag of round.warTags) if (warTag !== "#0") warDayByTag.set(warTag, index + 1);
@@ -289,6 +293,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     finalizationErrors,
     internalErrors,
     activeCwl,
+    seasonId,
     regularWar,
   };
 }
