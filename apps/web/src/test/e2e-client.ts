@@ -463,7 +463,7 @@ export function createE2EClient(): any {
           const prior = day > 1 ? plans[String(day - 1)] : undefined;
           plans[String(day)] = {
             clanTag: "#E2E", seasonId: "2026-07", warDay: day, revision: 1, isLocked: false,
-            lockedAt: null, lockedBy: null, inheritedFromWarDay: prior ? day - 1 : null,
+            lockedAt: null, lockedBy: null, inheritedFromWarDay: prior ? day - 1 : null, seedSource: prior ? "inherited" : "empty",
             createdAt: "2026-07-12T08:00:00.000Z", createdBy: "e2e-user", updatedAt: "2026-07-12T08:00:00.000Z", updatedBy: "e2e-user",
             playerTags: prior ? [...prior.playerTags] : ["#MASON"],
           };
@@ -484,6 +484,7 @@ export function createE2EClient(): any {
           plan.playerTags = prior ? [...prior.playerTags] : [];
           plan.revision += 1;
           plan.inheritedFromWarDay = day - 1;
+          plan.seedSource = "inherited";
         }
         persistFixture?.();
         recordMutation(`rpc:${name}`, args);

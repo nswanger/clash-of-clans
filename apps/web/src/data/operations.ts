@@ -210,12 +210,17 @@ export interface CwlDailyLineupPlan {
   lockedAt: string | null;
   lockedBy: string | null;
   inheritedFromWarDay: number | null;
+  /* Where the membership came from when the day was opened or last re-seeded
+     (#101): the collected war roster, the prior day, or nothing. */
+  seedSource: CwlLineupSeedSource;
   createdAt: string;
   createdBy: string | null;
   updatedAt: string;
   updatedBy: string | null;
   playerTags: string[];
 }
+
+export type CwlLineupSeedSource = "empty" | "inherited" | "observed";
 
 /* The regular-war half arrives through `CwlMemberRating` rather than as loose
  * fields, because it used to be assembled here from two sources that covered
@@ -544,6 +549,9 @@ function planFromRpc(value: unknown): CwlDailyLineupPlan {
     lockedAt: typeof plan.lockedAt === "string" ? plan.lockedAt : null,
     lockedBy: typeof plan.lockedBy === "string" ? plan.lockedBy : null,
     inheritedFromWarDay: typeof plan.inheritedFromWarDay === "number" ? plan.inheritedFromWarDay : null,
+    seedSource: plan.seedSource === "observed" || plan.seedSource === "inherited" || plan.seedSource === "empty"
+      ? plan.seedSource
+      : typeof plan.inheritedFromWarDay === "number" ? "inherited" : "empty",
     createdAt: typeof plan.createdAt === "string" ? plan.createdAt : new Date(0).toISOString(),
     createdBy: typeof plan.createdBy === "string" ? plan.createdBy : null,
     updatedAt: typeof plan.updatedAt === "string" ? plan.updatedAt : new Date(0).toISOString(),
@@ -590,6 +598,7 @@ function historyLabel(eventType: string): string {
     lineup_plan_locked: "Lineup day locked",
     lineup_plan_unlocked: "Lineup day unlocked",
     lineup_plan_reinherited: "Lineup plan re-inherited",
+    lineup_plan_observed: "Lineup filled from war roster",
   }[eventType] ?? eventType;
 }
 
