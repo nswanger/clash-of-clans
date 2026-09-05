@@ -45,20 +45,6 @@ https://<project-ref>.supabase.co
 
 Do not use the production Table Editor or SQL Editor for schema changes. Add a migration under `supabase/migrations`, test it locally, run the dry-run, and push it. The one-time admin role insert below is operational data bootstrap, not a schema change. See Supabase's [migration deployment guide](https://supabase.com/docs/guides/deployment/database-migrations) and [`db push` reference](https://supabase.com/docs/reference/cli/supabase-db-push).
 
-## Deploy manual recommendation regeneration
-
-The UnRaid collector regenerates recommendations after every finalized active-CWL collection. The `regenerate-recommendations` Edge Function provides the leader-only bypass used by the dashboard; it recalculates from already normalized CWL data and current availability without calling Clash or opening an inbound UnRaid port.
-
-Deploy it after the database migrations:
-
-```sh
-supabase functions deploy regenerate-recommendations --project-ref <project-ref>
-```
-
-Supabase supplies `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the function. It forwards the caller's Discord-authenticated JWT to the protected database functions and does not use a service-role key. The production GitHub Pages origin defaults to `https://nswanger.github.io`; set `CWL_WEB_ORIGIN` through the function environment before deployment when hosting from another origin.
-
-Do not disable JWT verification. Verify an anonymous request returns `401`, an authenticated non-leader receives access denied, and a leader request either creates an idempotent proposal or reports that no normalized CWL lineup is available.
-
 ## Configure Discord authentication
 
 1. In the Discord Developer Portal, create or select the application. Under **OAuth2 > Redirects**, add exactly the Supabase Auth callback URL, not the Pages URL:

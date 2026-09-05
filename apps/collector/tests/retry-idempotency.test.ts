@@ -4,7 +4,7 @@ import { fingerprintJson } from "../src/raw-snapshots.js";
 import { normalizeSnapshot } from "../src/normalize.js";
 import { fixtures, MemoryRepository } from "./normalization-fixture.js";
 
-async function recommendationInputHash(repository: MemoryRepository): Promise<string> {
+async function canonicalFactsHash(repository: MemoryRepository): Promise<string> {
   const inputs = {
     wars: [...repository.wars.values()],
     warMembers: [...repository.warMembers.values()],
@@ -63,7 +63,7 @@ describe("normalization retry idempotency", () => {
     await normalizeSnapshot(retried, war, context);
 
     expect(await retried.counts()).toEqual({ seasons: 1, wars: 1, warMembers: 30, attacks: 27 });
-    expect(await recommendationInputHash(retried)).toBe(await recommendationInputHash(clean));
+    expect(await canonicalFactsHash(retried)).toBe(await canonicalFactsHash(clean));
   });
 
   it("removes absent facts and corrects attacks from a newer authoritative state", async () => {

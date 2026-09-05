@@ -6,8 +6,8 @@ This runbook covers the human-operated CWL workflow. Record operational evidence
 
 - **Default strategy:** use **Balanced** with the season defaults — 10 core + 5 rotation for 15-player, 20 core + 10 rotation for 30-player ([0007](../decisions/0007-cwl-war-size-policy-defaults.md)).
 - **Standings-first:** use only when a leader explicitly approves it as a policy override. Record who approved it, when, and why.
-- **Human control:** recommendations explain reasons, tradeoffs, freshness, and uncertainty. A leader must approve or override each consequential decision; the system must not silently assign, bench, promote, or demote anyone.
-- **Availability:** enter availability on the CWL route (`#/cwl`). Players marked `Unknown` or `Unavailable` are never recommended into a lineup. Capture notes carefully: keep them operational, minimal, and free of sensitive personal information.
+- **Human control:** the lineup workspace ranks the bench and flags bonus progress with visible reasons; a leader makes every lineup, bonus, promotion, and demotion decision. The system never assigns, benches, promotes, or demotes anyone on its own ([0026](../decisions/0026-retire-the-recommendation-engine.md)).
+- **Availability:** enter availability on the CWL route (`#/cwl`). Players marked `Unknown` or `Unavailable` rank below available members on the bench and are flagged on their row. Capture notes carefully: keep them operational, minimal, and free of sensitive personal information.
 - **Authority:** admins maintain access, service configuration, and operational health. Clan leaders approve lineup policy, invitations, promotions, demotions, and membership decisions. Admin access does not confer clan-policy authority.
 
 ## Pre-season checklist
@@ -15,12 +15,12 @@ This runbook covers the human-operated CWL workflow. Record operational evidence
 - [ ] Confirm collector scheduling and deployment health using the [UnRaid runbook](unraid.md).
 - [ ] Confirm Supabase connectivity, migrations, and expected tables using the [Supabase runbook](supabase.md).
 - [ ] Run `supabase migration list` and confirm every local migration has a matching remote entry. Pages deploys on merge and the database does not, so an unapplied migration surfaces as a runtime failure on whichever route reads it. CI now fails on this too ([ADR 0003](../decisions/0003-ci-reads-the-migration-ledger.md)); the checklist item still matters for the collector, whose UnRaid deploy no workflow gates.
-- [ ] Verify the collector's last successful run and data freshness before using any recommendation.
+- [ ] Verify the collector's last successful run and data freshness before planning a lineup.
 - [ ] Confirm Balanced is selected and the roster size maps to 10 core + 5 rotation for 15, or 20 core + 10 rotation for 30.
 - [ ] If Standings-first is needed, obtain and record an explicit leader policy override.
 - [ ] Record member availability on the CWL route; review `Unknown` and `Unavailable` entries before lineup work.
 - [ ] Confirm the raw-snapshot cleanup schedule is enabled and Cron shows the expected next run.
-- [ ] Confirm the canonical and leader-decision history remains outside the cleanup scope.
+- [ ] Confirm the canonical history and audit events remain outside the cleanup scope.
 
 Evidence to record: season label, collector completion time, freshness check, aggregate availability counts, selected strategy, roster size, override approval if any, Cron status, and operator initials. Do not record secrets, real tags, or private member details.
 
@@ -32,19 +32,19 @@ Before making decisions:
 
 - Verify that the displayed season matches the intended CWL month.
 - Verify the most recent successful collection time and the dashboard freshness indicator.
-- Treat stale, partial, or uncertain data as a blocker to automatic recommendation use. Continue only with an explicit, documented human assessment.
+- Treat stale, partial, or uncertain data as a blocker to lineup decisions. Continue only with an explicit, documented human assessment.
 
 ## Daily CWL checklist
 
 - [ ] Confirm the current season, war day, collector status, and freshness.
-- [ ] Review availability changes and resolve `Unknown` entries; never recommend `Unknown` or `Unavailable` players in.
-- [ ] Review each proposed lineup change with its stated reasons, tradeoffs, and uncertainty.
-- [ ] Approve the recommendation or enter a leader override with a concise operational reason.
+- [ ] Review availability changes and resolve `Unknown` entries before filling from the bench.
+- [ ] Build the day's lineup on the CWL route: the bench is ranked by rotation need, then availability, then rating, and each row shows its bonus progress.
+- [ ] Save the plan, then work the in-game checklist as each change is made in Clash.
 - [ ] Confirm the resulting lineup matches the selected Balanced allocation unless a current Standings-first override exists.
 - [ ] Review assigned attacks and completed attacks for the current CWL only.
 - [ ] Record the decision evidence in the application; do not keep a parallel file containing tags or private notes.
 
-Evidence to record: run timestamp, freshness state, aggregate availability changes, recommendation identifier, approval or override, reason category, and operator. Avoid copying member-private data into external logs.
+Evidence to record: run timestamp, freshness state, aggregate availability changes, the saved plan revision, and operator. Avoid copying member-private data into external logs.
 
 ## Elder review
 
@@ -62,21 +62,20 @@ Six or more completed CWL attacks qualifies a member for review; qualification i
 
 The Admin route (`#/admin`) shows invitation and application-role history under **Recent access activity**. For broader operational evidence, use the Supabase table viewer to correlate:
 
-- `recommendations` for the generated proposal and its reasons or uncertainty;
-- `leader_decisions` for approvals, overrides, and the leader's recorded rationale;
-- `audit_events` for the operational action trail.
+- `audit_events` for the operational action trail, including lineup plan saves, locks, and applied-lineup changes;
+- `cwl_daily_lineup_plans` and `cwl_applied_lineup_changes` for the plan of record and what was done in game.
 
-Filter by season, recommendation or decision identifier, and timestamp where those fields are present in the deployed schema. Do not invent queries against assumed columns; inspect the table definitions in Supabase first. Export only the minimum evidence needed, redact tags and private notes, and never include tokens or keys.
+Filter by season, war day, and timestamp where those fields are present in the deployed schema. Do not invent queries against assumed columns; inspect the table definitions in Supabase first. Export only the minimum evidence needed, redact tags and private notes, and never include tokens or keys.
 
 ## Post-season checklist
 
 - [ ] Confirm the final CWL collection completed and derived history is current.
-- [ ] Reconcile recommendations, leader decisions, and audit events for missing or unexplained actions.
+- [ ] Reconcile lineup plans, applied-lineup changes, and audit events for missing or unexplained actions.
 - [ ] Run the Elder review using current-CWL assigned-attack completion; send every promotion or demotion to human review.
 - [ ] Confirm raw snapshots older than 90 days are scheduled for cleanup.
-- [ ] Verify canonical history, recommendation history, and leader-decision history are retained indefinitely.
+- [ ] Verify canonical history and audit events are retained indefinitely.
 - [ ] Verify Cron reports successful collection and retention jobs; investigate missed schedules.
-- [ ] Record lessons or policy changes separately for leader approval before altering recommendation behavior.
+- [ ] Record lessons or policy changes separately for leader approval before altering the bench ranking or bonus rules.
 
 Evidence to record: final collection/freshness state, aggregate attack completion, reviewed decision counts, exceptions, retention-job result, and approved follow-ups. Do not record secrets, real tags, or private member information.
 
@@ -84,7 +83,7 @@ Evidence to record: final collection/freshness state, aggregate attack completio
 
 ### Stale, partial, or `invalidIp`
 
-- [ ] Stop using recommendations until season and freshness are verified.
+- [ ] Stop making lineup decisions from the app until season and freshness are verified.
 - [ ] Determine whether a partial result is the expected idle-CWL `404` or an unexpected partial collection. An idle-CWL `404` can be recorded as expected partial state; missing data during an active CWL requires investigation.
 - [ ] For `invalidIp`, verify the Clash API allowlisted public IP and collector egress using the [UnRaid runbook](unraid.md). Never paste a token into logs or screenshots.
 - [ ] Verify Supabase and collector health, then run only the documented recovery/acceptance procedure.
@@ -111,7 +110,7 @@ Treat Supabase backups as the recovery source and confirm the project's actual b
 - Never edit an applied migration. Add a forward-fix migration and dry-run it against an isolated environment.
 - Assess the affected scope, data-loss window, dependencies, and stakeholder approval before restoring.
 - Restore only after the scope assessment shows that targeted repair or forward correction is insufficient.
-- Follow the [Supabase runbook](supabase.md), and verify canonical history, leader decisions, and audit events after recovery.
+- Follow the [Supabase runbook](supabase.md), and verify canonical history, lineup plans, and audit events after recovery.
 
 ### Collector deployment rollback
 
@@ -127,7 +126,7 @@ Do not delete containers, databases, volumes, or raw snapshots as part of an ima
 
 ## Retention
 
-Raw snapshots have a 90-day scheduled cleanup window. Canonical history, recommendation history, and leader-decision history are retained indefinitely under the current policy. Verify the cleanup Cron schedule, last result, and next run; do not manually bulk-delete production data to compensate for a missed job.
+Raw snapshots have a 90-day scheduled cleanup window. Canonical history, lineup plans, and audit events are retained indefinitely under the current policy. Verify the cleanup Cron schedule, last result, and next run; do not manually bulk-delete production data to compensate for a missed job.
 
 ## Regular-war evidence
 

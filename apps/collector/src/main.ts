@@ -1,9 +1,7 @@
-import { generateAndPersistRecommendation } from "@cwl/recommendations";
 import { ClashClient } from "./clash-client.js";
 import { collectOnce } from "./collect.js";
 import { loadConfig } from "./config.js";
 import { normalizeSnapshot } from "./normalize.js";
-import { collectAndGenerateRecommendation } from "./recommendation-collection.js";
 import { evaluateSchema, parseMigrationManifest } from "./schema-guard.js";
 import { CollectionScheduler, evaluateHealth } from "./schedule.js";
 import { SupabaseCollectorRepository } from "./supabase-collector-repository.js";
@@ -69,31 +67,20 @@ async function main(): Promise<void> {
       const degraded = schema.missing.length > 0;
       if (degraded) {
         report(
-          `Schema behind: skipping normalized writes and recommendations. `
+          `Schema behind: skipping normalized writes. `
           + `Raw snapshots are still being captured. Apply ${schema.missing.join(", ")}.`,
         );
       }
-      return collectAndGenerateRecommendation({
-        collect: () => collectOnce({
-          client,
-          store: repository,
-          clanTag: config.clanTag,
-          // Omitted while degraded: collectOnce still captures raw snapshots, which are
-          // the part that cannot be backfilled, and writes nothing canonical.
-          ...(degraded ? {} : {
-            normalize: (snapshot, context) => normalizeSnapshot(repository, snapshot, context),
-          }),
-          signal,
+      return collectOnce({
+        client,
+        store: repository,
+        clanTag: config.clanTag,
+        // Omitted while degraded: collectOnce still captures raw snapshots, which are
+        // the part that cannot be backfilled, and writes nothing canonical.
+        ...(degraded ? {} : {
+          normalize: (snapshot, context) => normalizeSnapshot(repository, snapshot, context),
         }),
-        generate: async () => {
-          // A recommendation built on canonical data this run could not write would be
-          // confidently wrong, which is worse than absent.
-          if (degraded) return;
-          await generateAndPersistRecommendation(
-            (name, args) => repository.recommendationRpc(name, args),
-            { clanTag: config.clanTag, source: "collection" },
-          );
-        },
+        signal,
       });
     },
     activeCwlIntervalMs: config.activeCwlIntervalMs,

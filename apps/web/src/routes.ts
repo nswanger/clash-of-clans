@@ -12,7 +12,8 @@
  *   there is no league-group standings data anywhere.
  * - `#/dashboard` failed it as a grab bag. Its roster and summary duplicated the
  *   other two routes; its recommendations and lineup history describe only the
- *   current cycle and were judged not worth a surface; its collection health was
+ *   current cycle and were judged not worth a surface (the engine itself was
+ *   retired later, ADR 0026); its collection health was
  *   the one real thing and moved to Admin.
  *
  * `#/cwl-lineup` becomes `#/cwl` because it is no longer only a lineup — it

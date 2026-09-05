@@ -220,10 +220,6 @@ const defaultTableData: Record<string, unknown> = {
     { run_id: "run-1", endpoint: "members", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-13T06:00:30.000Z", finished_at: "2026-08-13T06:01:00.000Z" },
   ],
   collection_runs: { id: "run-1", status: "healthy", started_at: "2026-08-13T06:00:00.000Z", finished_at: "2026-08-13T06:01:00.000Z", last_fresh_at: "2026-08-13T06:01:00.000Z", error_message: null },
-  recommendations: { id: "30000000-0000-0000-0000-000000000001", output: {
-    changes: [{ outPlayerTag: "#MASON", inPlayerTag: "#SAM", reasons: [{ code: "missed_attack", explanation: "Missed the assigned attack on Day 2" }] }],
-    contacts: [{ playerTag: "#KIRA", reason: "Availability is unknown" }], coverageGaps: [], confidenceNotes: [],
-  } },
   cwlLineupPlans: {},
   user_roles: [
     { user_id: "e2e-user", role: "admin", profiles: { display_name: "E2E Leader" } },
@@ -417,19 +413,6 @@ export function createE2EClient(): any {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
     from: (table: string) => builder(table, tableData, persistFixture),
-    functions: {
-      invoke: async (name: string, options: unknown) => {
-        recordMutation(`function:${name}`, options);
-        return {
-          data: {
-            status: "persisted",
-            recommendationId: "30000000-0000-0000-0000-000000000001",
-            created: false,
-          },
-          error: null,
-        };
-      },
-    },
     rpc: async (name: string, args: any) => {
       if (name === "has_app_role") return { data: true, error: null };
       if (name === "regular_war_member_activity_window") {

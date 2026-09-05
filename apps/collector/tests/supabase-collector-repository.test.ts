@@ -116,22 +116,6 @@ describe("SupabaseCollectorRepository", () => {
     });
   });
 
-  it("exposes the authenticated RPC transport to the recommendation writer", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ clanTag: "#CLAN" }));
-    vi.stubGlobal("fetch", fetchMock);
-    const repository = new SupabaseCollectorRepository("https://example.supabase.co", "sb_secret_test");
-
-    await expect(repository.recommendationRpc("get_recommendation_context", {
-      requested_clan_tag: "#CLAN",
-    })).resolves.toEqual({ clanTag: "#CLAN" });
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://example.supabase.co/rest/v1/rpc/get_recommendation_context",
-    );
-    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({ requested_clan_tag: "#CLAN" });
-  });
-
   it("reads CWL activity from the run's own observation, not from an old snapshot", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse([
       { status: "partial", last_fresh_at: "2026-08-30T04:58:34.912Z", active_cwl: false },

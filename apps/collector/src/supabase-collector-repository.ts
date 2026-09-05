@@ -237,10 +237,6 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
     return this.rpc<string[]>("applied_migration_versions", {});
   }
 
-  recommendationRpc(name: string, body: Record<string, unknown>): Promise<unknown> {
-    return this.rpc(name, body);
-  }
-
   private rpc<T = unknown>(name: string, body: Record<string, unknown>): Promise<T> {
     return this.rest<T>(`rpc/${name}`, { method: "POST", body });
   }
