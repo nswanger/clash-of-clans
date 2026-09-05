@@ -105,6 +105,14 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
     });
   }
 
+  /** The scheduler's next run, written after the run row is finished (#117). */
+  async recordNextRun(runId: string, nextRunAt: Date): Promise<void> {
+    await this.rest(`collection_runs?id=eq.${encodeURIComponent(runId)}`, {
+      method: "PATCH",
+      body: { next_run_at: nextRunAt.toISOString() },
+    });
+  }
+
   async upsertSeason(value: SeasonRecord): Promise<void> {
     await this.upsert("cwl_seasons", value, "clan_tag,season_id");
   }

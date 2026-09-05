@@ -401,6 +401,11 @@
 }
 .cm-pill.is-success { background: var(--cm-success-subtle); color: var(--cm-success-ink); }
 .cm-pill.is-caution { background: var(--cm-caution-subtle); color: var(--cm-caution-ink); }
+/* First needed by Admin's endpoint board (#117): "failed" is a state word in the
+ * slot People puts a role, and a second shape for the same job on one page is
+ * what the reuse rule exists to stop. Leader surfaces keep marking the exception
+ * with `cm-statustext`. */
+.cm-pill.is-danger { background: var(--cm-danger-subtle); color: var(--cm-danger-ink); }
 
 /* ---------- panel ----------
  * One component, two mountings: a bottom sheet below 720px, docked into a

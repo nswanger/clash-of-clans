@@ -264,6 +264,78 @@ describe("collector scheduling", () => {
     expect(scheduled[0]?.delay).toBe(60 * 60 * 1_000);
   });
 
+  /* #117: the instant the timer is armed for is the instant the run row records,
+     computed once, so the Admin board's "Next run" and the process cannot drift. */
+  it("records the scheduled next run on the finished run row from the same instant it arms", async () => {
+    const scheduled: number[] = [];
+    const recordNextRun = vi.fn().mockResolvedValue(undefined);
+    const scheduler = new CollectionScheduler({
+      collect: vi.fn().mockResolvedValue({ runId: "run-1", activeCwl: false }),
+      recordNextRun,
+      lease: {
+        acquire: vi.fn().mockResolvedValue(true),
+        renew: vi.fn().mockResolvedValue(true),
+        release: vi.fn().mockResolvedValue(undefined),
+      },
+      now: () => new Date("2026-07-11T12:00:00.000Z"),
+      setTimer: (_callback, delay) => { scheduled.push(delay); return 1; },
+      clearTimer: vi.fn(),
+    });
+
+    await scheduler.start();
+
+    expect(scheduled).toEqual([24 * 60 * 60 * 1_000]);
+    expect(recordNextRun).toHaveBeenCalledWith("run-1", new Date("2026-07-12T12:00:00.000Z"));
+  });
+
+  it("leaves next_run_at unwritten when the run throws, and still schedules the retry", async () => {
+    const scheduled: number[] = [];
+    const recordNextRun = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const scheduler = new CollectionScheduler({
+      collect: vi.fn().mockRejectedValue(new Error("Clash unavailable")),
+      recordNextRun,
+      onError,
+      lease: {
+        acquire: vi.fn().mockResolvedValue(true),
+        renew: vi.fn().mockResolvedValue(true),
+        release: vi.fn().mockResolvedValue(undefined),
+      },
+      now: () => new Date("2026-07-11T12:00:00.000Z"),
+      setTimer: (_callback, delay) => { scheduled.push(delay); return 1; },
+      clearTimer: vi.fn(),
+    });
+
+    await scheduler.start();
+
+    expect(recordNextRun).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(scheduled).toEqual([60 * 60 * 1_000]);
+  });
+
+  it("reports a failed next-run write without losing the timer", async () => {
+    const scheduled: number[] = [];
+    const onError = vi.fn();
+    const scheduler = new CollectionScheduler({
+      collect: vi.fn().mockResolvedValue({ runId: "run-1", activeCwl: true }),
+      recordNextRun: vi.fn().mockRejectedValue(new Error("PATCH failed")),
+      onError,
+      lease: {
+        acquire: vi.fn().mockResolvedValue(true),
+        renew: vi.fn().mockResolvedValue(true),
+        release: vi.fn().mockResolvedValue(undefined),
+      },
+      now: () => new Date("2026-07-11T12:00:00.000Z"),
+      setTimer: (_callback, delay) => { scheduled.push(delay); return 1; },
+      clearTimer: vi.fn(),
+    });
+
+    await scheduler.start();
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "PATCH failed" }));
+    expect(scheduled).toEqual([60 * 60 * 1_000]);
+  });
+
   it("retries hourly when league-group activity is unknown", async () => {
     const scheduled: number[] = [];
     const scheduler = new CollectionScheduler({

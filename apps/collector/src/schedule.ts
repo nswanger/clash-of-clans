@@ -29,6 +29,8 @@ export interface RegularWarCollectionState {
 }
 
 export interface CollectionResult {
+  /** The `collection_runs` row this run wrote, when it reached the store (#117). */
+  runId?: string;
   activeCwl: boolean | null;
   regularWar?: RegularWarCollectionState | null;
   /** The CWL season (`YYYY-MM`) the league group reported this run, when there was one. */
@@ -134,6 +136,13 @@ export function evaluateHealth(input: HealthInput): { status: HealthStatus; exit
 interface SchedulerDependencies {
   collect: (signal: AbortSignal) => Promise<CollectionResult>;
   lease: CollectionLease;
+  /**
+   * Writes `collection_runs.next_run_at` for the run that just finished (#117). The
+   * scheduler computes the next run once and hands the same instant here and to the
+   * timer, so the board and the process cannot disagree. A run that threw never
+   * reaches this: its row keeps a null, and the retry path schedules on its own.
+   */
+  recordNextRun?: (runId: string, nextRunAt: Date) => Promise<void>;
   ownerId?: string;
   now?: () => Date;
   setTimer?: (callback: () => void, delay: number) => Timer;
@@ -218,7 +227,13 @@ export class CollectionScheduler {
       if (renewalInFlight) await renewalInFlight;
       controller.signal.throwIfAborted();
       if (result.seasonId) this.latestSeasonId = result.seasonId;
-      this.schedule(result.activeCwl, result.regularWar);
+      const nextRunAt = this.schedule(result.activeCwl, result.regularWar);
+      if (nextRunAt && result.runId && this.dependencies.recordNextRun) {
+        // Best effort: a failure to record the instant must not cost the run its
+        // status or its timer, so it is reported and the process carries on.
+        try { await this.dependencies.recordNextRun(result.runId, nextRunAt); }
+        catch (error) { this.dependencies.onError?.(error); }
+      }
     } catch (error) {
       this.dependencies.onError?.(error);
       this.schedule(true);
@@ -260,11 +275,12 @@ export class CollectionScheduler {
     }, LEASE_SAFETY_DEADLINE_MS);
   }
 
-  private schedule(activeCwl: boolean | null, regularWar?: RegularWarCollectionState | null): void {
-    if (this.stopped) return;
+  /** Arms the timer and returns the instant it was armed for, or undefined once stopped. */
+  private schedule(activeCwl: boolean | null, regularWar?: RegularWarCollectionState | null): Date | undefined {
+    if (this.stopped) return undefined;
     const now = this.now();
-    const delay = nextCollectionAt(now, activeCwl, this.cadence, regularWar, this.latestSeasonId).getTime()
-      - now.getTime();
-    this.timer = this.setTimer(() => { void this.runNow(); }, delay);
+    const nextRunAt = nextCollectionAt(now, activeCwl, this.cadence, regularWar, this.latestSeasonId);
+    this.timer = this.setTimer(() => { void this.runNow(); }, nextRunAt.getTime() - now.getTime());
+    return nextRunAt;
   }
 }

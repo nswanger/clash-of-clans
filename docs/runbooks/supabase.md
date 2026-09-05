@@ -171,6 +171,22 @@ Migration `202607110001_core_schema.sql` creates a `public.profiles` row after t
 
 Future leaders should use the application's single-use invitation flow. Do not repeat this SQL to bypass invitations, and do not grant future invitees `admin` unless Nick deliberately promotes them.
 
+## Grant Nick the operator role
+
+The `operator` role ([#117](https://github.com/nswanger/clash-of-clans/issues/117), migration `202609050004_operator_role_and_next_run.sql`) decides who sees the Collector section of Admin and guards any future write against the collector. It is additive: it grants no read access by itself, and an account holding only `operator` is denied at sign-in. No function grants it, so like the first admin it is a one-time bootstrap insert, run after the migration has been pushed:
+
+```sql
+insert into public.user_roles (user_id, role, created_by)
+values (
+  '<nick-user-uuid>'::uuid,
+  'operator'::public.app_role,
+  '<nick-user-uuid>'::uuid
+)
+on conflict (user_id, role) do nothing;
+```
+
+Sign out and back in; the Collector section appears beneath collection health. Nobody else holds `operator`: the clan leader is `admin` alone, and that is the point of the role.
+
 ## Verify RLS
 
 Run the repository's pgTAP suite before every migration push:

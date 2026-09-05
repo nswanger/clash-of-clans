@@ -46,7 +46,33 @@ describe("session helpers", () => {
       rpc: vi.fn().mockImplementation((name: string) => Promise.resolve({ data: name === "has_app_role" ? true : null, error: null })),
     } satisfies SessionClient;
 
-    await expect(resolveAppSession(client)).resolves.toEqual({ status: "signed_in", displayName: "Nick", role: "admin" });
+    await expect(resolveAppSession(client)).resolves.toEqual({ status: "signed_in", displayName: "Nick", role: "admin", isOperator: true });
+  });
+
+  /* #117: operator is asked for beside admin and leader, and it is orthogonal to
+     `role` — an admin without it is an admin, an operator without either is
+     nobody. */
+  it("resolves the operator role beside the access role", async () => {
+    const client = {
+      auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-1" } } }, error: null }) },
+      from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { display_name: "Nick" }, error: null }) }) }) }),
+      rpc: vi.fn().mockImplementation((_name: string, args: { required_role: string }) =>
+        Promise.resolve({ data: args.required_role === "admin", error: null })),
+    } satisfies SessionClient;
+
+    await expect(resolveAppSession(client)).resolves.toEqual({ status: "signed_in", displayName: "Nick", role: "admin", isOperator: false });
+    expect(client.rpc).toHaveBeenCalledWith("has_app_role", { required_role: "operator" });
+  });
+
+  it("denies an account that holds only the operator role", async () => {
+    const client = {
+      auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: "user-1" } } }, error: null }) },
+      from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { display_name: "Nick" }, error: null }) }) }) }),
+      rpc: vi.fn().mockImplementation((_name: string, args: { required_role: string }) =>
+        Promise.resolve({ data: args.required_role === "operator", error: null })),
+    } satisfies SessionClient;
+
+    await expect(resolveAppSession(client)).resolves.toMatchObject({ status: "access_denied" });
   });
 
   it("denies an authenticated user without an active leader role", async () => {

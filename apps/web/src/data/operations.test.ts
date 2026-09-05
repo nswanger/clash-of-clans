@@ -62,7 +62,7 @@ describe("Supabase operations", () => {
     const client = { rpc };
     await expect(loadAccessManagement(client)).resolves.toEqual(snapshot);
     await expect(reissueInvitation(client, "invitation-1", "2026-07-21T00:00:00Z")).resolves.toBe("replacement-token");
-    expect(rpc).toHaveBeenCalledWith("get_access_management_snapshot", { access_audit_limit: 50 });
+    expect(rpc).toHaveBeenCalledWith("get_access_management_snapshot", { access_audit_limit: 1 });
     expect(rpc).toHaveBeenCalledWith("reissue_invitation", {
       invitation_id: "invitation-1",
       invitation_expires_at: "2026-07-21T00:00:00Z",

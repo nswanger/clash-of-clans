@@ -97,20 +97,60 @@ test("redirects the routes ADR 0002 renamed", async ({ page }) => {
 test("routes to the admin workflow and keeps its touch targets", async ({ page }) => {
   await page.goto("/#/admin");
   await expect(page.getByRole("heading", { level: 1, name: "Admin" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Invitation history/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Recent access activity/ })).toBeVisible();
-  /* Collection health moved here from the deleted dashboard, which is where "is
-     this data trustworthy" belongs beside "who can see it" (ADR 0002, #9). */
-  await expect(page.getByRole("heading", { name: "Collection health" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^People/ })).toBeVisible();
+  /* A healthy run puts nothing on the page (#117, ADR 0014 applied to the
+     section): the fixture run is healthy, so no health section renders. */
+  await expect(page.getByRole("heading", { name: "Collection health" })).toBeHidden();
 
-  for (const buttonName of ["Create invitation", "Promote to admin", "Revoke access"]) {
+  /* Row actions sit behind one control per row (#125); the pending invitation is
+     a People row rather than a section of its own (#117). */
+  for (const buttonName of ["Create invitation", "Actions for Other Leader", "Actions for pending invitation"]) {
     expect((await page.getByRole("button", { name: buttonName }).first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
   }
 
   await page.getByRole("button", { name: "Create invitation" }).click();
   await expect(page.getByText(/e2e-one-time-token/)).toBeVisible();
-  await page.getByRole("button", { name: "Promote to admin" }).click();
+  await page.getByRole("button", { name: "Actions for Other Leader" }).click();
+  await page.getByRole("menuitem", { name: "Promote to admin" }).click();
   await expect.poll(() => lastMutation(page)).toContain("rpc:promote_to_admin");
+});
+
+/* #117: the operator fixture sees the six-endpoint board; an admin without the
+   role sees nothing in its place. The access log is closed with its count on the
+   head and pages at ten. */
+test("shows the Collector board to an operator and pages the access log", async ({ page }) => {
+  await page.goto("/#/admin");
+  const collector = page.getByRole("heading", { name: "Collector" });
+  await expect(collector).toBeVisible();
+  for (const endpoint of ["clan", "members", "player", "current_war", "league_group", "league_war"]) {
+    await expect(page.getByText(endpoint, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText(/Next run/)).toContainText("tomorrow");
+
+  const log = page.getByRole("heading", { name: /^Access activity/ });
+  await expect(log).toContainText("12");
+  await expect(page.getByText("1–10 of 12")).toBeHidden();
+  await log.click();
+  await expect(page.getByText("1–10 of 12")).toBeVisible();
+  await page.getByRole("button", { name: "Older" }).click();
+  await expect(page.getByText("11–12 of 12")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Older" })).toBeDisabled();
+});
+
+test("hides the Collector board from an admin who is not an operator", async ({ page }) => {
+  await page.goto("/#/admin");
+  await expect(page.getByRole("heading", { name: "Collector" })).toBeVisible();
+  /* The stub's `has_app_role` reads the stored fixture's roles, so dropping the
+     operator row is how an admin-only account is modelled. */
+  await page.evaluate(() => {
+    const key = "e2e:fixture";
+    const fixture = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+    fixture.user_roles = (fixture.user_roles ?? []).filter((row: { role: string }) => row.role !== "operator");
+    window.localStorage.setItem(key, JSON.stringify(fixture));
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: /^People/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Collector" })).toBeHidden();
 });
 
 test("opens the CWL route on the phase the season is actually in", async ({ page }) => {

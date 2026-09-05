@@ -7,8 +7,8 @@ import { AppTopbar } from "./app-chrome.js";
 const signedOut: AppSession = { status: "signed_out" };
 const loading: AppSession = { status: "loading" };
 const accessDenied: AppSession = { status: "access_denied", message: "Your leader access has been revoked." };
-const leader: AppSession = { status: "signed_in", displayName: "Nick", role: "leader" };
-const admin: AppSession = { status: "signed_in", displayName: "Nick", role: "admin" };
+const leader: AppSession = { status: "signed_in", displayName: "Nick", role: "leader", isOperator: false };
+const admin: AppSession = { status: "signed_in", displayName: "Nick", role: "admin", isOperator: false };
 
 /* The nav is the page name in `cm-topbar` (#58), so a signed-in `App` renders no
  * chrome of its own — it provides the session and a surface renders the bar.

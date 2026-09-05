@@ -58,7 +58,6 @@ function fixtureWarTime(daysAgo: number): string {
 }
 
 const defaultTableData: Record<string, unknown> = {
-  profiles: { display_name: "E2E Leader" },
   /* A CURRENT season with a live war day, so the CWL route opens on the lineup
      phase. The phase markers are the war states with a date guard (ADR 0002)
      plus wave 4's two resting markers: the bonuses are not administered and the
@@ -219,18 +218,48 @@ const defaultTableData: Record<string, unknown> = {
     { run_id: "run-1", endpoint: "clan", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-13T06:00:00.000Z", finished_at: "2026-08-13T06:00:30.000Z" },
     { run_id: "run-1", endpoint: "members", status: "healthy", http_status: 200, error_category: null, started_at: "2026-08-13T06:00:30.000Z", finished_at: "2026-08-13T06:01:00.000Z" },
   ],
-  collection_runs: { id: "run-1", status: "healthy", started_at: "2026-08-13T06:00:00.000Z", finished_at: "2026-08-13T06:01:00.000Z", last_fresh_at: "2026-08-13T06:01:00.000Z", error_message: null },
+  /* `next_run_at` and `active_cwl` are what the operator's Collector board
+     reads (#117); the run is dated from the clock so "Next run" stays
+     tomorrow rather than drifting into the past. */
+  collection_runs: {
+    id: "run-1", status: "healthy",
+    started_at: new Date(fixtureNow.getTime() - 60 * 60 * 1_000).toISOString(),
+    finished_at: new Date(fixtureNow.getTime() - 59 * 60 * 1_000).toISOString(),
+    last_fresh_at: new Date(fixtureNow.getTime() - 59 * 60 * 1_000).toISOString(),
+    error_message: null,
+    next_run_at: new Date(fixtureNow.getTime() + 23 * 60 * 60 * 1_000).toISOString(),
+    active_cwl: false,
+  },
   cwlLineupPlans: {},
+  /* The e2e account is admin AND operator, which is the shape Nick's account
+     has (#117). `has_app_role` reads this table, so a test that wants the
+     admin-only view removes the operator row from the stored fixture. */
   user_roles: [
     { user_id: "e2e-user", role: "admin", profiles: { display_name: "E2E Leader" } },
+    { user_id: "e2e-user", role: "operator", profiles: { display_name: "E2E Leader" } },
     { user_id: "other-leader", role: "leader", profiles: { display_name: "Other Leader" } },
   ],
+  profiles: [
+    { id: "e2e-user", display_name: "E2E Leader" },
+    { id: "other-leader", display_name: "Other Leader" },
+  ],
+  /* Twelve rows, newest first, so the access log's pager has a second page to
+     walk (#117, ADR 0024). Kept sorted because the stub's `order` is a no-op. */
+  audit_events: Array.from({ length: 12 }, (_, index) => ({
+    id: `e2e-access-event-${index}`,
+    event_type: index % 3 === 0 ? "role_granted" : "invitation_created",
+    actor_id: "e2e-user",
+    entity_type: index % 3 === 0 ? "user_role" : "invitation",
+    entity_id: `entity-${index}`,
+    event_data: index % 3 === 0 ? { role: "leader", userId: "other-leader" } : {},
+    occurred_at: new Date(fixtureNow.getTime() - (index + 1) * 26 * 60 * 60 * 1_000).toISOString(),
+  })),
 };
 
 const accessManagementSnapshot = {
   people: [
-    { id: "e2e-user", name: "E2E Leader", role: "admin", isCurrentUser: true },
-    { id: "other-leader", name: "Other Leader", role: "leader", isCurrentUser: false },
+    { id: "e2e-user", name: "E2E Leader", role: "admin", isOperator: true, isCurrentUser: true },
+    { id: "other-leader", name: "Other Leader", role: "leader", isOperator: false, isCurrentUser: false },
   ],
   invitations: [{
     id: "e2e-invitation",
@@ -274,7 +303,11 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
      instead of narrowing it. Ignoring those keeps a thin fixture thin, while a
      column the fixture does model is honoured. */
   const filters: Array<{ column: string; match: (value: unknown) => boolean }> = [];
-  const embeds: string[] = [];
+  const embeds: Array<{ alias: string; table: string }> = [];
+  /* `range` slices after filtering; `count: "exact"` reports the unsliced total,
+     which is what the pager's "of M" reads (#117). */
+  let range: { from: number; to: number } | undefined;
+  let wantCount = false;
   /* Join an embedded child onto its parent row the way PostgREST does. The
      foreign key is named per embed rather than derived from the table name,
      because `collection_attempts.run_id` does not follow from
@@ -282,15 +315,27 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
      know is left absent rather than invented, which fails loudly in the test
      that needs it instead of quietly returning the wrong rows. */
   const embedForeignKeys: Record<string, string> = { collection_attempts: "run_id" };
+  /* A to-one embed the other way round: the parent row carries the key and the
+     embedded table is looked up by id. `audit_events.actor_id -> profiles` is the
+     one case (#117), aliased `actor:` in the query. */
+  const toOneEmbeds: Record<string, { table: string; column: string }> = { profiles: { table: "profiles", column: "actor_id" } };
   const withEmbeds = (row: unknown) => {
     if (!row || typeof row !== "object" || embeds.length === 0) return row;
     const parent = row as Record<string, unknown>;
     const joined: Record<string, unknown> = { ...parent };
-    for (const embed of embeds) {
+    for (const { alias, table: embed } of embeds) {
+      const toOne = toOneEmbeds[embed];
+      if (toOne) {
+        const lookup = tableData[toOne.table];
+        joined[alias] = Array.isArray(lookup)
+          ? lookup.find((candidate) => candidate && typeof candidate === "object" && (candidate as Record<string, unknown>).id === parent[toOne.column]) ?? null
+          : null;
+        continue;
+      }
       const childRows = tableData[embed];
       const foreignKey = embedForeignKeys[embed];
       if (!Array.isArray(childRows) || !foreignKey) continue;
-      joined[embed] = childRows.filter((child) => child && typeof child === "object"
+      joined[alias] = childRows.filter((child) => child && typeof child === "object"
         && (child as Record<string, unknown>)[foreignKey] === parent.id);
     }
     return joined;
@@ -304,7 +349,14 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
       return filter.match((row as Record<string, unknown>)[filter.column]);
     }));
   };
-  const result = () => ({ data: applyFilters(tableData[table] ?? []), error: null });
+  const result = () => {
+    const filtered = applyFilters(tableData[table] ?? []);
+    const paged = Array.isArray(filtered) && range ? filtered.slice(range.from, range.to + 1) : filtered;
+    const data = Array.isArray(paged) ? paged.map(withEmbeds) : paged;
+    return wantCount && Array.isArray(filtered)
+      ? { data, count: filtered.length, error: null }
+      : { data, error: null };
+  };
   /* `maybeSingle` and `single` return ONE row in Supabase, and the stub used to
      hand back the whole table — which worked only while every singly-read table
      was fixtured as a bare object. `cwl_wars` is a list now, because the phase
@@ -319,14 +371,19 @@ function builder(table: string, tableData: Record<string, unknown>, persistFixtu
        resource is a join the fixture has to perform, and a stub that quietly
        dropped it would hand the caveat an empty attempts list and make an idle
        CWL run read as a fault on exactly the surface this models. */
-    select: (fields?: string) => {
-      const embedded = typeof fields === "string" ? fields.match(/([a-z_]+)\(/g) ?? [] : [];
-      for (const match of embedded) embeds.push(match.slice(0, -1));
+    select: (fields?: string, options?: { count?: string }) => {
+      if (typeof fields === "string") {
+        for (const match of fields.matchAll(/(?:([a-z_]+):)?([a-z_]+)\(/g)) {
+          embeds.push({ alias: match[1] ?? match[2]!, table: match[2]! });
+        }
+      }
+      if (options?.count) wantCount = true;
       return query;
     },
     eq: (column: string, value: unknown) => { filters.push({ column, match: (candidate) => candidate === value }); return query; },
     in: (column: string, values: unknown[]) => { filters.push({ column, match: (candidate) => values.includes(candidate) }); return query; },
     order: () => query, limit: () => query,
+    range: (from: number, to: number) => { range = { from, to }; return query; },
     single: async () => firstRow(), maybeSingle: async () => firstRow(),
     upsert: async (value: unknown) => {
       if (table === "cwl_roll_call" && Array.isArray(tableData[table]) && value !== null && typeof value === "object") {
@@ -405,6 +462,9 @@ export function createE2EClient(): any {
   const persistFixture = acceptanceFixture
     ? () => window.localStorage.setItem("e2e:cwl-acceptance-fixture", JSON.stringify(tableData))
     : () => window.localStorage.setItem(DEFAULT_FIXTURE_KEY, JSON.stringify(tableData));
+  /* Written on first load, not only after a mutation, so a test can edit the
+     stored fixture (a role row, say) and reload into it (#117). */
+  if (!acceptanceFixture && !storedDefault) persistFixture();
   return {
     auth: {
       getSession: async () => ({ data: { session: { user: { id: "e2e-user" } } }, error: null }),
@@ -414,7 +474,10 @@ export function createE2EClient(): any {
     },
     from: (table: string) => builder(table, tableData, persistFixture),
     rpc: async (name: string, args: any) => {
-      if (name === "has_app_role") return { data: true, error: null };
+      if (name === "has_app_role") {
+        const roles = (tableData.user_roles ?? []) as Array<{ user_id: string; role: string }>;
+        return { data: roles.some((row) => row.user_id === "e2e-user" && row.role === args.required_role), error: null };
+      }
       if (name === "regular_war_member_activity_window") {
         return {
           data: [

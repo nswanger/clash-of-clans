@@ -19,7 +19,7 @@ export interface LiveSessionClient extends Omit<AuthClient, "rpc">, Omit<Session
     onAuthStateChange(callback: () => void): AuthSubscription;
   };
   rpc(name: "redeem_invitation", args: { token: string }): Promise<{ error: { message: string } | null }>;
-  rpc(name: "has_app_role", args: { required_role: "leader" | "admin" }): Promise<{ data: boolean; error: { message: string } | null }>;
+  rpc(name: "has_app_role", args: { required_role: "leader" | "admin" | "operator" }): Promise<{ data: boolean; error: { message: string } | null }>;
 }
 
 interface BrowserLocation {
