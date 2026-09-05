@@ -220,6 +220,14 @@ function errorText(reason: unknown, fallback: string): string {
 }
 
 function historySummary(event: CwlLineupHistoryEvent, nameOf: (tag: string) => string): string {
+  /* Where the day's lineup came from (#101): the collected roster is the
+     answer a leader wants when a plan appears they did not build. */
+  if (event.eventType === "lineup_plan_observed") return "From the observed war roster";
+  if (event.eventType === "lineup_plan_initialized") {
+    if (event.eventData.seedSource === "observed") return "From the observed war roster";
+    if (typeof event.eventData.inheritedFromWarDay === "number") return `Inherited from day ${event.eventData.inheritedFromWarDay}`;
+    return "";
+  }
   if (event.eventType !== "lineup_plan_saved") return "";
   const list = (value: unknown) => Array.isArray(value) ? value.filter((tag): tag is string => typeof tag === "string") : [];
   if (!Object.hasOwn(event.eventData, "previousPlayerTags") || !Object.hasOwn(event.eventData, "playerTags")) return "";

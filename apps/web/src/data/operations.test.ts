@@ -72,7 +72,7 @@ describe("Supabase operations", () => {
   it("saves lineup plans with the loaded revision and ordered player tags", async () => {
     const plan = {
       clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, revision: 4, isLocked: false,
-      lockedAt: null, lockedBy: null, inheritedFromWarDay: 1,
+      lockedAt: null, lockedBy: null, inheritedFromWarDay: 1, seedSource: "inherited",
       createdAt: "2026-08-01T00:00:00Z", createdBy: "leader-1", updatedAt: "2026-08-01T00:01:00Z", updatedBy: "leader-1",
       playerTags: ["#ONE", "#TWO"],
     };
@@ -90,7 +90,7 @@ describe("Supabase operations", () => {
   it("uses revision checks for lock and explicit re-inheritance mutations", async () => {
     const plan = {
       clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, revision: 5, isLocked: true,
-      lockedAt: "2026-08-01T00:02:00Z", lockedBy: "leader-1", inheritedFromWarDay: 1,
+      lockedAt: "2026-08-01T00:02:00Z", lockedBy: "leader-1", inheritedFromWarDay: 1, seedSource: "inherited",
       createdAt: "2026-08-01T00:00:00Z", createdBy: "leader-1", updatedAt: "2026-08-01T00:02:00Z", updatedBy: "leader-1",
       playerTags: ["#ONE"],
     };
@@ -105,7 +105,7 @@ describe("Supabase operations", () => {
   it("selects the latest active CWL day instead of a later completed day", async () => {
     const plan = {
       clanTag: "#CLAN", seasonId: "2026-08", warDay: 2, revision: 1, isLocked: false,
-      lockedAt: null, lockedBy: null, inheritedFromWarDay: 1,
+      lockedAt: null, lockedBy: null, inheritedFromWarDay: 1, seedSource: "inherited",
       createdAt: "2026-08-02T00:00:00Z", createdBy: "leader-1", updatedAt: "2026-08-02T00:00:00Z", updatedBy: "leader-1",
       playerTags: [],
     };
