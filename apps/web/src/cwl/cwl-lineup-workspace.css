@@ -127,41 +127,36 @@
 
 /* ---------- the bench row's two targets (#114) ----------
  * A lineup row is one button with a chevron glyph inside it. A bench row is a
- * `cm-row` box holding two buttons: the primary fills the row and adds, the
- * chevron is a `cm-iconbutton is-small` that opens the member. The row's own
- * padding is what keeps the two tap areas apart; the primary button gives up
- * the row's chrome (border, background, padding) because the box already has
- * it. Ancestor-prefixed because it overrides the component's grid.
+ * `cm-row` box holding two buttons, and it must look exactly like the one-button
+ * row beside it in the swap panel's "Replace with" list: same grid, same glyph,
+ * same height. Both buttons therefore take up only the space their content
+ * would as spans — the primary is padded out to the row's edges with matching
+ * negative margins, and the chevron's 44px tap area is centred on the 14px
+ * glyph with negative margins so it costs the layout nothing. Neither carries
+ * chrome of its own; the box already has it. Ancestor-prefixed because it
+ * overrides the component's grid — and the ancestor is the panel body, not the
+ * page, because below 720px the sheet is portalled out of `.cwl-workspace`.
  */
-.cwl-workspace .cm-row.cwl-benchrow {
-  grid-template-columns: minmax(0, 1fr) auto;
-  padding-right: var(--cm-space-2);
+.cm-panel-body .cm-row.cwl-benchrow { grid-template-columns: minmax(0, 1fr) auto; }
+.cwl-benchrow-add,
+.cwl-benchrow-open {
+  border: 0; background: none; color: inherit;
+  font-family: inherit; font-variant-numeric: inherit; cursor: pointer;
 }
 .cwl-benchrow-add {
   display: grid; grid-template-columns: minmax(0, 1fr) auto;
   align-items: center; gap: var(--cm-space-3);
-  width: 100%; min-width: 0; min-height: var(--cm-tap-min);
-  margin: 0; padding: 0; border: 0; border-radius: var(--cm-radius-sm);
-  background: none; color: inherit; text-align: left;
-  font-family: inherit; font-variant-numeric: inherit; cursor: pointer;
+  min-width: 0; text-align: left;
+  margin: calc(-1 * var(--cm-row-pad-y)) 0 calc(-1 * var(--cm-row-pad-y)) calc(-1 * var(--cm-row-pad-x));
+  padding: var(--cm-row-pad-y) 0 var(--cm-row-pad-y) var(--cm-row-pad-x);
+  border-radius: var(--cm-radius-md) 0 0 var(--cm-radius-md);
 }
-
-/* ---------- the candidate list ----------
- * Ten rows tall and never taller (ADR 0024, #103): `cwl-candidates` is the box
- * the bench and the swap panel's "Replace with" list both render into, sized
- * from `--cm-list-max-rows` so it holds still under a filter and stops growing
- * with the clan. The gaps are `cm-rows`' own, counted so the box is exactly the
- * height of ten rows rather than ten rows and change. The empty state fills the
- * box for the same reason the roll call's does: an empty bench and a search with
- * no matches both read as "nothing here", not as a list that failed to load.
- */
-.cwl-candidates {
-  min-height: calc(var(--cm-tap-min) * var(--cm-list-max-rows) + var(--cm-space-2) * (var(--cm-list-max-rows) - 1));
-}
-.cwl-candidates .cm-empty {
+.cwl-benchrow-open {
+  --cwl-chev-glyph: 14px;
   display: grid; place-items: center;
-  min-height: calc(var(--cm-tap-min) * var(--cm-list-max-rows) + var(--cm-space-2) * (var(--cm-list-max-rows) - 1));
-  margin: 0;
+  width: var(--cm-tap-min); height: var(--cm-tap-min);
+  margin: calc((var(--cwl-chev-glyph) - var(--cm-tap-min)) / 2);
+  padding: 0; border-radius: var(--cm-radius-md);
 }
 
 /* ================= 720px: the bench stops being a sheet ================= */
