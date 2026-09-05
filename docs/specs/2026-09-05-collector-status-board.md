@@ -163,12 +163,14 @@ its place, not a placeholder.
   <instant>.` or `..., still running.`
 - **Endpoint board:** `cm-rows`, one `cm-row` per endpoint in the fixed order
   `clan · members · player · current_war · league_group · league_war`, six
-  rows always. Each row: endpoint name as `cm-row-name`; meta line carrying a
-  `cm-statustext` (`is-on`-equivalent for healthy, `is-unavailable` for any
-  failure, `is-unknown` for an endpoint with no attempt in this run), then
+  rows always. Each row: endpoint name as `cm-row-name`; meta line opening
+  with a `cm-pill` — the same mark People uses for a role, so a state word on
+  this page is always one shape — `is-success` for healthy, `is-danger` for
+  any failure, bare for an endpoint with no attempt in this run; then
   `HTTP <code>` and the error category when present, then `finished
-  <instant>`. An endpoint with several attempts in one run (players) shows the
-  worst status and the count: `49 pulls · 1 failed`.
+  <instant>`. The trailing `cm-row-figure` is the attempt count, `49 pulls`.
+  An endpoint with several attempts in one run (players) shows the worst
+  state and how many: a `3 failed` danger pill beside `49 pulls`.
 - **No notice.** The danger notice for an unhealthy run stays where it is, in
   the health section above, one per screen (ADR 0014). The board is never the
   place a fault is *announced*; it is where it is *located*.
@@ -180,26 +182,38 @@ its place, not a placeholder.
 ### Admin: keeping the page from growing
 
 Two lists on Admin grow with time and were already noisy at three live days.
-Both come under ADR 0024:
+ADR 0024's ten-row cap was the first answer and it is the wrong one: that rule
+is for lists a leader scans or searches, and these are a log consulted when
+something is wrong — "did I actually revoke that". Nick does not create
+invitations daily, and a revoked or expired invitation is not a thing to look
+at, it is a thing to have done. So:
 
-- **Invitation history** sorts pending first, then by created time
-  descending, and renders at most ten rows with `N of M shown`. Narrowing is
-  deferred: at the current rate there is no filter worth a control, and the
-  pending-first order guarantees the rows that carry actions are the ones on
-  screen.
-- **Recent access activity** renders the ten most recent events and says so.
-  The title already promises recency, so ten is the honest content rather
-  than a truncation.
+- **Invitation history is removed as a section.** A pending invitation is
+  the only state that carries an action (Reissue, Revoke), and it is a person
+  who does not exist yet, so it renders as a row at the bottom of People:
+  `Invited, not yet signed in`, a caution `pending` pill, who invited and
+  when, when it expires, and the two ghosts. Every other invitation state —
+  created, reissued, revoked, redeemed — is already an `audit_events` row,
+  so the history section was the access log re-sorted by invitation. The
+  "links are never stored" sentence moves with the rows to People.
+- **Access activity is a section closed by default**, its head carrying the
+  count so a closed log still says how much is behind it, opened by the head.
+  It is renamed from "Recent access activity": it is the whole log, newest
+  first, and "recent" was promising a cap it no longer has. Whether it pages
+  past a screen's worth is decided when it is long enough to matter; it is
+  not ten rows plus `N of M shown`, because nobody narrows a log by searching
+  it for a name they already know.
 - Section order becomes: Collection health · Collector (operator) · People ·
-  Invitation history · Recent access activity. Trust of the data stays on top
-  because everything below is read in its light.
+  Access activity (closed). Trust of the data stays on top because everything
+  below is read in its light.
 
 ### Tests
 
 - Vitest: the Collector section renders for an operator session and not for
   an admin session; six rows always; worst-status aggregation for repeated
-  endpoints; `N of M shown` on both capped lists. Queries by role and text
-  only.
+  endpoints; a pending invitation is a People row with Reissue and Revoke and
+  a redeemed one is not; the access log is closed on load and opens from its
+  head. Queries by role and text only.
 - `apps/web/src/test/e2e-client.ts`: the stub learns `has_app_role('operator')`
   and `next_run_at`.
 - Playwright: the operator fixture sees the board; the admin fixture does
@@ -207,10 +221,21 @@ Both come under ADR 0024:
 
 ### Design system
 
-No new component or token. `cm-statustext` gains no variant: the healthy mark
-reuses the existing on-state, which is a finding for `design/components.md`
-only if the existing classes prove insufficient during build. The endpoint
-board is `cm-rows` at the page layer under the `admin-` prefix.
+Two findings for `design/components.md`, both recorded there when built:
+
+- **`cm-pill` gains `is-danger`.** The inventory carries success and caution
+  only because no leader surface ever needed a danger pill — rows mark the
+  exception with `cm-statustext`. The board's "failed" is a state word in the
+  same slot People puts a role, and a second shape for the same job on one
+  page is what the reuse rule exists to stop.
+- **A section closed until opened** — the access log. A `<details>` whose
+  `<summary>` is the `cm-section-head`, the chevron rotated as
+  `cm-routebutton-chev` already does for the route menu, no third disclosure
+  glyph. First use; a second surface wanting one is what would promote it
+  from the `admin-` page layer.
+
+No new token. The endpoint board is `cm-rows` at the page layer under the
+`admin-` prefix.
 
 ## Out of scope, and where it goes
 
