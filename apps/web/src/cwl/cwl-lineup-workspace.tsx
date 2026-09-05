@@ -50,15 +50,14 @@ export function isBonusSecured(member: CwlLineupMember): boolean {
   return member.stars >= CWL_BONUS_STAR_THRESHOLD;
 }
 
-/* No `observed` term, unlike the predicate this replaces. The prototype asks
- * only whether someone is owed a turn; whether they are in the observed war is
- * a fact about this day, and it is already carried by the row's provenance
- * rail. Folding it in here made an available member with no assignments read as
- * not needing a turn purely because a different day had started. */
-export function needsBonusTurn(member: CwlLineupMember): boolean {
-  return member.availability === "available"
-    && member.stars < CWL_BONUS_STAR_THRESHOLD
-    && member.assignedAttacks === 0;
+/* Available and short of the eight-star bonus, full stop. Two terms this once
+ * carried are gone on purpose: `observed`, because whether someone is in the
+ * observed war is a fact about this day that the row's provenance rail already
+ * shows; and `assignedAttacks === 0`, because "has not had a turn" answered a
+ * narrower question than the one asked (#113). A member at 5★ after two days is
+ * exactly who the rotation is for, and the old predicate could not see them. */
+export function needsBonusStars(member: CwlLineupMember): boolean {
+  return member.availability === "available" && member.stars < CWL_BONUS_STAR_THRESHOLD;
 }
 
 function starsPerWar(member: CwlLineupMember): number | null {
@@ -79,7 +78,13 @@ const availabilityRank = (member: CwlLineupMember): number =>
   member.availability === "available" ? 0 : member.availability === "unknown" ? 1 : 2;
 
 const rotationRank = (member: CwlLineupMember): number =>
-  needsBonusTurn(member) ? 0 : isBonusSecured(member) ? 2 : 1;
+  needsBonusStars(member) ? 0 : isBonusSecured(member) ? 2 : 1;
+
+/* Within the short-of-eight group, fewest stars first (#113): that is the Bonus
+ * priority rail's order read from the bottom, so the bench and the rail agree
+ * on who is furthest from the bonus. Outside that group stars do not rank. */
+const bonusGap = (member: CwlLineupMember): number =>
+  needsBonusStars(member) ? member.stars : 0;
 
 /* Availability dominates — an unavailable member is not a candidate at all —
  * and rotation need outranks raw strength, because swapping in someone already
@@ -88,6 +93,7 @@ const rotationRank = (member: CwlLineupMember): number =>
 export function sortCandidates(left: CwlLineupMember, right: CwlLineupMember): number {
   return (availabilityRank(left) - availabilityRank(right))
     || (rotationRank(left) - rotationRank(right))
+    || (bonusGap(left) - bonusGap(right))
     || ((right.overallRating ?? -1) - (left.overallRating ?? -1))
     || left.name.localeCompare(right.name);
 }
@@ -259,8 +265,10 @@ function RowMeta({ member, observed }: { member: CwlLineupMember; observed: bool
       : null,
     isBonusSecured(member)
       ? <span key="secured" className="cm-pill is-success"><span>8<Icon name="star" /></span>secured</span>
-      : needsBonusTurn(member)
-        ? <span key="turn" className="cm-pill is-caution">Needs a turn</span>
+      : needsBonusStars(member)
+        /* Progress to the bonus rather than "Needs a turn" (#113): the old word
+         * covered only members with no war yet, and 0/8 says that anyway. */
+        ? <span key="progress" className="cm-pill is-caution"><span>{member.stars}/{CWL_BONUS_STAR_THRESHOLD}<Icon name="star" /></span></span>
         : null,
     observed && member.currentWarAssignedAttacks > 0
       ? <span key="attacks">{member.currentWarAttacksMade}/{member.currentWarAssignedAttacks} attacks</span>

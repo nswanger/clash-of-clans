@@ -4,7 +4,7 @@ import {
   hasRevisionConflict,
   isBonusSecured,
   membershipDiff,
-  needsBonusTurn,
+  needsBonusStars,
   pendingChecklist,
   rankCandidates,
   sortBonusPriority,
@@ -59,11 +59,14 @@ describe("bonus signals", () => {
     expect(isBonusSecured(member({ stars: 8 }))).toBe(true);
   });
 
-  it("marks only available, unassigned, under-target members as needing a turn", () => {
-    expect(needsBonusTurn(member({ availability: "available" }))).toBe(true);
-    expect(needsBonusTurn(member({ availability: "unknown" }))).toBe(false);
-    expect(needsBonusTurn(member({ availability: "available", assignedAttacks: 1 }))).toBe(false);
-    expect(needsBonusTurn(member({ availability: "available", stars: 8 }))).toBe(false);
+  it("marks every available member short of eight stars, played or not (#113)", () => {
+    expect(needsBonusStars(member({ availability: "available" }))).toBe(true);
+    /* Two days in and sitting on five stars is exactly who the rotation is for;
+     * the old predicate hid them behind an "has had no turn" term. */
+    expect(needsBonusStars(member({ availability: "available", stars: 5, assignedAttacks: 4 }))).toBe(true);
+    expect(needsBonusStars(member({ availability: "unknown" }))).toBe(false);
+    expect(needsBonusStars(member({ availability: "unavailable", stars: 5 }))).toBe(false);
+    expect(needsBonusStars(member({ availability: "available", stars: 8 }))).toBe(false);
   });
 
   it("ranks qualified contributors before below-target members, by total stars", () => {
@@ -82,6 +85,7 @@ describe("candidate ranking", () => {
     member({ playerTag: "#SECURED", name: "Secured", availability: "available", stars: 9, overallRating: 95 }),
     member({ playerTag: "#TURN", name: "Owed a turn", availability: "available", stars: 2, overallRating: 40 }),
     member({ playerTag: "#SOLID", name: "Solid", availability: "available", stars: 3, assignedAttacks: 4, overallRating: 88 }),
+    member({ playerTag: "#SHORT", name: "Played and still short", availability: "available", stars: 1, assignedAttacks: 4, overallRating: 50 }),
     member({ playerTag: "#UNKNOWN", name: "Unknown", availability: "unknown", stars: 1, overallRating: 99 }),
     member({ playerTag: "#OUT", name: "Unavailable", availability: "unavailable", stars: 0, overallRating: 99 }),
   ];
@@ -89,9 +93,11 @@ describe("candidate ranking", () => {
   it("puts rotation need above raw strength, and availability above both", () => {
     /* Ranking by rating alone floats the secured members to the top, which is
      * exactly backwards for bonus fairness — that is the whole point of the
-     * rotation term sitting above rating. */
+     * rotation term sitting above rating. Within the short-of-eight group the
+     * order is fewest stars first, whether or not the member has played (#113),
+     * which is the same order the Bonus priority rail reads in reverse. */
     expect(rankCandidates(roster, [], "").map((candidate) => candidate.playerTag))
-      .toEqual(["#TURN", "#SOLID", "#SECURED", "#UNKNOWN", "#OUT"]);
+      .toEqual(["#SHORT", "#TURN", "#SOLID", "#SECURED", "#UNKNOWN", "#OUT"]);
   });
 
   it("never offers someone already in the lineup", () => {
