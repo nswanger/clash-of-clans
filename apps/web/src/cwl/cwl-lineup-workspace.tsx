@@ -309,8 +309,10 @@ function MemberRow({ member, position, edited, out, onOpen }: {
  * opens the member's panel instead. Before this, availability during a live
  * season could only be reached from a lineup row, so marking a benched member
  * unavailable meant adding them, opening them, setting it, and removing them
- * again. The two are separate buttons rather than one with a hit-test: a button
- * cannot contain a button, and a 14px glyph is not a target anyone finds. */
+ * again. The two are separate buttons rather than one with a hit-test, because
+ * a button cannot contain a button. The chevron LOOKS like every other row's:
+ * the 44px tap area is invisible and overhangs the glyph, so a bench row and a
+ * "Replace with" row are the same picture (Nick, reviewing #120). */
 function BenchRow({ member, onAdd, onOpen }: {
   member: CwlLineupMember;
   onAdd: () => void;
@@ -329,8 +331,8 @@ function BenchRow({ member, onAdd, onOpen }: {
         <span className="cm-row-th">TH{member.townHallLevel}</span>
       </span>
     </button>
-    <button className="cm-iconbutton is-small" type="button" aria-label={`Open ${member.name}`} onClick={onOpen}>
-      <Icon name="chevron" />
+    <button className="cwl-benchrow-open" type="button" aria-label={`Open ${member.name}`} onClick={onOpen}>
+      <span className="cm-chev" aria-hidden="true"><Icon name="chevron" /></span>
     </button>
   </div>;
 }
