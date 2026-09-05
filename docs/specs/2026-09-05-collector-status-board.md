@@ -141,26 +141,47 @@ COMMENT ON COLUMN public.collection_runs.next_run_at IS
 `has_app_role` call beside the two that exist. `role` keeps its current
 `"leader" | "admin"` meaning: operator is orthogonal, never a substitute.
 
-### Admin: the health section for every admin
+### Admin: the health section for every admin, only when something is wrong
 
-Unchanged in structure. Two copy fixes:
+**The section renders only when the run is unhealthy.** A healthy run puts
+nothing on the page for a leader-side admin: no chip, no "data last observed
+fresh" line, no heading. This is exception-only reporting, the stance ADR 0014
+already takes for rows ("surfaces mark the exception") applied to the section
+itself: silence means the data is current, and the one danger notice is where
+that stops being true. Nick's framing — "everything is ok unless there is an
+error", which is how most applications behave — is the same rule from the
+reader's side.
 
-- The freshness sentence drops the run timestamps. It reads
-  `Data last observed fresh <instant>.` and nothing else; when the run is
-  still in progress, `A collection is running.` follows it. Started/finished
-  times belong to the Collector section.
-- The status chip stays.
+When unhealthy, the section is what it is today: heading, status chip, the
+danger notice (still the screen's one notice), and the failing-attempt list.
+The notice's second line carries the last fresh instant, because that is the
+number a leader needs to read everything else by and it no longer has a
+resting place above.
+
+The `running` state renders nothing either: a run in progress is not a fault.
+
+The CWL and Members surfaces are unaffected; their stale caveats already fire
+only on an unhealthy status.
 
 ### Admin: the Collector section for operators
 
 Rendered only when `session.isOperator`; a non-operator admin sees nothing in
 its place, not a placeholder.
 
-- **Head:** `Collector`, with the same status chip as the health section and,
-  right-aligned, `Next run <instant>` (or `Next run not scheduled` when
-  `next_run_at` is null on a finished run, which is the crash case).
-- **Run line** (`admin-freshness`): `Latest run started <instant>, finished
-  <instant>.` or `..., still running.`
+- **Head:** `Collector`, the status chip beside the title (this is now the
+  chip's only resting place on a healthy day), and trailing, `Next run
+  <relative day>, <clock>` — `tomorrow, 14:02`, `today, 15:00`, or the
+  date when further out; `Next run not scheduled` when `next_run_at` is null
+  on a finished run, which is the crash case.
+- **Run line** (`admin-freshness`): `Last run <date>, <start clock> –
+  <end clock> · every 24 h while idle` (or `every hour during CWL`, from
+  `active_cwl`). `..., still running` while unfinished. When the run was not
+  healthy the line ends `· data last fresh <date>, <clock>`, so the operator
+  sees the gap the leader's notice describes.
+- **Times on the board are the clock only.** The run line carries the date
+  once; six rows repeating it six times is what made the old facts list hard
+  to trace. Each row's finish time sits right-aligned in a fixed slot before
+  the pull count, tabular figures, so the six read as a column.
 - **Endpoint board:** `cm-rows`, one `cm-row` per endpoint in the fixed order
   `clan · members · player · current_war · league_group · league_war`, six
   rows always. Each row: endpoint name as `cm-row-name`; meta line opening
@@ -199,10 +220,13 @@ at, it is a thing to have done. So:
 - **Access activity is a section closed by default**, its head carrying the
   count so a closed log still says how much is behind it, opened by the head.
   It is renamed from "Recent access activity": it is the whole log, newest
-  first, and "recent" was promising a cap it no longer has. Whether it pages
-  past a screen's worth is decided when it is long enough to matter; it is
-  not ten rows plus `N of M shown`, because nobody narrows a log by searching
-  it for a name they already know.
+  first. **It pages at ten**, `1–10 of 31` with Newer / Older ghosts: this is
+  the pager case ADR 0024 names, "a surface whose rows are walked through
+  rather than searched", and it is built now rather than when the log is
+  long, because a log is always eventually long and Nick would rather not
+  revisit it in a few weeks. Server-side: `range()` on `audit_events`
+  ordered by `occurred_at desc`, with the total from a `count: "exact"`
+  head request.
 - Section order becomes: Collection health · Collector (operator) · People ·
   Access activity (closed). Trust of the data stays on top because everything
   below is read in its light.
@@ -212,8 +236,10 @@ at, it is a thing to have done. So:
 - Vitest: the Collector section renders for an operator session and not for
   an admin session; six rows always; worst-status aggregation for repeated
   endpoints; a pending invitation is a People row with Reissue and Revoke and
-  a redeemed one is not; the access log is closed on load and opens from its
-  head. Queries by role and text only.
+  a redeemed one is not; the access log is closed on load, opens from its
+  head, shows ten with the range and total, and Older requests the next
+  range; the health section is absent for a healthy or running run and
+  present with the notice for any other. Queries by role and text only.
 - `apps/web/src/test/e2e-client.ts`: the stub learns `has_app_role('operator')`
   and `next_run_at`.
 - Playwright: the operator fixture sees the board; the admin fixture does
@@ -233,6 +259,10 @@ Two findings for `design/components.md`, both recorded there when built:
   `cm-routebutton-chev` already does for the route menu, no third disclosure
   glyph. First use; a second surface wanting one is what would promote it
   from the `admin-` page layer.
+- **A pager** — ten rows, `first–last of total`, two ghosts. ADR 0024
+  anticipated it and left it to the first surface that needed one; this is
+  that surface. `LIST_MAX_ROWS` is the page size, so the two halves of that
+  rule stay one number.
 
 No new token. The endpoint board is `cm-rows` at the page layer under the
 `admin-` prefix.
