@@ -379,7 +379,9 @@ test("offers ranked bench candidates and reorders the lineup to match the game",
      who have already secured a bonus floating to the top of a list you read to
      choose a replacement. */
   const candidates = bench.getByRole("button", { name: /TH\d+/ });
-  await expect(candidates.first()).toContainText("Needs a turn");
+  /* The pill is progress to the bonus, `stars/8★`, and the bench leads with
+     whoever is furthest from it (#113). */
+  await expect(candidates.first()).toContainText(/[0-7]\/8/);
 
   const search = bench.getByRole("searchbox", { name: "Find a member" });
   await search.fill("Kira");
