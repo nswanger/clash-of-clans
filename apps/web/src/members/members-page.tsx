@@ -296,7 +296,12 @@ function MemberPanel({ member, activity, windowLabel, wide, now, onClose }: {
           <div><dt>Wars joined</dt><dd>{activity ? `${activity.warsParticipated} of ${activity.warsObserved} logged` : "—"}</dd></div>
           <div><dt>Attacks used</dt><dd>{activity ? `${activity.attacksMade} of ${activity.assignedAttacks}` : "—"}</dd></div>
           <div><dt>War stars</dt><dd>{activity ? activity.stars : "—"}</dd></div>
-          <div><dt>War preference</dt><dd>{member.warPreference ?? "—"}</dd></div>
+          {/* The one card fact fed by the per-player pull rather than the
+              members list. When that pull did not land in the latest run the
+              row is null for the day, and a dash would read as "no preference"
+              -- so the gap is marked as the exception it is (ADR 0014, #128).
+              The run-level story lives on Admin's collector board. */}
+          <div><dt>War preference</dt><dd>{member.profileObservedAt === null ? "not pulled this run" : member.warPreference ?? "—"}</dd></div>
         </dl>
         {activity && activity.incompleteWars > 0
           ? <ul className="members-evidence">
@@ -312,8 +317,6 @@ function MemberPanel({ member, activity, windowLabel, wide, now, onClose }: {
             ? (tenure === null ? "—" : dayLabel(tenure))
             : (departed === null ? "—" : `left ${dayLabel(departed)} ago`)}</dd></div>
         </dl>
-        <p className="members-freshness">Roster observed {formatTimestamp(member.rosterObservedAt)} · Player profile
-          {member.profileObservedAt ? ` observed ${formatTimestamp(member.profileObservedAt)}` : " never observed"}.</p>
       </div>
     </div>
   );
@@ -459,4 +462,3 @@ function countLabel(count: number, noun: string): string {
 }
 
 function formatNumber(value: number | null): string { return value === null ? "—" : value.toLocaleString(); }
-function formatTimestamp(value: string): string { return value ? new Date(value).toLocaleString() : "never"; }

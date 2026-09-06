@@ -30,6 +30,19 @@ describe("MembersPage", () => {
     expect(panel.getByText("3 of 4")).toBeVisible();
   });
 
+  /* The per-player pull can miss one member while the members list landed, and
+     the card is the only per-member view of that. The gap is marked rather than
+     dashed, and the pull times themselves stay on Admin's collector board. */
+  it("marks a profile that did not land in the latest run, and carries no pull times", async () => {
+    render(<MembersPage client={clientWith([{ ...databaseRow(), profile_observed_at: null, war_preference: null }], [activityRow()])} clanTag="#CLAN" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /One/ }));
+
+    const panel = within(screen.getByRole("dialog", { name: "One" }));
+    expect(panel.getByText("not pulled this run")).toBeVisible();
+    expect(panel.queryByText(/observed 7\//)).toBeNull();
+  });
+
   it("calls a window with no logged war building history rather than inactivity", async () => {
     const client = clientWith([databaseRow()], [activityRow({ wars_observed: 0, wars_participated: 0, assigned_attacks: 0, attacks_made: 0, stars: 0 })]);
     render(<MembersPage client={client} clanTag="#CLAN" />);
