@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, rollCallTargetMonth, seasonName } from "./cwl-countdown.js";
+import { describe, expect, it, vi } from "vitest";
+import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, rollCallTargetMonth, seasonName, targetText } from "./cwl-countdown.js";
 
 describe("seasonName", () => {
   /* The season id is a key everywhere else in the app and a date exactly here. */
@@ -65,6 +65,15 @@ describe("clockText", () => {
 
   it("floors rather than showing a negative clock", () => {
     expect(clockText(-5000)).toBe("00:00:00");
+  });
+});
+
+describe("targetText", () => {
+  it("names the moment the clock counts to, in UTC", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T14:32:32Z"));
+    expect(targetText(remainingUntilNextCwl(new Date("2026-08-22T14:32:32Z")))).toBe("1 September · 05:00 UTC");
+    vi.useRealTimers();
   });
 });
 

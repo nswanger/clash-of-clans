@@ -265,8 +265,6 @@ function MemberPanel({ entry, loggedWarDays, seasonId, wide, onClose }: {
             -- and it showed the same evidence the rating is now made of, under
             a second definition (#89). */}
         <CwlRatingBreakdown rating={member.rating} />
-        <p className="cwl-review-freshness">The rating does not rank this list; the season record above does. It is here
-          because a role change is a judgement about the whole year, not about one season.</p>
       </div>
     </div>
   );

@@ -36,6 +36,9 @@
 }
 .admin-page .admin-row .cm-row-main { flex: 1 1 220px; }
 .admin-page .admin-row .cm-row-meta { flex-wrap: wrap; }
+/* Still here after #125 moved the row actions behind a menu: `.admin-row`
+ * lays the one menu control beside `cm-row-main`, and `admin-actions` is the
+ * fresh invitation's Copy and Dismiss and the access log's pager. */
 .admin-actions { display: flex; flex-wrap: wrap; gap: var(--cm-space-2); }
 
 /* The invitation link, shown once and never stored. Monospace because it is a

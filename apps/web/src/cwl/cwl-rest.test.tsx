@@ -91,6 +91,7 @@ describe("CwlStandDownPage", () => {
     expect(screen.getByText("Next CWL starts in")).toBeVisible();
     /* 2026-08-22T14:32:32Z to 2026-09-01T05:00:00Z. */
     expect(screen.getByRole("timer")).toHaveTextContent("9d 14:27:28");
+    expect(screen.getByText("1 September · 05:00 UTC")).toBeVisible();
   });
 
   it("ticks every second", () => {
@@ -111,7 +112,7 @@ describe("CwlStandDownPage", () => {
     expect(screen.getByText("CWL starting soon")).toBeVisible();
     expect(screen.queryByText("Next CWL starts in")).toBeNull();
     expect(screen.queryByRole("timer")).toBeNull();
-    expect(screen.getByText(/appears here as soon as it is collected/)).toBeVisible();
+    expect(screen.queryByText(/UTC/)).toBeNull();
   });
 
   /* A ticking number is not animation in the strict sense, but it is the same
@@ -223,10 +224,10 @@ describe("CwlStandDownPage roll call", () => {
 
     expect(screen.getByRole("dialog", { name: "Roll call" })).toBeVisible();
     expect(screen.getByText("No answers yet. Search to add whoever liked the message.")).toBeVisible();
-    /* Absence is not an answer: AGENTS.md's rule that absence of evidence is
-       never a penalty is why silence stays unknown rather than becoming
-       unavailable, and the surface has to say so. */
-    expect(screen.getByText(/stays unknown, not unavailable/)).toBeVisible();
+    /* Absence is not an answer: silence stays unknown rather than becoming
+       unavailable, and the surface shows it by listing nobody rather than by
+       saying so (#124). */
+    expect(screen.queryByText(/unticked/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Mason/ })).toBeNull();
   });
 
