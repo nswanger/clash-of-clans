@@ -66,8 +66,7 @@ export function clockText(ms: number): string {
 /* The moment the clock counts to, in a fixed UTC form (#124). It replaced a
  * sentence explaining that seasons open on the 1st at 05:00 UTC: the date is
  * the fact the sentence was carrying, and it needs no rule to read. */
-export function targetText(ms: number): string {
-  const at = new Date(Date.now() + Math.max(0, ms));
+export function targetText(at: Date): string {
   const day = at.toLocaleString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
   return `${day} · ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())} UTC`;
 }

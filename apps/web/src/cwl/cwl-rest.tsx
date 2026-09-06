@@ -55,7 +55,7 @@ import {
   type RollCallMember,
   type RollCallSnapshot,
 } from "../data/operations.js";
-import { clockText, coarseText, remainingUntilNextCwl, rollCallTargetMonth, seasonName, targetText } from "./cwl-countdown.js";
+import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, rollCallTargetMonth, seasonName, targetText } from "./cwl-countdown.js";
 import { CwlPhaseStrip } from "./cwl-phase-strip.js";
 import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-rest.css";
@@ -371,7 +371,7 @@ export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, on
             to know. */}
         {past
           ? null
-          : <p className="cwl-rest-note">{targetText(remainingMs)}</p>}
+          : <p className="cwl-rest-note">{targetText(nextCwlStart(new Date()))}</p>}
         {/* THE ONE THING THE LEADER CAN DO ABOUT THE SEASON THE TIMER IS
             COUNTING TOWARD (#96). ADR 0002 required this page to read as
             absence rather than reassurance, and a control is not a claim that

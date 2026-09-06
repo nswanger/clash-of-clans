@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, rollCallTargetMonth, seasonName, targetText } from "./cwl-countdown.js";
 
 describe("seasonName", () => {
@@ -70,10 +70,7 @@ describe("clockText", () => {
 
 describe("targetText", () => {
   it("names the moment the clock counts to, in UTC", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-22T14:32:32Z"));
-    expect(targetText(remainingUntilNextCwl(new Date("2026-08-22T14:32:32Z")))).toBe("1 September · 05:00 UTC");
-    vi.useRealTimers();
+    expect(targetText(nextCwlStart(new Date("2026-08-22T14:32:32Z")))).toBe("1 September · 05:00 UTC");
   });
 });
 
