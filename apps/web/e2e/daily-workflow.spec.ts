@@ -223,10 +223,6 @@ test("records who said yes before the season the answers are about exists", asyn
 
   const panel = page.getByLabel("Roll call");
   await expect(panel).toBeVisible();
-  /* Silence is not an answer (AGENTS.md: absence of evidence is never a
-     penalty), so the surface has to say what an untouched roster means. */
-  await expect(page.getByText(/stays unknown, not unavailable/)).toBeVisible();
-
   /* The list is the ANSWERS, not the roster: nobody has replied yet, so there is
      nothing to show and the search is the way in. */
   await expect(page.getByText("No answers yet. Search to add whoever liked the message.")).toBeVisible();

@@ -303,9 +303,6 @@ function MemberPanel({ member, activity, windowLabel, wide, now, onClose }: {
               <li>{countLabel(activity.incompleteWars, "war")} logged incompletely</li>
             </ul>
           : null}
-        <p className="members-freshness">A war counts towards this window by its recorded end time, so a war we
-          could not place in time falls in no window at all.</p>
-
         <p className="cm-panel-label">Roster facts</p>
         <dl className="members-facts">
           <div><dt>Player tag</dt><dd>{member.playerTag}</dd></div>

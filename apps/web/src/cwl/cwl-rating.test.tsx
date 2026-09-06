@@ -73,11 +73,11 @@ describe("the breakdown", () => {
       regularWindowFrom: "2026-07-05T12:00:00.000Z",
     })} />);
 
-    expect(screen.getByText("CWL attacks")).toBeTruthy();
+    expect(screen.getByText(/CWL attacks.*60%/)).toBeTruthy();
     expect(screen.getByText("72")).toBeTruthy();
-    expect(screen.getByText("Regular wars")).toBeTruthy();
+    expect(screen.getByText(/Regular wars.*40%/)).toBeTruthy();
     expect(screen.getByText("45")).toBeTruthy();
-    expect(screen.getByText(/Weighted 60% CWL attacks, 40% regular wars/)).toBeTruthy();
+    expect(screen.queryByText(/Weighted/)).toBeNull();
   });
 
   /* The whole point of #89: somebody who joined none of the window's wars reads

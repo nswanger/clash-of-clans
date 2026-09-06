@@ -91,8 +91,7 @@
  * unknown mark's job (#19) and carries no hue. */
 .cwl-rest-clock.is-soon { color: var(--cm-fg-muted); font-weight: var(--cm-weight-semibold); }
 
-/* The one sentence under the clock: it names what the countdown is counting to,
- * which a bare date cannot. */
+/* The one line under the clock: the moment it is counting to. */
 .cwl-rest-note {
   margin: var(--cm-space-3) 0 0;
   font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); max-width: 34ch;
@@ -145,11 +144,6 @@
  * Left-aligned, unlike everything else in this file. The page body is centred
  * because it holds one object; a roster is a list and a centred list is unreadable.
  */
-.cwl-rest-rollcall-lede {
-  margin: 0 0 var(--cm-space-3);
-  font-size: var(--cm-text-xs); line-height: 1.5; color: var(--cm-fg-muted); text-align: left;
-}
-
 .cwl-rest-rollcall-list { text-align: left; }
 
 /* The middle column of `cm-check`, which the checklist fills with a swap. Here

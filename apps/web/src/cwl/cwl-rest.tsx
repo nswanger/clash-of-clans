@@ -55,7 +55,7 @@ import {
   type RollCallMember,
   type RollCallSnapshot,
 } from "../data/operations.js";
-import { clockText, coarseText, remainingUntilNextCwl, rollCallTargetMonth, seasonName } from "./cwl-countdown.js";
+import { clockText, coarseText, nextCwlStart, remainingUntilNextCwl, rollCallTargetMonth, seasonName, targetText } from "./cwl-countdown.js";
 import { CwlPhaseStrip } from "./cwl-phase-strip.js";
 import type { CwlPhase } from "./cwl-phase.js";
 import "./cwl-rest.css";
@@ -175,10 +175,6 @@ function RollCallPanel({ rollCall, search, docked, onSearch, onToggle, onClose }
       {docked ? null : <button className="cm-iconbutton" type="button" data-close aria-label="Close" onClick={onClose}><Icon name="close" /></button>}
     </div>
     <div className="cm-panel-body">
-      {/* The one line of instruction on the surface, and it earns its place:
-          the list is every current member, so without it a leader could read an
-          unticked roster as "everyone is out" rather than "nobody answered". */}
-      <p className="cwl-rest-rollcall-lede">Tick whoever answered the availability message. Anyone left unticked stays unknown, not unavailable.</p>
       {/* `cm-search` unchanged from the bench, over the same kind of list, and
           it is the ONLY way to reach a member who has not answered -- see
           `rankRollCall`. */}
@@ -370,14 +366,12 @@ export function CwlStandDownPage({ client, clanTag, snapshot, phase, onPhase, on
           : <p className="cwl-rest-clock" role="timer" aria-live="off">
               {reduced ? coarseText(remainingMs) : clockText(remainingMs)}
             </p>}
-        {/* The only place the forecast is admitted as a forecast, so it goes
-            when the countdown does — past zero the page no longer claims to
-            know. */}
-        <p className="cwl-rest-note">
-          {past
-            ? "The new season appears here as soon as it is collected."
-            : "Seasons open on the 1st of the month. This counts to 05:00 UTC."}
-        </p>
+        {/* What the clock counts to, as a date rather than a rule (#124). It
+            goes when the countdown does — past zero the page no longer claims
+            to know. */}
+        {past
+          ? null
+          : <p className="cwl-rest-note">{targetText(nextCwlStart(new Date()))}</p>}
         {/* THE ONE THING THE LEADER CAN DO ABOUT THE SEASON THE TIMER IS
             COUNTING TOWARD (#96). ADR 0002 required this page to read as
             absence rather than reassurance, and a control is not a claim that

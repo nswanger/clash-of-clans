@@ -70,16 +70,21 @@ export function ratingBasisNote(rating: CwlMemberRating): string | null {
 export function CwlRatingBreakdown({ rating }: { rating: CwlMemberRating }) {
   const note = ratingBasisNote(rating);
   const hasWindow = rating.regularWarsObserved > 0;
+  /* ADR 0023 has both rating surfaces state the weights once. They ride on the
+     term labels rather than in a sentence beneath (#124), and only when both
+     terms are in the rating: a weight beside a dash would claim a blend that
+     was never made. */
+  const weighted = rating.ratingBasis === "blended";
   return (
     <>
       <p className="cm-panel-label">Rating basis</p>
       <dl className="cwl-rating-terms">
         <div>
-          <dt>CWL attacks</dt>
+          <dt>CWL attacks{weighted ? <> <span className="cm-sep">·</span> {CWL_WEIGHT_PERCENT}%</> : null}</dt>
           <dd>{rating.cwlScore === null ? "—" : rating.cwlScore}</dd>
         </div>
         <div>
-          <dt>Regular wars</dt>
+          <dt>Regular wars{weighted ? <> <span className="cm-sep">·</span> {REGULAR_WEIGHT_PERCENT}%</> : null}</dt>
           <dd>{rating.regularScore === null ? "—" : rating.regularScore}</dd>
         </div>
       </dl>
@@ -95,9 +100,7 @@ export function CwlRatingBreakdown({ rating }: { rating: CwlMemberRating }) {
             <b>{rating.regularAttacksMade} of {rating.regularAvailableAttacks}</b> attacks used
           </p>
         : null}
-      <p className="cwl-rating-note">
-        {note ?? `Weighted ${CWL_WEIGHT_PERCENT}% CWL attacks, ${REGULAR_WEIGHT_PERCENT}% regular wars.`}
-      </p>
+      {note ? <p className="cwl-rating-note">{note}</p> : null}
     </>
   );
 }
