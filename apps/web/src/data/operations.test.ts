@@ -4,6 +4,7 @@ import {
   isCollectionUnhealthy,
   isExpectedIdleCwlPartial,
   demoteAdmin,
+  loadCollectionHealth,
   loadAccessManagement,
   loadCurrentCwlLineupWorkspace,
   promoteLeader,
@@ -262,6 +263,54 @@ describe("Supabase operations", () => {
   it("reports a partial run when no attempts were loaded to excuse it", () => {
     expect(isCollectionUnhealthy({ status: "partial" })).toBe(true);
     expect(isCollectionUnhealthy({ status: "partial", attempts: [] })).toBe(true);
+  });
+
+  /* #130: the collector retries a timed-out request within the run and records
+     each try. An endpoint is judged by its last try, so a timeout that was
+     retried successfully is not a failure the page reports. */
+  describe("retried attempts", () => {
+    const row = (endpoint: string, requestIdentity: string, attemptNumber: number, status: string, errorCategory: string | null = null) => ({
+      endpoint, request_identity: requestIdentity, attempt_number: attemptNumber, status,
+      http_status: status === "healthy" ? 200 : errorCategory === "not_found" ? 404 : null,
+      error_category: errorCategory, started_at: "2026-10-01T08:40:00Z", finished_at: "2026-10-01T08:40:10Z",
+    });
+    function healthClient(attemptRows: unknown[]) {
+      const run = { id: "run-1", status: "partial", started_at: "2026-10-01T08:39:00Z", finished_at: "2026-10-01T08:43:00Z", last_fresh_at: "2026-10-01T08:43:00Z", error_message: null, next_run_at: null, active_cwl: false };
+      return {
+        from: (table: string) => table === "collection_runs"
+          ? { select: () => ({ order: () => ({ limit: () => ({ maybeSingle: async () => ({ data: run, error: null }) }) }) }) }
+          : { select: () => ({ eq: () => ({ order: async () => ({ data: attemptRows, error: null }) }) }) },
+      };
+    }
+
+    it("keeps only the last try of each request", async () => {
+      const health = await loadCollectionHealth(healthClient([
+        row("clan", "#CLAN", 1, "healthy"),
+        row("members", "#CLAN", 1, "healthy"),
+        row("player", "#ONE", 1, "error", "timeout"),
+        row("player", "#ONE", 2, "healthy"),
+        row("player", "#TWO", 1, "healthy"),
+        row("league_group", "#CLAN", 1, "error", "not_found"),
+      ]));
+
+      expect(health.attempts.filter((attempt) => attempt.endpoint === "player").map((attempt) => attempt.status))
+        .toEqual(["healthy", "healthy"]);
+      expect(isCollectionUnhealthy(health)).toBe(false);
+    });
+
+    it("still reports a request whose last try failed", async () => {
+      const health = await loadCollectionHealth(healthClient([
+        row("clan", "#CLAN", 1, "healthy"),
+        row("members", "#CLAN", 1, "healthy"),
+        row("player", "#ONE", 1, "error", "timeout"),
+        row("player", "#ONE", 2, "error", "timeout"),
+        row("player", "#ONE", 3, "error", "timeout"),
+        row("league_group", "#CLAN", 1, "error", "not_found"),
+      ]));
+
+      expect(health.attempts.filter((attempt) => attempt.endpoint === "player")).toHaveLength(1);
+      expect(isCollectionUnhealthy(health)).toBe(true);
+    });
   });
 
   it("leaves the healthy, running and unreadable statuses as they were", () => {

@@ -157,7 +157,7 @@ describe("collectOnce", () => {
       getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
     };
 
-    const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN" });
+    const summary = await collectOnce({ client, store, clanTag: "#FAKECLAN", sleep: async () => {} });
 
     expect(summary.failedEndpoints).toContain("league_group");
     expect(summary.activeCwl).toBeNull();
@@ -231,6 +231,82 @@ describe("collectOnce", () => {
     })]);
     expect(summary.runFinalized).toBe(true);
     expect(store.saveSnapshot).toHaveBeenCalledTimes(3);
+  });
+
+  describe("transient Clash failures (#130)", () => {
+    function rosterClient(getPlayer: ReturnType<typeof vi.fn>, getMembers?: ReturnType<typeof vi.fn>) {
+      const memberList = [{ tag: "#FAKEONE", name: "Fixture One", townHallLevel: 16 }];
+      return {
+        getClan: vi.fn().mockResolvedValue({ tag: "#FAKECLAN", name: "Fixture", memberList }),
+        getMembers: getMembers ?? vi.fn().mockResolvedValue({ items: memberList }),
+        getPlayer,
+        getLeagueGroup: vi.fn().mockResolvedValue({ state: "notInWar", season: "2099-01", clans: [], rounds: [] }),
+        getLeagueWar: vi.fn(),
+        getCurrentWar: vi.fn(async () => ({ state: "notInWar" })),
+      };
+    }
+    const profile = { tag: "#FAKEONE", name: "Fixture One", townHallLevel: 16 };
+
+    it("retries a timed-out request and judges the endpoint by its last try", async () => {
+      const store = makeStore();
+      const sleep = vi.fn(async (_ms: number) => {});
+      const getPlayer = vi.fn()
+        .mockRejectedValueOnce(new ClashApiError("timeout", "Clash request failed: timeout"))
+        .mockResolvedValueOnce(profile);
+
+      const summary = await collectOnce({ client: rosterClient(getPlayer), store, clanTag: "#FAKECLAN", sleep });
+
+      expect(getPlayer).toHaveBeenCalledTimes(2);
+      expect(summary.failedEndpoints).toEqual([]);
+      expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: "healthy" }));
+      const playerTries = vi.mocked(store.createAttempt).mock.calls
+        .map(([input]) => input)
+        .filter((input) => input.endpoint === "player");
+      expect(playerTries.map((input) => input.attemptNumber)).toEqual([1, 2]);
+      // The failed try stays on record as its own attempt.
+      expect(store.finishAttempt).toHaveBeenCalledWith(expect.objectContaining({ status: "error", errorCategory: "timeout" }));
+    });
+
+    it("gives up after three tries and reports the last failure", async () => {
+      const store = makeStore();
+      const sleep = vi.fn(async (_ms: number) => {});
+      const getPlayer = vi.fn().mockRejectedValue(new ClashApiError("network", "Clash request failed: network"));
+
+      const summary = await collectOnce({ client: rosterClient(getPlayer), store, clanTag: "#FAKECLAN", sleep });
+
+      expect(getPlayer).toHaveBeenCalledTimes(3);
+      expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([1_000, 3_000]);
+      expect(summary.failedEndpoints).toEqual(["player"]);
+      expect(summary.errorCategories).toEqual({ player: "network" });
+      expect(store.finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: "partial" }));
+    });
+
+    it("still collects every profile when the member list times out once", async () => {
+      const store = makeStore();
+      const getMembers = vi.fn()
+        .mockRejectedValueOnce(new ClashApiError("timeout", "Clash request failed: timeout"))
+        .mockResolvedValueOnce({ items: [profile] });
+      const getPlayer = vi.fn().mockResolvedValue(profile);
+
+      const summary = await collectOnce({
+        client: rosterClient(getPlayer, getMembers), store, clanTag: "#FAKECLAN", sleep: async () => {},
+      });
+
+      expect(getPlayer).toHaveBeenCalledTimes(1);
+      expect(summary.failedEndpoints).toEqual([]);
+    });
+
+    it("does not retry an answer Clash actually gave", async () => {
+      const store = makeStore();
+      const sleep = vi.fn(async (_ms: number) => {});
+      const getPlayer = vi.fn().mockRejectedValue(new ClashApiError("rate_limited", "Rate limited", 429));
+
+      const summary = await collectOnce({ client: rosterClient(getPlayer), store, clanTag: "#FAKECLAN", sleep });
+
+      expect(getPlayer).toHaveBeenCalledTimes(1);
+      expect(sleep).not.toHaveBeenCalled();
+      expect(summary.errorCategories).toEqual({ player: "rate_limited" });
+    });
   });
 
   it("returns the original endpoint error and failed run finalization state", async () => {

@@ -97,6 +97,17 @@ function countDuplicateKeys(rows, fields) {
   return duplicates;
 }
 
+// The collector retries a timeout or dropped connection within the run and
+// records every try (#130); each request is judged by its last try.
+function lastTries(attempts) {
+  const key = (attempt) => `${attempt.endpoint}\u001f${attempt.request_identity}`;
+  const latest = new Map();
+  for (const attempt of attempts) {
+    latest.set(key(attempt), Math.max(latest.get(key(attempt)) ?? 0, attempt.attempt_number ?? 1));
+  }
+  return attempts.filter((attempt) => (attempt.attempt_number ?? 1) === latest.get(key(attempt)));
+}
+
 function isExpectedIdleCwlPartial(run, attempts, expectedPlayerCount) {
   if (run?.status !== "partial") return false;
   const failedAttempts = attempts.filter((attempt) => attempt.status !== "healthy");
@@ -159,9 +170,9 @@ try {
   let latestAttempts = [];
   if (latestRun?.id) {
     const latestAttemptResponse = await fetchSupabase(
-      `collection_attempts?select=endpoint,status,http_status,error_category,request_identity&run_id=eq.${encodeURIComponent(latestRun.id)}`,
+      `collection_attempts?select=endpoint,status,http_status,error_category,request_identity,attempt_number&run_id=eq.${encodeURIComponent(latestRun.id)}`,
     );
-    latestAttempts = await latestAttemptResponse.json();
+    latestAttempts = lastTries(await latestAttemptResponse.json());
   }
   const expectedIdleCwlPartial = isExpectedIdleCwlPartial(
     latestRun,

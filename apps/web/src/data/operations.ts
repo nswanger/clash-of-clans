@@ -108,7 +108,7 @@ export async function loadCollectionHealth(client: any): Promise<CollectionHealt
   const runId = String(run.id);
 
   const attemptsResult = await client.from("collection_attempts")
-    .select("endpoint,status,http_status,error_category,started_at,finished_at")
+    .select("endpoint,request_identity,attempt_number,status,http_status,error_category,started_at,finished_at")
     .eq("run_id", runId)
     .order("started_at");
   ensureSuccess(attemptsResult, "Unable to load collection attempts");
@@ -126,14 +126,33 @@ export async function loadCollectionHealth(client: any): Promise<CollectionHealt
   };
 }
 
+type AttemptRow = {
+  endpoint: string; request_identity?: string | null; attempt_number?: number | null;
+  status: string; http_status: number | null;
+  error_category: string | null; started_at: string; finished_at: string | null;
+};
+
+/* THE LAST TRY IS THE ANSWER (#130). The collector retries a timeout or dropped
+ * connection within the run and records every try, so one request can have
+ * several rows. Earlier tries stay in the table as the record; the reader
+ * judges by the last one, the same rule the collector uses for the run status.
+ * A row with no request identity cannot be matched to its retries and is kept. */
+function lastTries(attempts: AttemptRow[]): AttemptRow[] {
+  const key = (row: AttemptRow) => `${row.endpoint}\u001f${row.request_identity}`;
+  const latest = new Map<string, number>();
+  for (const row of attempts) {
+    if (typeof row.request_identity !== "string") continue;
+    latest.set(key(row), Math.max(latest.get(key(row)) ?? 0, row.attempt_number ?? 1));
+  }
+  return attempts.filter((row) => typeof row.request_identity !== "string"
+    || (row.attempt_number ?? 1) === latest.get(key(row)));
+}
+
 /* One mapping for both readers: the Admin route queries `collection_attempts`
  * directly and the CWL loaders embed it under the run, and both need the same
  * row shape for the same predicate to judge it. */
 function attemptsFromEmbed(value: unknown): CollectionAttemptHealth[] {
-  return rows<{
-    endpoint: string; status: string; http_status: number | null;
-    error_category: string | null; started_at: string; finished_at: string | null;
-  }>(value).map((row) => ({
+  return lastTries(rows<AttemptRow>(value)).map((row) => ({
     endpoint: typeof row.endpoint === "string" ? row.endpoint : "unknown endpoint",
     /* Absent evidence stays absent. An attempt with no recorded status is not
        a healthy one — it is an attempt we cannot read, which the surface marks
@@ -689,7 +708,7 @@ export async function loadCwlLineupWorkspace(
     /* The attempts come back embedded rather than as a second round trip:
        the caveat needs them to tell an absent league group from a real
        fault, and they hang off the run by foreign key. */
-    client.from("collection_runs").select("status,last_fresh_at,collection_attempts(endpoint,status,http_status,error_category,started_at,finished_at)").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    client.from("collection_runs").select("status,last_fresh_at,collection_attempts(endpoint,request_identity,attempt_number,status,http_status,error_category,started_at,finished_at)").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   for (const [result, context] of [
     [seasonResult, "Unable to load the CWL season"],
@@ -932,7 +951,7 @@ export async function loadCwlReviewSeason(client: any, clanTag: string, requeste
     /* The attempts come back embedded rather than as a second round trip:
        the caveat needs them to tell an absent league group from a real
        fault, and they hang off the run by foreign key. */
-    client.from("collection_runs").select("status,last_fresh_at,collection_attempts(endpoint,status,http_status,error_category,started_at,finished_at)").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    client.from("collection_runs").select("status,last_fresh_at,collection_attempts(endpoint,request_identity,attempt_number,status,http_status,error_category,started_at,finished_at)").order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   for (const [result, context] of [
     [membersResult, "Unable to load CWL members"],

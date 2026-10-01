@@ -12,6 +12,8 @@ export interface CreateAttemptInput {
   runId: string;
   endpoint: string;
   requestIdentity: string;
+  /** 1 for the first try at this request in the run; retries count up from there. */
+  attemptNumber?: number;
   startedAt: string;
 }
 

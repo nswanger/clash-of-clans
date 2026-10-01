@@ -50,10 +50,30 @@ export interface CollectDependencies {
   ) => Promise<unknown>;
   now?: () => Date;
   signal?: AbortSignal;
+  /** Waits between tries of a transient failure; injectable so tests do not wait. */
+  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+}
+
+/* A timeout or dropped connection says nothing about the data, only that Clash
+ * did not answer in time, so it is tried again within the run (#130). Anything
+ * Clash actually answered (404, 429, invalid IP) is final. Three tries at most
+ * keeps a Clash outage inside the lease's safety deadline: ~55 requests x
+ * (3 x 10 s + 4 s) is about 31 minutes against 40. */
+const TRANSIENT_ERRORS = new Set(["timeout", "network"]);
+const RETRY_DELAYS_MS = [1_000, 3_000];
+
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const onAbort = () => { clearTimeout(timer); reject(signal?.reason); };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", onAbort); resolve(); }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export async function collectOnce(dependencies: CollectDependencies): Promise<CollectionSummary> {
   const now = dependencies.now ?? (() => new Date());
+  const sleep = dependencies.sleep ?? abortableSleep;
   const runId = await dependencies.store.createRun({ startedAt: now().toISOString() });
   const successfulEndpoints: Endpoint[] = [];
   const failedEndpoints: Endpoint[] = [];
@@ -86,6 +106,8 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     }
   }
 
+  const RETRY = Symbol("retry");
+
   async function capture<T>(
     endpoint: Endpoint,
     requestIdentity: string,
@@ -93,6 +115,21 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
     normalizationContext: { seasonId?: string; warDay?: number } = {},
     options: { ignoreNotFound?: boolean } = {},
   ): Promise<T | undefined> {
+    for (let attemptNumber = 1; ; attemptNumber++) {
+      const result = await captureTry(endpoint, requestIdentity, request, normalizationContext, options, attemptNumber);
+      if (result !== RETRY) return result;
+      await sleep(RETRY_DELAYS_MS[attemptNumber - 1]!, dependencies.signal);
+    }
+  }
+
+  async function captureTry<T>(
+    endpoint: Endpoint,
+    requestIdentity: string,
+    request: () => Promise<T>,
+    normalizationContext: { seasonId?: string; warDay?: number },
+    options: { ignoreNotFound?: boolean },
+    attemptNumber: number,
+  ): Promise<T | undefined | typeof RETRY> {
     dependencies.signal?.throwIfAborted();
     let attemptId: string;
     try {
@@ -100,6 +137,7 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
         runId,
         endpoint,
         requestIdentity,
+        attemptNumber,
         startedAt: now().toISOString(),
       });
     } catch (error) {
@@ -125,6 +163,18 @@ export async function collectOnce(dependencies: CollectDependencies): Promise<Co
         return undefined;
       }
       const httpStatus = error instanceof ClashApiError ? error.httpStatus : undefined;
+      if (TRANSIENT_ERRORS.has(category) && attemptNumber <= RETRY_DELAYS_MS.length) {
+        // Recorded, but not yet a failed endpoint: the endpoint is judged by its last try.
+        await dependencies.store.finishAttempt({
+          attemptId,
+          status: "error",
+          finishedAt: now().toISOString(),
+          errorCategory: category,
+        }).catch((storageError) => {
+          finalizationErrors.push({ scope: "attempt", endpoint, message: errorMessage(storageError) });
+        });
+        return RETRY;
+      }
       failEndpoint(endpoint, category);
       if (error instanceof ClashApiError && error.responseBody !== undefined && httpStatus !== undefined) {
         try {

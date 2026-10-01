@@ -176,6 +176,12 @@ test("opens the CWL route on the phase the season is actually in", async ({ page
    the strip's sub-label all have to agree on one screen, and a unit test can
    only assert two of them against a fake clock. */
 test("stands down on the third phase, with the clock and the strip agreeing", async ({ page }) => {
+  /* Mid-month, so there is a countdown to read. From 05:00 UTC on the 1st the
+     forecast start has passed and the page shows its "starting soon" floor
+     instead, which made this test fail for the rest of that day every month.
+     The 15th of the real current month keeps the fixtures dated from the clock. */
+  const today = new Date();
+  await page.clock.install({ time: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 15, 12)) });
   await page.goto("/#/cwl?phase=resting");
 
   await expect(page.getByRole("heading", { level: 1, name: "Stand down" })).toBeVisible();
