@@ -46,7 +46,7 @@ export class SupabaseCollectorRepository implements RawSnapshotStore, CanonicalR
       method: "POST",
       body: {
         run_id: input.runId, endpoint: input.endpoint, request_identity: input.requestIdentity,
-        started_at: input.startedAt, status: "running",
+        attempt_number: input.attemptNumber ?? 1, started_at: input.startedAt, status: "running",
       },
       prefer: "return=representation",
     });

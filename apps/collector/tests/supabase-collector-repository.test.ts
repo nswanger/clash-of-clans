@@ -47,6 +47,19 @@ describe("SupabaseCollectorRepository", () => {
     }
   });
 
+  it("records which try an attempt is, defaulting to the first", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse([{ id: "attempt-1" }], 201));
+    vi.stubGlobal("fetch", fetchMock);
+    const repository = new SupabaseCollectorRepository("https://example.supabase.co", "sb_secret_test");
+    const base = { runId: "run-1", endpoint: "player", requestIdentity: "#ONE", startedAt: "2099-01-01T00:00:00.000Z" };
+
+    await repository.createAttempt(base);
+    await repository.createAttempt({ ...base, attemptNumber: 2 });
+
+    const bodies = fetchMock.mock.calls.map(([, options]) => JSON.parse(options.body));
+    expect(bodies.map((body) => body.attempt_number)).toEqual([1, 2]);
+  });
+
   it("provides canonical operations and applies each war unit through the atomic RPC", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(undefined, 204));
     vi.stubGlobal("fetch", fetchMock);
