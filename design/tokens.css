@@ -168,6 +168,10 @@
   --cm-row-name: var(--cm-text-lg);
   --cm-row-meta: var(--cm-text-sm);
   --cm-tap-min: 44px;        /* never overridden by density */
+  /* Text typed into a field. 16px is iOS Safari's floor: below it, focusing the
+     field zooms the page in and leaves it zoomed after the keyboard closes. A
+     mouse never triggers that zoom, so compact takes the body size back. */
+  --cm-input-text: var(--cm-text-lg);
 
   /* The most rows any list renders at once (ADR 0024). A count, not a length:
      the CSS half of a rule whose other half is `LIST_MAX_ROWS` in the React
@@ -290,6 +294,7 @@
     --cm-row-pad-x: 10px;
     --cm-row-name: var(--cm-text-md);
     --cm-row-meta: var(--cm-text-xs);
+    --cm-input-text: var(--cm-text-md);
   }
 }
 

@@ -154,6 +154,48 @@ function SheetOverlay({ onClose, children }: { onClose: () => void; children: Re
     };
   }, []);
 
+  /* THE SHEET RIDES ABOVE THE KEYBOARD. A phone's keyboard does not shrink the
+   * layout viewport, only the visual one, so a sheet fixed to the bottom stays
+   * pinned behind the keyboard and whatever a search just matched is hidden
+   * until the keyboard is dismissed. The overlap is published as
+   * `--cm-keyboard-inset` and the visible height as `--cm-visible-height`, and
+   * the stylesheet lifts the panel by one and caps it by the other.
+   *
+   * Only while a field inside the sheet has focus: pinch-zoom shrinks the
+   * visual viewport too, and a sheet that leapt up the screen on a zoom would
+   * be a new bug rather than a fix. */
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    const viewport = window.visualViewport;
+    if (!overlay || !viewport) return;
+
+    const fieldFocused = () => {
+      const active = document.activeElement;
+      return active instanceof HTMLElement && overlay.contains(active) && active.matches("input, textarea");
+    };
+    const update = () => {
+      const inset = fieldFocused() ? Math.round(window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      if (inset > 0) {
+        overlay.style.setProperty("--cm-keyboard-inset", `${inset}px`);
+        overlay.style.setProperty("--cm-visible-height", `${Math.round(viewport.height)}px`);
+      } else {
+        overlay.style.removeProperty("--cm-keyboard-inset");
+        overlay.style.removeProperty("--cm-visible-height");
+      }
+    };
+
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    overlay.addEventListener("focusin", update);
+    overlay.addEventListener("focusout", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+      overlay.removeEventListener("focusin", update);
+      overlay.removeEventListener("focusout", update);
+    };
+  }, []);
+
   return (
     <div data-overlay ref={overlayRef}>
       <button className="cm-scrim" type="button" aria-label="Close" onClick={onClose} />
