@@ -125,6 +125,28 @@
 .cwl-panel-remove { display: grid; margin: var(--cm-space-3) 0 var(--cm-space-4); }
 .cwl-panel-remove .cwl-panel-note { margin: var(--cm-space-2) 0 0; font-size: var(--cm-text-sm); color: var(--cm-fg-muted); }
 
+/* ---------- the candidate list ----------
+ * Ten rows tall and never taller (ADR 0024, #103): `cwl-candidates` is the box
+ * the bench and the swap panel's "Replace with" list both render into, sized
+ * from `--cm-list-max-rows` so it holds still under a filter and stops growing
+ * with the clan. The gaps are `cm-rows`' own, counted so the box is exactly the
+ * height of ten rows rather than ten rows and change. The empty state fills the
+ * box for the same reason the roll call's does: an empty bench and a search with
+ * no matches both read as "nothing here", not as a list that failed to load.
+ *
+ * #121 deleted this rule by accident, and on a phone the bench sheet then
+ * shrank to the one row a search matched, dropping the field and its result
+ * behind the keyboard. The workflow spec now asserts the box holds its height.
+ */
+.cwl-candidates {
+  min-height: calc(var(--cm-tap-min) * var(--cm-list-max-rows) + var(--cm-space-2) * (var(--cm-list-max-rows) - 1));
+}
+.cwl-candidates .cm-empty {
+  display: grid; place-items: center;
+  min-height: calc(var(--cm-tap-min) * var(--cm-list-max-rows) + var(--cm-space-2) * (var(--cm-list-max-rows) - 1));
+  margin: 0;
+}
+
 /* ---------- the bench row's two targets (#114) ----------
  * A lineup row is one button with a chevron glyph inside it. A bench row is a
  * `cm-row` box holding two buttons, and it must look exactly like the one-button

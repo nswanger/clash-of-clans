@@ -185,6 +185,8 @@ One component, two mountings: a bottom sheet below 720px, docked into a column a
 | `cm-panel-label` | — | A label above a group inside the body. |
 | `cm-panel-foot` | — | |
 
+**A sheet rides above the on-screen keyboard.** A phone's keyboard shrinks the visual viewport but not the layout one, so a panel fixed to `bottom: 0` sat behind it and whatever a search had just matched was hidden until the keyboard was dismissed. While a field inside an overlaid panel has focus, the behaviour layer publishes the overlap as `--cm-keyboard-inset` and the visible height as `--cm-visible-height`; the panel lifts by the first and caps at the second, its top edge holding still so the field does not jump. Unset, they leave the panel exactly where it was. Focus is the gate because pinch-zoom shrinks the visual viewport too.
+
 `is-entering` and `is-settling` are applied by the shared behaviour layer, not by page code. The entry animation keys on the panel's `aria-label` changing, because panels re-render through `innerHTML` and a naive animate-on-insert replays the slide on every filter tap (#22).
 
 Where a docked panel has no other occupant it opens on the first row by default and carries no close control — there is nowhere to dismiss it to (#22). Where the column has another default occupant, as the lineup's bench does, the panel keeps its close control and closing returns to that default.
@@ -195,7 +197,7 @@ Where a docked panel has no other occupant it opens on the first row by default 
 |---|---|---|
 | `cm-button` | `is-block`, `:disabled` | The primary/filled button. |
 | `cm-ghost` | `is-danger`, `:disabled` | The secondary button. **Width is auto; the panel foot is what fills** — see below. |
-| `cm-search` | — | A single search input. It replaced a four-control filter row (#20); ranking does the work sorting used to. |
+| `cm-search` | — | A single search input. It replaced a four-control filter row (#20); ranking does the work sorting used to. Its text is `--cm-input-text`: 16px on touch, because below that iOS Safari zooms the page on focus and leaves it zoomed; compact density takes it back to the body size. |
 
 **The ghost's full width belonged to the slot, not the button** (wave 3). `cm-ghost` was `width: 100%` from the day it was drawn, because until wave 3 every ghost in the app lived alone in a `cm-panel-foot` and full-width was what that slot wanted. The Admin route is the first surface to put two of them side by side in a row, which turned an unnoticed coincidence into a bug: each button filled the line and the pair stacked one per row. The fill moved to `.cm-panel-foot .cm-ghost`, which is the same split `cm-button.is-block` already made explicit. Nothing at any existing call site changed.
 

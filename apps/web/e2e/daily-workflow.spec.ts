@@ -426,9 +426,16 @@ test("offers ranked bench candidates and reorders the lineup to match the game",
   await expect(candidates.first()).toContainText(/[0-7]\/8/);
 
   const search = bench.getByRole("searchbox", { name: "Find a member" });
+  /* Below 16px, iOS Safari zooms the page in on focus and leaves it there. */
+  if (!wide) expect(await search.evaluate((field) => parseFloat(getComputedStyle(field).fontSize))).toBeGreaterThanOrEqual(16);
+  /* THE BENCH HOLDS ITS HEIGHT UNDER A FILTER (ADR 0024). When the ten-row box
+     was lost (#121), a one-name match shrank the sheet to a sliver and the
+     field and its result dropped behind a phone's keyboard. */
+  const benchHeight = (await bench.boundingBox())?.height ?? 0;
   await search.fill("Kira");
   await expect(candidates).toHaveCount(1);
   await expect(candidates.first()).toContainText("Kira");
+  expect((await bench.boundingBox())?.height).toBeCloseTo(benchHeight, 0);
   await search.fill("nobody");
   await expect(bench.getByText(/No one matches/)).toBeVisible();
   await search.fill("");

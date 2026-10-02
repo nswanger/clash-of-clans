@@ -1,5 +1,5 @@
 import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sheet } from "./sheet.js";
 
 /* jsdom lays nothing out, so every panel is 0px tall and the dismiss threshold
@@ -112,5 +112,54 @@ describe("Sheet", () => {
     const close = getAllByLabelText("Close").find((node) => node.closest(".cm-panel-head"))!;
     drag(close, 100, 300);
     expect(panel.style.transform).toBe("");
+  });
+
+  describe("with a keyboard open", () => {
+    /* jsdom has no visual viewport, so the test supplies one: an 844px phone
+     * whose keyboard covers the bottom 336px. */
+    function stubViewport(height: number) {
+      const viewport = Object.assign(new EventTarget(), { height, offsetTop: 0 });
+      vi.stubGlobal("visualViewport", viewport);
+      vi.stubGlobal("innerHeight", 844);
+      return viewport;
+    }
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    function SearchPanel() {
+      return (
+        <div className="cm-panel" role="dialog" aria-modal="true" aria-label="Bench">
+          <div className="cm-panel-head"><h2>Bench</h2></div>
+          <div className="cm-panel-body"><input type="search" aria-label="Find a member" /></div>
+        </div>
+      );
+    }
+
+    it("lifts the sheet above the keyboard while its search has focus", () => {
+      const viewport = stubViewport(508);
+      const { getByRole } = render(<Sheet label="Bench" onClose={vi.fn()}><SearchPanel /></Sheet>);
+      const overlay = getByRole("dialog").parentElement!;
+      getByRole("searchbox").focus();
+      viewport.dispatchEvent(new Event("resize"));
+      expect(overlay.style.getPropertyValue("--cm-keyboard-inset")).toBe("336px");
+      expect(overlay.style.getPropertyValue("--cm-visible-height")).toBe("508px");
+    });
+
+    it("drops back to the bottom when the search lets go of focus", () => {
+      const viewport = stubViewport(508);
+      const { getByRole } = render(<Sheet label="Bench" onClose={vi.fn()}><SearchPanel /></Sheet>);
+      const overlay = getByRole("dialog").parentElement!;
+      const search = getByRole("searchbox");
+      search.focus();
+      viewport.dispatchEvent(new Event("resize"));
+      search.blur();
+      expect(overlay.style.getPropertyValue("--cm-keyboard-inset")).toBe("");
+    });
+
+    it("ignores a pinch-zoom, which shrinks the viewport with no field focused", () => {
+      const viewport = stubViewport(400);
+      const { getByRole } = render(<Sheet label="Bench" onClose={vi.fn()}><SearchPanel /></Sheet>);
+      viewport.dispatchEvent(new Event("resize"));
+      expect(getByRole("dialog").parentElement!.style.getPropertyValue("--cm-keyboard-inset")).toBe("");
+    });
   });
 });

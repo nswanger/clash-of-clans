@@ -498,7 +498,7 @@
 .cm-ghost.is-danger:disabled { color: var(--cm-fg-muted); border-color: var(--cm-hairline); }
 .cm-search {
   width: 100%; min-height: var(--cm-tap-min); margin-bottom: var(--cm-space-3);
-  padding: 0 var(--cm-space-3); font: inherit;
+  padding: 0 var(--cm-space-3); font: inherit; font-size: var(--cm-input-text);
   border: 1px solid var(--cm-border-control); border-radius: var(--cm-radius-md);
   background: var(--cm-surface); color: var(--cm-fg);
 }
@@ -523,6 +523,15 @@
   background: var(--cm-n-300);
 }
 [data-overlay] .cm-panel.is-settling { transition: transform 220ms cubic-bezier(.32,.72,0,1); }
+/* Above the keyboard while a field in the sheet has focus. The two properties
+ * are measured and set by the behaviour layer, and unset they leave the panel
+ * exactly where the base rule puts it. The top edge holds still as the
+ * keyboard opens; only the bottom rises, so the field being typed into does
+ * not jump. */
+[data-overlay] .cm-panel {
+  bottom: var(--cm-keyboard-inset, 0px);
+  max-height: min(calc(88dvh - var(--cm-keyboard-inset, 0px)), var(--cm-visible-height, 100dvh));
+}
 
 @keyframes cm-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes cm-scrim-in { from { opacity: 0; } to { opacity: 1; } }
