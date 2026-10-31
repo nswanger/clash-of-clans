@@ -30,7 +30,7 @@ export function AppRoutes({ client, clanTag, role, isOperator, origin, basePath 
 
   const route = routeForPath(hash, role);
   if (route === "members") return <MembersPage client={client} clanTag={clanTag} />;
-  if (route === "admin") return <AdminRoute client={client} origin={`${origin}${basePath}`} isOperator={isOperator} />;
+  if (route === "admin") return <AdminRoute client={client} clanTag={clanTag} origin={`${origin}${basePath}`} isOperator={isOperator} />;
   /* Absence, not apology — the same shape as the signed-out shell. Nothing has
      gone wrong; this account is simply not an admin. */
   if (route === "access_denied") {

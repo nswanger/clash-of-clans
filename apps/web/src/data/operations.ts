@@ -16,6 +16,31 @@ export interface AccessPerson {
   /* Orthogonal to `role` (#117): who sees the Collector section, never a route in. */
   isOperator: boolean;
   isCurrentUser: boolean;
+  /* The in-game accounts this person is (#134): self-claimed or set by an
+     admin, never verified. Empty is a guest. */
+  players: AccessPlayer[];
+}
+
+export interface AccessPlayer {
+  tag: string;
+  /* Null only for a tag the roster has never observed. */
+  name: string | null;
+  isCurrentMember: boolean;
+  departureObservedOn: string | null;
+}
+
+/* ADR 0004's departure rule, lifted to a person: they have left only when they
+   have accounts and none of them is in the latest roster observation. A missing
+   observation is a coverage gap, so a stale roster never invents a departure. */
+export function accessStanding(person: Pick<AccessPerson, "players">): "guest" | "left_clan" | undefined {
+  if (!person.players.length) return "guest";
+  return person.players.some((player) => player.isCurrentMember) ? undefined : "left_clan";
+}
+
+export interface LinkablePlayer {
+  playerTag: string;
+  name: string;
+  townHallLevel: number;
 }
 
 export interface AccessInvitation {
@@ -34,7 +59,8 @@ export interface AccessInvitation {
 
 export interface AccessAuditEvent {
   id: string;
-  eventType: "invitation_created" | "invitation_redeemed" | "invitation_revoked" | "invitation_reissued" | "role_granted" | "role_revoked";
+  eventType: "invitation_created" | "invitation_redeemed" | "invitation_revoked" | "invitation_reissued" | "role_granted" | "role_revoked"
+    | "player_claimed" | "player_linked" | "player_unlinked";
   actorName: string;
   targetName: string | null;
   eventData: Record<string, unknown>;
@@ -1352,7 +1378,11 @@ export interface AccessAuditPage {
 
 const ACCESS_EVENT_TYPES: AccessAuditEvent["eventType"][] = [
   "invitation_created", "invitation_redeemed", "invitation_revoked", "invitation_reissued", "role_granted", "role_revoked",
+  "player_claimed", "player_linked", "player_unlinked",
 ];
+
+/* Both carry the person they are about in `event_data.userId` (#134). */
+const TARGETED_ENTITY_TYPES = new Set(["user_role", "player_link"]);
 
 export async function loadAccessAuditPage(client: any, offset: number, limit: number): Promise<AccessAuditPage> {
   const pageResult = await client.from("audit_events")
@@ -1364,7 +1394,7 @@ export async function loadAccessAuditPage(client: any, offset: number, limit: nu
   const pageRows = rows<Record<string, unknown>>(pageResult.data);
 
   const targetIds = pageRows
-    .filter((row) => row.entity_type === "user_role")
+    .filter((row) => TARGETED_ENTITY_TYPES.has(String(row.entity_type)))
     .map((row) => record(row.event_data).userId)
     .filter((id): id is string => typeof id === "string");
   const targetNames = new Map<string, string>();
@@ -1384,7 +1414,7 @@ export async function loadAccessAuditPage(client: any, offset: number, limit: nu
         : typeof actor.display_name === "string" ? actor.display_name : String(row.actor_id);
       const eventData = record(row.event_data);
       const eventType = String(row.event_type) as AccessAuditEvent["eventType"];
-      const targetName = row.entity_type === "user_role"
+      const targetName = TARGETED_ENTITY_TYPES.has(String(row.entity_type))
         ? (typeof eventData.userId === "string" ? targetNames.get(eventData.userId) ?? eventData.userId : null)
         : eventType === "invitation_redeemed" ? actorName : null;
       return {
@@ -1420,4 +1450,36 @@ export async function demoteAdmin(client: AccessManagementClient, userId: string
 
 export async function revokeAccess(client: AccessManagementClient, userId: string): Promise<void> {
   ensureSuccess(await client.rpc("revoke_user_access", { target_user_id: userId }), "Unable to revoke access");
+}
+
+/* ---------------------------------------------------------------------------
+ * Player links (#134)
+ * ------------------------------------------------------------------------- */
+
+/* Current members nobody with access holds, for the claim screen and the admin
+   link panel. Filtered server-side: a leader cannot read other people's links. */
+export async function loadLinkablePlayers(client: InvitationClient, clanTag: string): Promise<LinkablePlayer[]> {
+  const result = await client.rpc("list_linkable_players", { requested_clan_tag: clanTag });
+  ensureSuccess(result, "Unable to load clan members");
+  return rows<Record<string, unknown>>(result.data).map((row) => ({
+    playerTag: String(row.player_tag),
+    name: String(row.name),
+    townHallLevel: Number(row.town_hall_level),
+  }));
+}
+
+export async function claimPlayer(client: InvitationClient, playerTag: string): Promise<void> {
+  ensureSuccess(await client.rpc("claim_player", { player_tag: playerTag }), "Unable to link your account");
+}
+
+export async function declinePlayerLink(client: InvitationClient): Promise<void> {
+  ensureSuccess(await client.rpc("decline_player_link", {}), "Unable to continue as a guest");
+}
+
+export async function linkPlayer(client: AccessManagementClient, userId: string, playerTag: string): Promise<void> {
+  ensureSuccess(await client.rpc("link_player", { target_user_id: userId, player_tag: playerTag }), "Unable to link player");
+}
+
+export async function unlinkPlayer(client: AccessManagementClient, userId: string, playerTag: string): Promise<void> {
+  ensureSuccess(await client.rpc("unlink_player", { target_user_id: userId, player_tag: playerTag }), "Unable to unlink player");
 }

@@ -21,8 +21,11 @@
 import { useState } from "react";
 import { AppTopbar, useDismissable } from "../app-chrome.js";
 import { Icon } from "../design/icon.js";
-import { LIST_MAX_ROWS } from "../design/layout.js";
+import { LIST_MAX_ROWS, useWide } from "../design/layout.js";
+import { Sheet } from "../design/sheet.js";
+import { PlayerPicker } from "../auth/player-picker.js";
 import {
+  accessStanding,
   isCollectionUnhealthy,
   isExpectedIdleCwlPartial,
   type AccessAuditEvent,
@@ -32,6 +35,7 @@ import {
   type AccessPerson,
   type CollectionAttemptHealth,
   type CollectionHealth,
+  type LinkablePlayer,
 } from "../data/operations.js";
 import { formatInstant, formatLogTime, formatRelativeInstant, formatRunWindow } from "./admin-format.js";
 import "./admin.css";
@@ -50,6 +54,9 @@ interface Props {
   onPromote(id: string): Promise<void>;
   onDemote(id: string): Promise<void>;
   onRevokeAccess(id: string): Promise<void>;
+  onLoadLinkablePlayers(): Promise<LinkablePlayer[]>;
+  onLinkPlayer(userId: string, playerTag: string): Promise<void>;
+  onUnlinkPlayer(userId: string, playerTag: string): Promise<void>;
   onCopyInvitation(value: string): Promise<void>;
   confirmAction(message: string): boolean;
   /* Injected so the relative day and the year rule are testable; the route
@@ -73,6 +80,7 @@ function roleVariant(role: AccessPerson["role"]): string {
 function AuditDescription({ event }: { event: AccessAuditEvent }) {
   const role = typeof event.eventData.role === "string" ? event.eventData.role : "access";
   const target = event.targetName ?? "an account";
+  const player = typeof event.eventData.playerTag === "string" ? event.eventData.playerTag : "a player";
   switch (event.eventType) {
     case "invitation_created": return <>{event.actorName} created an invitation</>;
     case "invitation_reissued": return <>{event.actorName} reissued an invitation</>;
@@ -80,6 +88,9 @@ function AuditDescription({ event }: { event: AccessAuditEvent }) {
     case "invitation_redeemed": return <>{event.actorName} redeemed an invitation</>;
     case "role_granted": return <>{event.actorName} granted {role} access to {target}</>;
     case "role_revoked": return <>{event.actorName} revoked {role} access from {target}</>;
+    case "player_claimed": return <>{event.actorName} claimed {player}</>;
+    case "player_linked": return <>{event.actorName} linked {player} to {target}</>;
+    case "player_unlinked": return <>{event.actorName} unlinked {player} from {target}</>;
   }
 }
 
@@ -113,6 +124,31 @@ function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
         </div>
       : null}
   </span>;
+}
+
+/* The link panel (#134): the claim screen's picker, opened from a person's
+ * row menu. Docked above the rows when wide, a sheet when not, as every
+ * panel in the app does it. The list loads on open rather than with the page,
+ * because which members are free changes with every link. */
+function LinkPanel({ linking, docked, onPick, onClose }: {
+  linking: { person: AccessPerson; players?: LinkablePlayer[]; error?: string };
+  docked: boolean;
+  onPick(person: AccessPerson, player: LinkablePlayer): void;
+  onClose(): void;
+}) {
+  return <div className="cm-panel admin-linkpanel" role={docked ? undefined : "dialog"} aria-modal={docked ? undefined : true} aria-label="Link player">
+    <div className="cm-panel-head">
+      <div className="cm-grow">
+        <h2>Link player</h2>
+        <p className="cm-panel-evidence">{linking.person.name}</p>
+      </div>
+      <button className="cm-iconbutton" type="button" aria-label="Close" onClick={onClose}><Icon name="close" /></button>
+    </div>
+    <div className="cm-panel-body" aria-busy={!linking.players && !linking.error}>
+      {linking.error ? <p className="admin-error" role="alert">{linking.error}</p> : null}
+      {linking.players ? <PlayerPicker players={linking.players} onPick={(player) => onPick(linking.person, player)} /> : null}
+    </div>
+  </div>;
 }
 
 /* Collection health, for every admin — and only when something is wrong.
@@ -307,6 +343,9 @@ export function AdminPage({
   onPromote,
   onDemote,
   onRevokeAccess,
+  onLoadLinkablePlayers,
+  onLinkPlayer,
+  onUnlinkPlayer,
   onCopyInvitation,
   confirmAction,
   now = () => new Date(),
@@ -315,6 +354,8 @@ export function AdminPage({
   const [pendingActions, setPendingActions] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<string>();
+  const [linking, setLinking] = useState<{ person: AccessPerson; players?: LinkablePlayer[]; error?: string }>();
+  const wide = useWide();
   const current = now();
 
   const runAction = async (key: string, action: () => Promise<void>, success: string) => {
@@ -359,6 +400,23 @@ export function AdminPage({
   const revokePerson = (person: AccessPerson) => {
     if (!confirmAction(`Revoke all access for ${person.name}?`)) return;
     void runAction(`person:${person.id}`, () => onRevokeAccess(person.id), `Access revoked for ${person.name}.`);
+  };
+
+  const openLinkPanel = (person: AccessPerson) => {
+    setLinking({ person });
+    onLoadLinkablePlayers()
+      .then((players) => setLinking((open) => open?.person.id === person.id ? { person, players } : open))
+      .catch((error: unknown) => setLinking((open) => open?.person.id === person.id ? { person, error: actionError(error) } : open));
+  };
+
+  const link = (person: AccessPerson, player: LinkablePlayer) => {
+    setLinking(undefined);
+    void runAction(`person:${person.id}`, () => onLinkPlayer(person.id, player.playerTag), `${player.name} is linked to ${person.name}.`);
+  };
+
+  const unlink = (person: AccessPerson, playerTag: string, playerName: string) => {
+    if (!confirmAction(`Unlink ${playerName} from ${person.name}?`)) return;
+    void runAction(`person:${person.id}`, () => onUnlinkPlayer(person.id, playerTag), `${playerName} is unlinked from ${person.name}.`);
   };
 
   const copyInvitation = () => runAction("invitation:copy", () => onCopyInvitation(freshInvitation!.url), "Invitation link copied.");
@@ -418,13 +476,30 @@ export function AdminPage({
           </div>
         : null}
 
+      {linking
+        ? wide
+          ? <LinkPanel linking={linking} docked onPick={link} onClose={() => setLinking(undefined)} />
+          : <Sheet label="Link player" onClose={() => setLinking(undefined)}>
+              <LinkPanel linking={linking} docked={false} onPick={link} onClose={() => setLinking(undefined)} />
+            </Sheet>
+        : null}
+
       <div className="cm-rows">
         {snapshot.people.map((person) => {
           const key = `person:${person.id}`;
           const pending = pendingActions[key];
-          const items: RowMenuItem[] = person.role === "leader"
-            ? [{ label: "Promote to admin", onSelect: () => promote(person), disabled: pending }]
-            : [{ label: "Demote to leader", onSelect: () => demote(person), disabled: pending }];
+          const standing = accessStanding(person);
+          const items: RowMenuItem[] = [
+            { label: "Link player", onSelect: () => openLinkPanel(person), disabled: pending },
+            ...person.players.map((player) => ({
+              label: `Unlink ${player.name ?? player.tag}`,
+              onSelect: () => unlink(person, player.tag, player.name ?? player.tag),
+              disabled: pending,
+            })),
+            person.role === "leader"
+              ? { label: "Promote to admin", onSelect: () => promote(person), disabled: pending }
+              : { label: "Demote to leader", onSelect: () => demote(person), disabled: pending },
+          ];
           items.push({ label: "Revoke access", onSelect: () => revokePerson(person), danger: true, disabled: pending });
           return <div className="cm-row admin-row" key={person.id}>
             <span className="cm-row-main">
@@ -432,6 +507,13 @@ export function AdminPage({
               <span className="cm-row-meta">
                 <span className={`cm-pill ${roleVariant(person.role)}`}>{person.role}</span>
                 {person.isOperator ? <span className="cm-pill">operator</span> : null}
+                {/* A linked current member gets no mark (ADR 0014): only a
+                    guest and someone whose every account left are exceptions. */}
+                {standing === "guest" ? <span className="cm-pill">guest</span> : null}
+                {standing === "left_clan" ? <span className="cm-pill is-caution">left clan</span> : null}
+                {person.players.length
+                  ? <><span className="cm-sep">·</span><span>{person.players.map((player) => player.name ?? player.tag).join(", ")}</span></>
+                  : null}
                 {person.isCurrentUser ? <><span className="cm-sep">·</span>Current account</> : null}
               </span>
               {errors[key] ? <span className="admin-error" role="alert">{errors[key]}</span> : null}

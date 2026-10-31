@@ -240,8 +240,14 @@ const defaultTableData: Record<string, unknown> = {
     { user_id: "other-leader", role: "leader", profiles: { display_name: "Other Leader" } },
   ],
   profiles: [
-    { id: "e2e-user", display_name: "E2E Leader" },
-    { id: "other-leader", display_name: "Other Leader" },
+    { id: "e2e-user", display_name: "E2E Leader", player_link_declined_at: null },
+    { id: "other-leader", display_name: "Other Leader", player_link_declined_at: null },
+  ],
+  /* The e2e account is Mason, so every other spec opens on a route rather than
+     on the claim screen (#134). Other Leader is unlinked: a guest. A spec that
+     wants the claim screen removes this row from the stored fixture. */
+  profile_player_links: [
+    { user_id: "e2e-user", player_tag: "#MASON", linked_by: "e2e-user" },
   ],
   /* Twelve rows, newest first, so the access log's pager has a second page to
      walk (#117, ADR 0024). Kept sorted because the stub's `order` is a no-op. */
@@ -258,8 +264,8 @@ const defaultTableData: Record<string, unknown> = {
 
 const accessManagementSnapshot = {
   people: [
-    { id: "e2e-user", name: "E2E Leader", role: "admin", isOperator: true, isCurrentUser: true },
-    { id: "other-leader", name: "Other Leader", role: "leader", isOperator: false, isCurrentUser: false },
+    { id: "e2e-user", name: "E2E Leader", role: "admin", isOperator: true, isCurrentUser: true, players: [] },
+    { id: "other-leader", name: "Other Leader", role: "leader", isOperator: false, isCurrentUser: false, players: [] },
   ],
   invitations: [{
     id: "e2e-invitation",
@@ -465,6 +471,22 @@ export function createE2EClient(): any {
   /* Written on first load, not only after a mutation, so a test can edit the
      stored fixture (a role row, say) and reload into it (#117). */
   if (!acceptanceFixture && !storedDefault) persistFixture();
+
+  const playerLinks = () => (tableData.profile_player_links ?? []) as Array<{ user_id: string; player_tag: string; linked_by: string }>;
+  const setDeclined = (userId: string, declinedAt: string | null) => {
+    const profiles = (tableData.profiles ?? []) as Array<Record<string, unknown>>;
+    if (Array.isArray(profiles)) for (const profile of profiles) if (profile.id === userId) profile.player_link_declined_at = declinedAt;
+  };
+  /* Newest first, because the stub's `order` is a no-op and the access log
+     reads this table directly. */
+  const recordLinkEvent = (eventType: string, userId: string, playerTag: string) => {
+    const events = (tableData.audit_events ?? []) as Array<Record<string, unknown>>;
+    tableData.audit_events = [{
+      id: `e2e-link-event-${events.length}`, event_type: eventType, actor_id: "e2e-user", entity_type: "player_link",
+      entity_id: `${userId}:${playerTag}`, event_data: { userId, playerTag }, occurred_at: new Date().toISOString(),
+    }, ...events];
+  };
+
   return {
     auth: {
       getSession: async () => ({ data: { session: { user: { id: "e2e-user" } } }, error: null }),
@@ -501,7 +523,67 @@ export function createE2EClient(): any {
         return { data: { clanTag: "#E2E", seasonId: String(season.season_id), bonusesAdministeredAt: season.bonuses_administered_at }, error: null };
       }
       if (name === "create_invitation") return { data: "e2e-one-time-token", error: null };
-      if (name === "get_access_management_snapshot") return { data: accessManagementSnapshot, error: null };
+      if (name === "get_access_management_snapshot") {
+        /* People's players are read from the stored links, so a link made in a
+           spec shows on the row after the route reloads the snapshot (#134). */
+        const roster = (tableData.member_roster_overview ?? []) as Array<Record<string, unknown>>;
+        const people = accessManagementSnapshot.people.map((person) => ({
+          ...person,
+          players: playerLinks().filter((link) => link.user_id === person.id).map((link) => {
+            const member = roster.find((row) => row.player_tag === link.player_tag);
+            return {
+              tag: link.player_tag,
+              name: typeof member?.name === "string" ? member.name : null,
+              isCurrentMember: member?.is_current_member === true,
+              departureObservedOn: typeof member?.departure_observed_on === "string" ? member.departure_observed_on : null,
+            };
+          }),
+        }));
+        return { data: { ...accessManagementSnapshot, people }, error: null };
+      }
+      /* The link RPCs (#134), with the database's refusals that a spec can
+         reach: an already-linked claimant, and a tag someone else holds. */
+      if (name === "list_linkable_players") {
+        const roster = (tableData.member_roster_overview ?? []) as Array<Record<string, unknown>>;
+        const held = new Set(playerLinks().map((link) => link.player_tag));
+        return {
+          data: roster.filter((row) => row.is_current_member === true && !held.has(String(row.player_tag)))
+            .map((row) => ({ player_tag: row.player_tag, name: row.name, town_hall_level: row.town_hall_level })),
+          error: null,
+        };
+      }
+      if (name === "claim_player" || name === "link_player") {
+        const userId = name === "claim_player" ? "e2e-user" : String(args.target_user_id);
+        if (name === "claim_player" && playerLinks().some((link) => link.user_id === userId)) {
+          return { data: null, error: { message: "Your account is already linked to a player" } };
+        }
+        if (playerLinks().some((link) => link.player_tag === args.player_tag)) {
+          return { data: null, error: { message: "Player is linked to someone else" } };
+        }
+        tableData.profile_player_links = [...playerLinks(), { user_id: userId, player_tag: String(args.player_tag), linked_by: "e2e-user" }];
+        setDeclined(userId, null);
+        recordLinkEvent(name === "claim_player" ? "player_claimed" : "player_linked", userId, String(args.player_tag));
+        persistFixture?.();
+        recordMutation(`rpc:${name}`, args);
+        return { data: null, error: null };
+      }
+      if (name === "unlink_player") {
+        const before = playerLinks();
+        tableData.profile_player_links = before.filter((link) => !(link.user_id === args.target_user_id && link.player_tag === args.player_tag));
+        if ((tableData.profile_player_links as unknown[]).length === before.length) {
+          return { data: null, error: { message: "Player is not linked to this account" } };
+        }
+        recordLinkEvent("player_unlinked", String(args.target_user_id), String(args.player_tag));
+        persistFixture?.();
+        recordMutation(`rpc:${name}`, args);
+        return { data: null, error: null };
+      }
+      if (name === "decline_player_link") {
+        setDeclined("e2e-user", fixtureNow.toISOString());
+        persistFixture?.();
+        recordMutation(`rpc:${name}`, args);
+        return { data: null, error: null };
+      }
       if (name === "ensure_cwl_daily_lineup_plan" || name === "save_cwl_daily_lineup_plan" || name === "set_cwl_daily_lineup_plan_lock" || name === "reinherit_cwl_daily_lineup_plan") {
         const day = Number(args.requested_war_day);
         const plans = (tableData.cwlLineupPlans ?? {}) as Record<string, any>;

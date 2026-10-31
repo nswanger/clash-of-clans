@@ -11,9 +11,18 @@ const local = (y: number, m: number, d: number, h: number, min: number) => new D
 
 const snapshot: AccessManagementSnapshot = {
   people: [
-    { id: "admin-self", name: "Nick", role: "admin", isOperator: true, isCurrentUser: true },
-    { id: "admin-two", name: "Ada", role: "admin", isOperator: false, isCurrentUser: false },
-    { id: "leader-one", name: "Grace", role: "leader", isOperator: false, isCurrentUser: false },
+    { id: "admin-self", name: "Nick", role: "admin", isOperator: true, isCurrentUser: true, players: [
+      { tag: "#TESTNICK", name: "Nick Main", isCurrentMember: true, departureObservedOn: null },
+    ] },
+    /* Ada's main left while her alt stayed: a person with a current account. */
+    { id: "admin-two", name: "Ada", role: "admin", isOperator: false, isCurrentUser: false, players: [
+      { tag: "#TESTADA", name: "Ada Main", isCurrentMember: false, departureObservedOn: "2026-09-01" },
+      { tag: "#TESTADALT", name: "Ada Alt", isCurrentMember: true, departureObservedOn: null },
+    ] },
+    { id: "leader-one", name: "Grace", role: "leader", isOperator: false, isCurrentUser: false, players: [
+      { tag: "#TESTGRACE", name: "Grace Main", isCurrentMember: false, departureObservedOn: "2026-09-03" },
+    ] },
+    { id: "leader-guest", name: "Linus", role: "leader", isOperator: false, isCurrentUser: false, players: [] },
   ],
   invitations: [
     {
@@ -112,6 +121,12 @@ function renderAccess(overrides: Partial<React.ComponentProps<typeof AdminPage>>
     onPromote: vi.fn().mockResolvedValue(undefined),
     onDemote: vi.fn().mockResolvedValue(undefined),
     onRevokeAccess: vi.fn().mockResolvedValue(undefined),
+    onLoadLinkablePlayers: vi.fn().mockResolvedValue([
+      { playerTag: "#TESTFREE", name: "Free Member", townHallLevel: 14 },
+      { playerTag: "#TESTOTHER", name: "Other Member", townHallLevel: 12 },
+    ]),
+    onLinkPlayer: vi.fn().mockResolvedValue(undefined),
+    onUnlinkPlayer: vi.fn().mockResolvedValue(undefined),
     onCopyInvitation: vi.fn().mockResolvedValue(undefined),
     confirmAction: vi.fn().mockReturnValue(true),
     now: () => now,
@@ -129,7 +144,7 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>, name: string) 
 describe("AdminPage", () => {
   it("shows people with their roles, and no stored links", () => {
     renderAccess();
-    expect(screen.getByRole("heading", { name: /^People/ })).toHaveTextContent("People 3");
+    expect(screen.getByRole("heading", { name: /^People/ })).toHaveTextContent("People 4");
     expect(screen.getByText("Current account")).toBeVisible();
     expect(screen.getByText("operator")).toBeVisible();
     expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
@@ -180,11 +195,66 @@ describe("AdminPage", () => {
     /* Not a class query: #25's proof rule is that no test in this suite asserts
        on a class name. The self row is the one with no menu control at all. */
     expect(screen.queryByRole("button", { name: "Actions for Nick" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /^Actions for/ })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /^Actions for/ })).toHaveLength(4);
     const menu = await openMenu(user, "Actions for Grace");
     await user.click(within(menu).getByRole("menuitem", { name: "Promote to admin" }));
     expect(props.onPromote).toHaveBeenCalledWith("leader-one");
     expect(await screen.findByRole("status")).toHaveTextContent("Grace is now an admin");
+  });
+
+  /* #134: rows mark the exception. A guest and a person whose every account
+     left carry a pill; a linked current member, and a person with one current
+     account among departed ones, carry none. */
+  it("names each person's players and marks only guests and people who left the clan", () => {
+    renderAccess();
+    expect(screen.getByText(/Nick Main/)).toBeVisible();
+    expect(screen.getByText(/Ada Main, Ada Alt/)).toBeVisible();
+    expect(screen.getAllByText("left clan")).toHaveLength(1);
+    expect(screen.getAllByText("guest")).toHaveLength(1);
+    const graceRow = screen.getByText(/Grace Main/).closest("div")!;
+    expect(within(graceRow).getByText("left clan")).toBeVisible();
+    const linusRow = screen.getByText("Linus").closest("div")!;
+    expect(within(linusRow).getByText("guest")).toBeVisible();
+  });
+
+  it("links a player picked from the roster, narrowing by search", async () => {
+    const user = userEvent.setup();
+    const props = renderAccess();
+    const menu = await openMenu(user, "Actions for Linus");
+    await user.click(within(menu).getByRole("menuitem", { name: "Link player" }));
+    expect(props.onLoadLinkablePlayers).toHaveBeenCalled();
+    await user.type(await screen.findByRole("searchbox", { name: "Find a member" }), "other");
+    expect(screen.queryByRole("button", { name: /Free Member/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Other Member/ }));
+    expect(props.onLinkPlayer).toHaveBeenCalledWith("leader-guest", "#TESTOTHER");
+    expect(await screen.findByRole("status")).toHaveTextContent("Other Member is linked to Linus");
+    expect(screen.queryByRole("searchbox", { name: "Find a member" })).not.toBeInTheDocument();
+  });
+
+  it("unlinks one player per menu item, after confirmation", async () => {
+    const user = userEvent.setup();
+    const props = renderAccess();
+    const menu = await openMenu(user, "Actions for Ada");
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Link player", "Unlink Ada Main", "Unlink Ada Alt", "Demote to leader", "Revoke access",
+    ]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Unlink Ada Alt" }));
+    expect(props.confirmAction).toHaveBeenCalledWith("Unlink Ada Alt from Ada?");
+    expect(props.onUnlinkPlayer).toHaveBeenCalledWith("admin-two", "#TESTADALT");
+  });
+
+  it("describes link events in the access log", async () => {
+    const user = userEvent.setup();
+    const linkEvents: AccessAuditPage = { offset: 0, total: 3, events: [
+      { id: "claimed", eventType: "player_claimed", actorName: "Linus", targetName: "Linus", eventData: { playerTag: "#TESTFREE" }, occurredAt: local(2026, 8, 4, 21, 10) },
+      { id: "linked", eventType: "player_linked", actorName: "Nick", targetName: "Ada", eventData: { playerTag: "#TESTADALT" }, occurredAt: local(2026, 8, 4, 21, 9) },
+      { id: "unlinked", eventType: "player_unlinked", actorName: "Nick", targetName: "Grace", eventData: { playerTag: "#TESTGRACE" }, occurredAt: local(2026, 8, 4, 21, 8) },
+    ] };
+    renderAccess({ auditPage: linkEvents });
+    await user.click(screen.getByRole("heading", { name: /Access activity/ }));
+    expect(screen.getByText("Linus claimed #TESTFREE")).toBeVisible();
+    expect(screen.getByText("Nick linked #TESTADALT to Ada")).toBeVisible();
+    expect(screen.getByText("Nick unlinked #TESTGRACE from Grace")).toBeVisible();
   });
 
   /* #117: exception-only reporting, applied to the section. */

@@ -10,8 +10,10 @@ export type ResolvedAppSession =
   | { status: "signed_out" }
   | { status: "access_denied"; message: string }
   /* `isOperator` is orthogonal to `role` (#117): it decides who sees the
-   * Collector section of Admin and is never a route in by itself. */
-  | { status: "signed_in"; displayName: string; role: "leader" | "admin"; isOperator: boolean };
+   * Collector section of Admin and is never a route in by itself.
+   * `needsPlayerChoice` (#134): no linked player and no guest choice yet, so the
+   * claim screen stands in front of every route until it is answered. */
+  | { status: "signed_in"; displayName: string; role: "leader" | "admin"; isOperator: boolean; needsPlayerChoice: boolean };
 
 interface QueryResult<T> { data: T; error: AuthError | null }
 
@@ -25,7 +27,8 @@ export interface SessionClient {
   auth: {
     getSession(): Promise<{ data: { session: { user: { id: string } } | null }; error: AuthError | null }>;
   };
-  from(table: "profiles"): QueryBuilder<{ display_name: string }>;
+  from(table: "profiles"): QueryBuilder<{ display_name: string; player_link_declined_at?: string | null }>;
+  from(table: "profile_player_links"): QueryBuilder<Array<{ player_tag: string }>>;
   rpc(name: "has_app_role", args: { required_role: "leader" | "admin" | "operator" }): Promise<QueryResult<boolean>>;
 }
 
@@ -86,20 +89,23 @@ export async function resolveAppSession(client: SessionClient): Promise<Resolved
   if (!sessionData.session) return { status: "signed_out" };
 
   const userId = sessionData.session.user.id;
-  const [profileResult, adminResult, leaderResult, operatorResult] = await Promise.all([
-    client.from("profiles").select("display_name").eq("id", userId).single(),
+  const [profileResult, linkResult, adminResult, leaderResult, operatorResult] = await Promise.all([
+    client.from("profiles").select("display_name,player_link_declined_at").eq("id", userId).single(),
+    client.from("profile_player_links").select("player_tag").eq("user_id", userId),
     client.rpc("has_app_role", { required_role: "admin" }),
     client.rpc("has_app_role", { required_role: "leader" }),
     client.rpc("has_app_role", { required_role: "operator" }),
   ]);
   if (profileResult.error) throw new Error(profileResult.error.message);
+  if (linkResult.error) throw new Error(linkResult.error.message);
   if (adminResult.error) throw new Error(adminResult.error.message);
   if (leaderResult.error) throw new Error(leaderResult.error.message);
   if (operatorResult.error) throw new Error(operatorResult.error.message);
 
   const role = adminResult.data ? "admin" : leaderResult.data ? "leader" : undefined;
   if (!role) return { status: "access_denied", message: "Your account does not have active leader access." };
-  return { status: "signed_in", displayName: profileResult.data.display_name, role, isOperator: operatorResult.data === true };
+  const needsPlayerChoice = !linkResult.data?.length && !profileResult.data.player_link_declined_at;
+  return { status: "signed_in", displayName: profileResult.data.display_name, role, isOperator: operatorResult.data === true, needsPlayerChoice };
 }
 
 export async function redeemCallbackInvitation(
