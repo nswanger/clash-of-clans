@@ -31,7 +31,9 @@ interface BrowserLocation {
 interface LiveAppProps {
   client: LiveSessionClient;
   location: BrowserLocation;
-  children?: ReactNode | ((session: Extract<AppSession, { status: "signed_in" }>) => ReactNode);
+  /* `reloadSession` is how the claim screen (#134) hands back: answering it
+     changes `needsPlayerChoice`, and the session is what decides the routes. */
+  children?: ReactNode | ((session: Extract<AppSession, { status: "signed_in" }>, reloadSession: () => void) => ReactNode);
   navigation?: { replaceState(path: string): void; assign(path: string): void };
   basePath?: string;
 }
@@ -51,6 +53,7 @@ function browserRedemptionStorage() {
 
 export function LiveApp({ client, location, children, navigation = defaultNavigation, basePath = "/" }: LiveAppProps) {
   const [session, setSession] = useState<AppSession>({ status: "loading" });
+  const [sessionVersion, setSessionVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -80,7 +83,7 @@ export function LiveApp({ client, location, children, navigation = defaultNaviga
       active = false;
       data.subscription.unsubscribe();
     };
-  }, [basePath, client, location.href, navigation]);
+  }, [basePath, client, location.href, navigation, sessionVersion]);
 
   return (
     <App
@@ -106,7 +109,9 @@ export function LiveApp({ client, location, children, navigation = defaultNaviga
         });
       }}
     >
-      {session.status === "signed_in" && typeof children === "function" ? children(session) : typeof children === "function" ? null : children}
+      {session.status === "signed_in" && typeof children === "function"
+        ? children(session, () => setSessionVersion((version) => version + 1))
+        : typeof children === "function" ? null : children}
     </App>
   );
 }

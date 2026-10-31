@@ -153,6 +153,65 @@ test("hides the Collector board from an admin who is not an operator", async ({ 
   await expect(page.getByRole("heading", { name: "Collector" })).toBeHidden();
 });
 
+/* #134: an account with no linked player and no guest choice meets the claim
+   screen before any route. The default fixture links the e2e account, so these
+   specs remove that link from the stored fixture first. */
+async function unlinkE2EAccount(page: Page) {
+  await page.evaluate(() => {
+    const key = "e2e:fixture";
+    const fixture = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+    fixture.profile_player_links = (fixture.profile_player_links ?? []).filter((link: { user_id: string }) => link.user_id !== "e2e-user");
+    window.localStorage.setItem(key, JSON.stringify(fixture));
+  });
+  await page.reload();
+}
+
+test("asks an unlinked account which member it is, then opens the app", async ({ page }) => {
+  await page.goto("/#/members");
+  await unlinkE2EAccount(page);
+  await expect(page.getByRole("heading", { level: 1, name: "Which member are you?" })).toBeVisible();
+  await page.getByRole("searchbox", { name: "Find a member" }).fill("sa");
+  await page.getByRole("button", { name: /Sam/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Members" })).toBeVisible();
+  await expect.poll(() => lastMutation(page)).toContain("rpc:claim_player");
+
+  /* The claim stands: a reload goes straight to the route. */
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "Members" })).toBeVisible();
+});
+
+test("lets an account that is not in the clan continue as a guest", async ({ page }) => {
+  await page.goto("/#/admin");
+  await unlinkE2EAccount(page);
+  await page.getByRole("button", { name: "Not in the clan" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Admin" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "Admin" })).toBeVisible();
+});
+
+test("links and unlinks a leader's player from Admin, and logs both", async ({ page }) => {
+  await page.goto("/#/admin");
+  await expect(page.getByText("guest", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Actions for Other Leader" }).click();
+  await page.getByRole("menuitem", { name: "Link player" }).click();
+  await page.getByRole("searchbox", { name: "Find a member" }).fill("kira");
+  await page.getByRole("button", { name: /Kira/ }).click();
+  await expect.poll(() => lastMutation(page)).toContain("rpc:link_player");
+  await expect(page.getByText("Kira", { exact: true })).toBeVisible();
+  await expect(page.getByText("guest", { exact: true })).toBeHidden();
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Actions for Other Leader" }).click();
+  await page.getByRole("menuitem", { name: "Unlink Kira" }).click();
+  await expect.poll(() => lastMutation(page)).toContain("rpc:unlink_player");
+  await expect(page.getByText("guest", { exact: true })).toBeVisible();
+
+  await page.getByRole("heading", { name: /^Access activity/ }).click();
+  await expect(page.getByText("E2E Leader linked #KIRA to Other Leader")).toBeVisible();
+  await expect(page.getByText("E2E Leader unlinked #KIRA from Other Leader")).toBeVisible();
+});
+
 test("opens the CWL route on the phase the season is actually in", async ({ page }) => {
   /* The fixture season has a live war day, so the default is the lineup. The
      phase is a control rather than a hidden conditional, and it travels as a

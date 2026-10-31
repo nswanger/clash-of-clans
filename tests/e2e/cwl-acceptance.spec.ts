@@ -266,6 +266,9 @@ async function buildAcceptanceFixture() {
     collection_attempts: { run_id: collection.runId },
     collection_runs: { status: "healthy", last_fresh_at: collection.lastFreshAt, error_message: null },
     user_roles: [{ user_id: "e2e-user", role: "admin", profiles: { display_name: "Acceptance Leader" } }],
+    /* Linked, so the acceptance run opens on the CWL route rather than on the
+       claim screen (#134). */
+    profile_player_links: [{ user_id: "e2e-user", player_tag: "#CORE3", linked_by: "e2e-user" }],
   };
   return { fixture };
 }

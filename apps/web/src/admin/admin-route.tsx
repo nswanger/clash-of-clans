@@ -14,6 +14,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createInvitation,
   demoteAdmin,
+  linkPlayer,
+  loadLinkablePlayers,
   loadAccessAuditPage,
   loadAccessManagement,
   loadCollectionHealth,
@@ -21,6 +23,7 @@ import {
   reissueInvitation,
   revokeAccess,
   revokeInvitation,
+  unlinkPlayer,
   type AccessAuditPage,
   type AccessManagementClient,
   type AccessManagementSnapshot,
@@ -39,7 +42,7 @@ function invitationUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, "")}/?invitation=${encodeURIComponent(token)}`;
 }
 
-export function AdminRoute({ client, origin, isOperator }: { client: AccessManagementClient; origin: string; isOperator: boolean }) {
+export function AdminRoute({ client, clanTag, origin, isOperator }: { client: AccessManagementClient; clanTag: string; origin: string; isOperator: boolean }) {
   const [snapshot, setSnapshot] = useState<AccessManagementSnapshot>();
   const [auditPage, setAuditPage] = useState<AccessAuditPage>();
   const [auditOffset, setAuditOffset] = useState(0);
@@ -109,6 +112,9 @@ export function AdminRoute({ client, origin, isOperator }: { client: AccessManag
     onPromote={(id) => refreshAfter(() => promoteLeader(client, id))}
     onDemote={(id) => refreshAfter(() => demoteAdmin(client, id))}
     onRevokeAccess={(id) => refreshAfter(() => revokeAccess(client, id))}
+    onLoadLinkablePlayers={() => loadLinkablePlayers(client, clanTag)}
+    onLinkPlayer={(userId, playerTag) => refreshAfter(() => linkPlayer(client, userId, playerTag))}
+    onUnlinkPlayer={(userId, playerTag) => refreshAfter(() => unlinkPlayer(client, userId, playerTag))}
     onCopyInvitation={(value) => navigator.clipboard.writeText(value)}
     confirmAction={(message) => window.confirm(message)}
   />;

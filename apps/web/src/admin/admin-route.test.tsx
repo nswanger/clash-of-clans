@@ -5,7 +5,7 @@ import type { AccessManagementSnapshot } from "../data/operations.js";
 import { AdminRoute } from "./admin-route.js";
 
 const snapshot: AccessManagementSnapshot = {
-  people: [{ id: "admin-self", name: "Nick", role: "admin", isOperator: true, isCurrentUser: true }],
+  people: [{ id: "admin-self", name: "Nick", role: "admin", isOperator: true, isCurrentUser: true, players: [] }],
   invitations: [],
   auditEvents: [],
 };
@@ -49,7 +49,7 @@ describe("AdminRoute", () => {
       error: null,
     }));
 
-    render(<AdminRoute client={clientFor(rpc)} origin="https://ops.test/clash-of-clans/" isOperator={false} />);
+    render(<AdminRoute client={clientFor(rpc)} clanTag="#TESTCLAN" origin="https://ops.test/clash-of-clans/" isOperator={false} />);
 
     expect(await screen.findByText("Nick")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Create invitation" }));
@@ -64,7 +64,7 @@ describe("AdminRoute", () => {
       .mockResolvedValueOnce({ data: null, error: { message: "Temporary failure" } })
       .mockResolvedValueOnce({ data: snapshot, error: null });
 
-    render(<AdminRoute client={clientFor(rpc)} origin="https://ops.test/" isOperator={false} />);
+    render(<AdminRoute client={clientFor(rpc)} clanTag="#TESTCLAN" origin="https://ops.test/" isOperator={false} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Temporary failure");
     await user.click(screen.getByRole("button", { name: "Retry" }));
@@ -75,12 +75,12 @@ describe("AdminRoute", () => {
      is behind it, and the board is the operator's alone. */
   it("carries the access-log total on the closed head and shows the board only to an operator", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: snapshot, error: null });
-    const { unmount } = render(<AdminRoute client={clientFor(rpc)} origin="https://ops.test/" isOperator={false} />);
+    const { unmount } = render(<AdminRoute client={clientFor(rpc)} clanTag="#TESTCLAN" origin="https://ops.test/" isOperator={false} />);
     expect(await screen.findByRole("heading", { name: /^Access activity/ })).toHaveTextContent("Access activity 12");
     expect(screen.queryByRole("heading", { name: "Collector" })).not.toBeInTheDocument();
     unmount();
 
-    render(<AdminRoute client={clientFor(rpc)} origin="https://ops.test/" isOperator={true} />);
+    render(<AdminRoute client={clientFor(rpc)} clanTag="#TESTCLAN" origin="https://ops.test/" isOperator={true} />);
     expect(await screen.findByRole("heading", { name: "Collector" })).toBeVisible();
   });
 });

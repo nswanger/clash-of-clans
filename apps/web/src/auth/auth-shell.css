@@ -48,3 +48,9 @@
   margin: -1px; padding: 0; overflow: hidden; white-space: nowrap;
   clip-path: inset(50%); border: 0;
 }
+
+/* The claim screen (#134). The shell centres a sign-in's one button; here it
+ * holds a list, so the picker fills the column and reads left to right like
+ * every other list in the app. */
+.auth-claim .auth-picker { width: 100%; text-align: left; }
+.auth-shell p.auth-error { color: var(--cm-danger-ink); }

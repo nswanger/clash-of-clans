@@ -136,3 +136,7 @@
   margin: -1px; padding: 0; overflow: hidden; white-space: nowrap;
   clip-path: inset(50%); border: 0;
 }
+
+/* The link panel docked above People's rows (#134). Static when wide, so it
+ * needs the gap a section's own blocks keep from the rows beneath. */
+.admin-page .admin-linkpanel { margin-bottom: var(--cm-space-3); }

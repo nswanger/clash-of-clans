@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { LiveApp } from "./auth/live-app.js";
 import type { LiveSessionClient } from "./auth/live-app.js";
 import { AppRoutes } from "./app-routes.js";
+import { PlayerClaim } from "./auth/player-claim.js";
 import { IconSprite } from "./design/icon.js";
 import { MarkSprite } from "./design/mark.js";
 import { createE2EClient } from "./test/e2e-client.js";
@@ -28,7 +29,9 @@ createRoot(root).render(
     <IconSprite />
     <MarkSprite />
     <LiveApp client={supabase as unknown as LiveSessionClient} location={window.location} basePath={import.meta.env.BASE_URL}>
-      {(session) => <AppRoutes client={supabase} clanTag={activeClanTag} role={session.role} isOperator={session.isOperator} origin={window.location.origin} basePath={import.meta.env.BASE_URL} />}
+      {(session, reloadSession) => session.needsPlayerChoice
+        ? <PlayerClaim client={supabase} clanTag={activeClanTag} onAnswered={reloadSession} />
+        : <AppRoutes client={supabase} clanTag={activeClanTag} role={session.role} isOperator={session.isOperator} origin={window.location.origin} basePath={import.meta.env.BASE_URL} />}
     </LiveApp>
   </StrictMode>,
 );
