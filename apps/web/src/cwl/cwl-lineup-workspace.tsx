@@ -86,14 +86,37 @@ const rotationRank = (member: CwlLineupMember): number =>
 const bonusGap = (member: CwlLineupMember): number =>
   needsBonusStars(member) ? member.stars : 0;
 
+/* When an Available was promised. The roll call tick wins over the row's last
+ * write because the leader ticks in the order members liked the message, and a
+ * later edit to the row must not move a promise to the back. Null for anyone
+ * not available, who is ranked by the availability term instead. */
+export function committedAt(member: CwlLineupMember): string | null {
+  if (member.availability !== "available") return null;
+  return member.rollCallAt ?? member.availabilityRecordedAt;
+}
+
+/* Earlier first; a member with no time sorts after every member with one,
+ * because an unknown time is not a claim to have promised first. */
+function commitmentOrder(left: CwlLineupMember, right: CwlLineupMember): number {
+  const leftAt = committedAt(left);
+  const rightAt = committedAt(right);
+  if (leftAt === rightAt) return 0;
+  if (leftAt === null) return 1;
+  if (rightAt === null) return -1;
+  return Date.parse(leftAt) - Date.parse(rightAt);
+}
+
 /* Availability dominates — an unavailable member is not a candidate at all —
  * and rotation need outranks raw strength, because swapping in someone already
  * at 8★ does nothing for bonus fairness. Ranking by rating alone floats the
- * secured members to the top, which is exactly backwards. */
+ * secured members to the top, which is exactly backwards. Commitment sits below
+ * the star gap: before day 1 everyone is at 0★ and the roll call order decides,
+ * while mid-season it only breaks ties among members equally short. */
 export function sortCandidates(left: CwlLineupMember, right: CwlLineupMember): number {
   return (availabilityRank(left) - availabilityRank(right))
     || (rotationRank(left) - rotationRank(right))
     || (bonusGap(left) - bonusGap(right))
+    || commitmentOrder(left, right)
     || ((right.overallRating ?? -1) - (left.overallRating ?? -1))
     || left.name.localeCompare(right.name);
 }
@@ -125,7 +148,7 @@ export function benchEvidence(shownCount: number, matchedCount: number, lineupFu
   const shown = `${shownCount} of ${matchedCount} shown`;
   return lineupFull
     ? `${shown} · lineup full · open someone in the lineup to swap them out`
-    : `${shown} · ranked by rotation need, then availability`;
+    : shown;
 }
 
 export const LINEUP_FULL_STATUS = "The lineup is full. Open someone in the lineup to swap them out.";
@@ -814,7 +837,9 @@ export function CwlLineupWorkspacePage({ client, clanTag, phase, onPhase, initia
     try {
       await saveAvailability(client, { clanTag, seasonId: snapshot.season.seasonId, playerTag: member.playerTag, status: next, note: "" });
       setSnapshot((current) => current
-        ? { ...current, members: current.members.map((item) => item.playerTag === member.playerTag ? { ...item, availability: next } : item) }
+        ? { ...current, members: current.members.map((item) => item.playerTag === member.playerTag
+            ? { ...item, availability: next, availabilityRecordedAt: new Date().toISOString() }
+            : item) }
         : current);
     } catch (reason) { setStatus(errorText(reason, "Unable to save availability.")); }
   };

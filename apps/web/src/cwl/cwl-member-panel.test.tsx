@@ -10,6 +10,8 @@ function member(overrides: Partial<CwlLineupMember> = {}): CwlLineupMember {
     townHallLevel: 16,
     role: "member",
     availability: "unknown",
+    rollCallAt: null,
+    availabilityRecordedAt: null,
     assignedAttacks: 0,
     completedAttacks: 0,
     stars: 0,
