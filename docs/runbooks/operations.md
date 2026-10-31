@@ -38,7 +38,7 @@ Before making decisions:
 
 - [ ] Confirm the current season, war day, collector status, and freshness.
 - [ ] Review availability changes and resolve `Unknown` entries before filling from the bench.
-- [ ] Build the day's lineup on the CWL route: the bench is ranked by rotation need, then availability, then rating, and each row shows its bonus progress.
+- [ ] Build the day's lineup on the CWL route: the bench is ranked by availability, then rotation need (fewest stars short of 8★ first), then who committed first (roll call order, then when marked Available), then rating, and each row shows its bonus progress.
 - [ ] Save the plan, then work the in-game checklist as each change is made in Clash.
 - [ ] Confirm the resulting lineup matches the selected Balanced allocation unless a current Standings-first override exists.
 - [ ] Review assigned attacks and completed attacks for the current CWL only.

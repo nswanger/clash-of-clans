@@ -251,6 +251,11 @@ export interface CwlLineupMember extends CwlMemberRating {
   townHallLevel: number;
   role: CwlMemberRole;
   availability: CwlAvailability;
+  /* The two halves of when an Available was promised, kept raw so the bench
+     can rank on them (`committedAt` in the workspace): the roll call tick, which
+     survives any later status edit, and the availability row's last write. */
+  rollCallAt: string | null;
+  availabilityRecordedAt: string | null;
   assignedAttacks: number;
   completedAttacks: number;
   stars: number;
@@ -693,7 +698,7 @@ export async function loadCwlLineupWorkspace(
   const [seasonResult, membersResult, availabilityResult, rosterResult, reliabilityResult, starsResult, ratingResult, warResult, warDaysResult, auditResult, collectionResult] = await Promise.all([
     client.from("cwl_seasons").select("clan_tag,season_id,war_size").eq("clan_tag", clanTag).eq("season_id", seasonId).single(),
     client.from("cwl_members").select("player_tag,name,town_hall_level").eq("clan_tag", clanTag).eq("season_id", seasonId).order("name"),
-    client.from("member_availability").select("player_tag,status,recorded_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
+    client.from("member_availability").select("player_tag,status,recorded_at,roll_call_at").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("member_roster_overview").select("player_tag,role,roster_observed_at").eq("clan_tag", clanTag).eq("is_current_member", true),
     client.from("cwl_member_reliability").select("player_tag,assigned_opportunities,completed_assigned_attacks").eq("clan_tag", clanTag).eq("season_id", seasonId),
     client.from("cwl_member_stars").select("player_tag,stars").eq("clan_tag", clanTag).eq("season_id", seasonId),
@@ -749,8 +754,9 @@ export async function loadCwlLineupWorkspace(
   ensureSuccess(attackEvidenceResult[0], "Unable to load attack assignments");
   ensureSuccess(attackEvidenceResult[1], "Unable to load attack evidence");
 
-  const availabilityRows = rows<{ player_tag: string; status: CwlAvailability; recorded_at: string | null }>(availabilityResult.data);
+  const availabilityRows = rows<{ player_tag: string; status: CwlAvailability; recorded_at: string | null; roll_call_at: string | null }>(availabilityResult.data);
   const availability = new Map(availabilityRows.map((row) => [row.player_tag, row.status]));
+  const availabilityTimes = new Map(availabilityRows.map((row) => [row.player_tag, row]));
   const roleRows = rows<{ player_tag: string; role: string; roster_observed_at: string | null }>(rosterResult.data);
   const roles = new Map(roleRows.map((row) => [row.player_tag, {
     role: normalizeClanRole(row.role),
@@ -776,6 +782,8 @@ export async function loadCwlLineupWorkspace(
       townHallLevel: member.town_hall_level,
       role: roles.get(member.player_tag)?.role ?? "unknown",
       availability: availability.get(member.player_tag) ?? "unknown",
+      rollCallAt: availabilityTimes.get(member.player_tag)?.roll_call_at ?? null,
+      availabilityRecordedAt: availabilityTimes.get(member.player_tag)?.recorded_at ?? null,
       assignedAttacks: evidence?.assigned_opportunities ?? 0,
       completedAttacks: evidence?.completed_assigned_attacks ?? 0,
       stars: stars.get(member.player_tag) ?? 0,

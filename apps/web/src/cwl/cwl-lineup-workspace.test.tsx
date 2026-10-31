@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   benchEvidence,
+  committedAt,
   hasRevisionConflict,
   isBonusSecured,
   membershipDiff,
@@ -20,6 +21,8 @@ function member(overrides: Partial<CwlLineupMember> = {}): CwlLineupMember {
     townHallLevel: 15,
     role: "member",
     availability: "unknown",
+    rollCallAt: null,
+    availabilityRecordedAt: null,
     assignedAttacks: 0,
     completedAttacks: 0,
     stars: 0,
@@ -98,6 +101,32 @@ describe("candidate ranking", () => {
      * which is the same order the Bonus priority rail reads in reverse. */
     expect(rankCandidates(roster, [], "").map((candidate) => candidate.playerTag))
       .toEqual(["#SHORT", "#TURN", "#SOLID", "#SECURED", "#UNKNOWN", "#OUT"]);
+  });
+
+  it("ranks the roll call order among members equally short, before rating", () => {
+    /* Day 1: everyone at 0★. The leader ticks the roll call in the order the
+     * likes arrived, seconds apart, and that order must survive onto the bench
+     * even against a stronger member who answered later. */
+    const first = member({ playerTag: "#FIRST", name: "Zed", availability: "available", rollCallAt: "2026-10-30T18:00:01.000Z", overallRating: 40 });
+    const second = member({ playerTag: "#SECOND", name: "Amy", availability: "available", rollCallAt: "2026-10-30T18:00:03.000Z", overallRating: 95 });
+    const midSeason = member({ playerTag: "#LATE", name: "Bo", availability: "available", availabilityRecordedAt: "2026-11-03T09:00:00.000Z", overallRating: 99 });
+    const untimed = member({ playerTag: "#UNTIMED", name: "Cy", availability: "available", overallRating: 99 });
+    expect(rankCandidates([untimed, midSeason, second, first], [], "").map((candidate) => candidate.playerTag))
+      .toEqual(["#FIRST", "#SECOND", "#LATE", "#UNTIMED"]);
+  });
+
+  it("keeps fewest stars above commitment, so an early promise only breaks ties", () => {
+    const earlyAtFour = member({ playerTag: "#EARLY", availability: "available", stars: 4, rollCallAt: "2026-10-30T18:00:01.000Z" });
+    const lateAtOne = member({ playerTag: "#LATE", availability: "available", stars: 1, availabilityRecordedAt: "2026-11-03T09:00:00.000Z" });
+    expect(rankCandidates([earlyAtFour, lateAtOne], [], "").map((candidate) => candidate.playerTag))
+      .toEqual(["#LATE", "#EARLY"]);
+  });
+
+  it("dates a promise from the roll call even after the row is edited again", () => {
+    /* Withdrawn and restored mid-season: `recorded_at` moved, `roll_call_at` did not. */
+    expect(committedAt(member({ availability: "available", rollCallAt: "2026-10-30T18:00:01.000Z", availabilityRecordedAt: "2026-11-04T12:00:00.000Z" })))
+      .toBe("2026-10-30T18:00:01.000Z");
+    expect(committedAt(member({ availability: "unavailable", rollCallAt: "2026-10-30T18:00:01.000Z" }))).toBeNull();
   });
 
   it("never offers someone already in the lineup", () => {
@@ -198,8 +227,8 @@ describe("the bench cap", () => {
   });
 
   it("always says how many of the matched candidates are on screen", () => {
-    expect(benchEvidence(10, 34, false)).toBe("10 of 34 shown · ranked by rotation need, then availability");
-    expect(benchEvidence(2, 2, false)).toBe("2 of 2 shown · ranked by rotation need, then availability");
+    expect(benchEvidence(10, 34, false)).toBe("10 of 34 shown");
+    expect(benchEvidence(2, 2, false)).toBe("2 of 2 shown");
   });
 
   it("says the lineup is full instead of offering to add someone", () => {
