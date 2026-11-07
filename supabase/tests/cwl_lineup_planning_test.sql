@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(28);
+SELECT plan(29);
 
 SELECT has_table('public', 'cwl_daily_lineup_plans', 'daily lineup plan table exists');
 SELECT has_table('public', 'cwl_daily_lineup_plan_members', 'daily lineup plan members table exists');
@@ -135,9 +135,15 @@ SELECT is(
 );
 SELECT throws_ok(
     $$SELECT public.save_cwl_daily_lineup_plan('#LINEUP', '2026-08', 1::smallint, 2, '["#ALPHA"]'::jsonb)$$,
-    '40001',
+    'PT409',
     'CWL lineup is stale; reload latest',
     'stale plan saves fail without overwriting current state'
+);
+-- PostgREST retries SQLSTATE 40001 forever; a function that raises it pins the CPU.
+SELECT is_empty(
+    $$SELECT p.proname FROM pg_proc AS p JOIN pg_namespace AS n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.prosrc LIKE '%40001%'$$,
+    'no public function raises serialization_failure (40001)'
 );
 SELECT is(
     public.set_cwl_daily_lineup_plan_lock('#LINEUP', '2026-08', 1::smallint, 3, true) ->> 'revision',
